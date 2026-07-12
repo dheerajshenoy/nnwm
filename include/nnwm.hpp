@@ -3,8 +3,8 @@
 extern "C"
 {
 #endif
-#include <stdint.h>
-#include <stdlib.h>
+#include <cstdint>
+#include <cstdlib>
 #include <unistd.h>
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
@@ -47,9 +47,9 @@ extern "C"
 /* For brevity's sake, struct members are annotated where they are used. */
 enum nnwm_cursor_mode
 {
-    TINYWL_CURSOR_PASSTHROUGH,
-    TINYWL_CURSOR_MOVE,
-    TINYWL_CURSOR_RESIZE,
+    NNWM_CURSOR_PASSTHROUGH,
+    NNWM_CURSOR_MOVE,
+    NNWM_CURSOR_RESIZE,
 };
 
 struct nnwm_server
