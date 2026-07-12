@@ -224,10 +224,22 @@ server_new_keyboard(nnwm_server *server, wlr_input_device *device)
 void
 server_new_pointer(nnwm_server *server, wlr_input_device *device)
 {
-    /* We don't do anything special with pointers. All of our pointer handling
-     * is proxied through wlr_cursor. On another compositor, you might take this
-     * opportunity to do libinput configuration on the device to set
-     * acceleration, etc. */
+    if (wlr_input_device_is_libinput(device)) {
+        libinput_device *li = wlr_libinput_get_device_handle(device);
+
+        /* Tap-to-click */
+        if (libinput_device_config_tap_get_finger_count(li) > 0)
+            libinput_device_config_tap_set_enabled(li, LIBINPUT_CONFIG_TAP_ENABLED);
+
+        /* Natural scrolling */
+        if (libinput_device_config_scroll_has_natural_scroll(li))
+            libinput_device_config_scroll_set_natural_scroll_enabled(li, true);
+
+        /* Disable touchpad while typing */
+        if (libinput_device_config_dwt_is_available(li))
+            libinput_device_config_dwt_set_enabled(li, LIBINPUT_CONFIG_DWT_ENABLED);
+    }
+
     wlr_cursor_attach_input_device(server->cursor, device);
 }
 

@@ -39,7 +39,9 @@ extern "C"
 #endif
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
+#include <wlr/backend/libinput.h>
 #include <wlr/util/log.h>
+#include <libinput.h>
 #include <xkbcommon/xkbcommon.h>
 #ifdef __cplusplus
 }

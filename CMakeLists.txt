@@ -15,6 +15,7 @@ endif()
 pkg_check_modules(WAYLAND_SERVER REQUIRED wayland-server)
 pkg_check_modules(XKBCOMMON REQUIRED xkbcommon)
 pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols)
+pkg_check_modules(LIBINPUT REQUIRED libinput)
 
 find_program(WAYLAND_SCANNER wayland-scanner REQUIRED)
 
@@ -66,6 +67,7 @@ target_include_directories(nnwm PRIVATE
     ${WLROOTS_INCLUDE_DIRS}
     ${WAYLAND_SERVER_INCLUDE_DIRS}
     ${XKBCOMMON_INCLUDE_DIRS}
+    ${LIBINPUT_INCLUDE_DIRS}
 )
 
 target_compile_definitions(nnwm PRIVATE WLR_USE_UNSTABLE _DEFAULT_SOURCE)
@@ -74,6 +76,7 @@ target_link_libraries(nnwm PRIVATE
     ${WLROOTS_LIBRARIES}
     ${WAYLAND_SERVER_LIBRARIES}
     ${XKBCOMMON_LIBRARIES}
+    ${LIBINPUT_LIBRARIES}
 )
 
 target_compile_options(nnwm PRIVATE
