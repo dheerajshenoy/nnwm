@@ -151,6 +151,7 @@ struct nnwm_output
     struct wlr_box usable_area; /* output area minus exclusive-zone struts */
     int active_workspace;
     struct nnwm_toplevel *last_focused[NNWM_NUM_WORKSPACES];
+    struct nnwm_toplevel *prev_focused[NNWM_NUM_WORKSPACES]; /* focused before last_focused */
     struct wl_listener frame;
     struct wl_listener request_state;
     struct wl_listener destroy;

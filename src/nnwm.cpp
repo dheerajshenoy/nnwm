@@ -251,7 +251,10 @@ focus_toplevel(nnwm_toplevel *toplevel)
     nnwm_output *out = output_for_workspace(server, toplevel->workspace);
     if (out) {
         server->focused_output = out;
-        out->last_focused[toplevel->workspace] = toplevel;
+        int ws = toplevel->workspace;
+        if (out->last_focused[ws] != toplevel)
+            out->prev_focused[ws] = out->last_focused[ws];
+        out->last_focused[ws] = toplevel;
     }
 }
 
@@ -1029,14 +1032,22 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
     int          ws     = toplevel->workspace;
     nnwm_output *out    = output_for_workspace(server, ws);
 
+    bool was_focused = out && out->last_focused[ws] == toplevel;
     if (out && out->last_focused[ws] == toplevel)
         out->last_focused[ws] = nullptr;
+    if (out && out->prev_focused[ws] == toplevel)
+        out->prev_focused[ws] = nullptr;
 
     wl_list_remove(&toplevel->link);
 
     if (out) {
-        nnwm_toplevel *next = out->last_focused[ws];
-        if (!next) next = ws_first(server, out);
+        nnwm_toplevel *next = nullptr;
+        if (was_focused)
+            next = out->prev_focused[ws];   /* jump to previously focused window */
+        if (!next)
+            next = out->last_focused[ws];   /* or the current focus on this ws */
+        if (!next)
+            next = ws_first(server, out);   /* fallback: new master */
         if (next) focus_toplevel(next);
         else      wlr_seat_keyboard_clear_focus(server->seat);
         arrange_windows(server, out);
@@ -1591,6 +1602,7 @@ server_new_output(wl_listener *listener, void *data)
         output->active_workspace = ws < NNWM_NUM_WORKSPACES ? ws : 0;
     }
     memset(output->last_focused, 0, sizeof(output->last_focused));
+    memset(output->prev_focused, 0, sizeof(output->prev_focused));
     if (!server->focused_output)
         server->focused_output = output;
 
