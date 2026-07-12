@@ -55,6 +55,7 @@ main(int argc, char *argv[])
     }
 
     nnwm_server server = {};
+    server.active_workspace = 0;
 
     /* Initialize Lua state for config and keybinding callbacks */
     server.config_inotify_fd = -1;

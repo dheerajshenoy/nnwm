@@ -147,3 +147,13 @@ function nnwm.swap_prev() end
 
 --- Rotate the window list so the last window becomes master.
 function nnwm.cycle() end
+
+--- Switch to workspace `n` (1–9). Hides all windows on the current workspace
+--- and shows all windows on the target workspace.
+---@param n integer  Workspace index (1-indexed)
+function nnwm.switch_workspace(n) end
+
+--- Move the focused window to workspace `n` (1–9). The window is hidden
+--- immediately and focus transfers to the next available window.
+---@param n integer  Workspace index (1-indexed)
+function nnwm.move_to_workspace(n) end

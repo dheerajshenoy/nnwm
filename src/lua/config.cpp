@@ -349,6 +349,26 @@ l_nnwm_cycle(lua_State *L)
     return 0;
 }
 
+static int
+l_nnwm_switch_workspace(lua_State *L)
+{
+    int ws = (int)luaL_checkinteger(L, 1);
+    if (ws < 1 || ws > NNWM_NUM_WORKSPACES)
+        return luaL_error(L, "nnwm.switch_workspace: index must be 1-%d", NNWM_NUM_WORKSPACES);
+    nnwm_action_switch_workspace(get_server(L), ws - 1);
+    return 0;
+}
+
+static int
+l_nnwm_move_to_workspace(lua_State *L)
+{
+    int ws = (int)luaL_checkinteger(L, 1);
+    if (ws < 1 || ws > NNWM_NUM_WORKSPACES)
+        return luaL_error(L, "nnwm.move_to_workspace: index must be 1-%d", NNWM_NUM_WORKSPACES);
+    nnwm_action_move_to_workspace(get_server(L), ws - 1);
+    return 0;
+}
+
 static const struct luaL_Reg nnwm_funcs[] = {
     {"key", l_nnwm_key},
     {"quit", l_nnwm_quit},
@@ -363,6 +383,8 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"swap_next", l_nnwm_swap_next},
     {"swap_prev", l_nnwm_swap_prev},
     {"cycle", l_nnwm_cycle},
+    {"switch_workspace", l_nnwm_switch_workspace},
+    {"move_to_workspace", l_nnwm_move_to_workspace},
     {nullptr, nullptr},
 };
 
