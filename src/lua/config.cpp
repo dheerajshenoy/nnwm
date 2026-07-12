@@ -282,7 +282,7 @@ static int
 l_nnwm_spawn(lua_State *L)
 {
     const char *cmd = luaL_checkstring(L, 1);
-    nnwm_action_spawn(cmd);
+    nnwm_action_spawn(get_server(L), cmd);
     return 0;
 }
 

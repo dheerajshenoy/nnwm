@@ -268,6 +268,8 @@ main(int argc, char *argv[])
     /* Set the WAYLAND_DISPLAY environment variable to our socket and run the
      * startup command if requested. */
     setenv("WAYLAND_DISPLAY", socket, true);
+    server.wayland_started = true;
+    nnwm_flush_autostart(&server);
     /* Unset DISPLAY so clients don't try to connect to a non-existent X server.
      * Without this, toolkits like GLFW/SDL that support both X11 and Wayland
      * will attempt X11 first (because $DISPLAY is set from the parent TTY

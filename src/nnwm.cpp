@@ -288,11 +288,36 @@ nnwm_action_close(nnwm_server *server)
 }
 
 void
-nnwm_action_spawn(const char *cmd)
+nnwm_action_spawn(nnwm_server *server, const char *cmd)
 {
+    if (!server->wayland_started) {
+        /* Queue until WAYLAND_DISPLAY is set and the backend is running */
+        if (server->autostart_count >= server->autostart_cap) {
+            server->autostart_cap = server->autostart_cap ? server->autostart_cap * 2 : 8;
+            server->autostart_cmds = static_cast<char**>(
+                std::realloc(server->autostart_cmds,
+                             sizeof(char*) * server->autostart_cap));
+        }
+        server->autostart_cmds[server->autostart_count++] = strdup(cmd);
+        return;
+    }
     if (fork() == 0)
-        execl("/bin/sh", "/bin/sh", "-c", cmd,
-              static_cast<char*>(nullptr));
+        execl("/bin/sh", "/bin/sh", "-c", cmd, static_cast<char*>(nullptr));
+}
+
+void
+nnwm_flush_autostart(nnwm_server *server)
+{
+    for (int i = 0; i < server->autostart_count; i++) {
+        if (fork() == 0)
+            execl("/bin/sh", "/bin/sh", "-c", server->autostart_cmds[i],
+                  static_cast<char*>(nullptr));
+        free(server->autostart_cmds[i]);
+    }
+    free(server->autostart_cmds);
+    server->autostart_cmds  = nullptr;
+    server->autostart_count = 0;
+    server->autostart_cap   = 0;
 }
 
 void

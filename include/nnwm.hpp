@@ -124,6 +124,12 @@ struct nnwm_server
     int active_workspace;
     struct nnwm_toplevel *last_focused[NNWM_NUM_WORKSPACES];
 
+    /* Autostart: commands queued from config before WAYLAND_DISPLAY is ready */
+    char   **autostart_cmds;
+    int      autostart_count;
+    int      autostart_cap;
+    bool     wayland_started;
+
     struct nnwm_config *config;
     char *config_path;
     int config_inotify_fd;
@@ -228,7 +234,8 @@ void seat_request_set_selection(struct wl_listener *, void *);
 /* Compositor actions callable from Lua keybinding callbacks */
 void nnwm_action_quit(struct nnwm_server *server);
 void nnwm_action_close(struct nnwm_server *server);
-void nnwm_action_spawn(const char *cmd);
+void nnwm_action_spawn(struct nnwm_server *server, const char *cmd);
+void nnwm_flush_autostart(struct nnwm_server *server);
 void nnwm_action_focus_left(struct nnwm_server *server);
 void nnwm_action_focus_right(struct nnwm_server *server);
 void nnwm_action_focus_next(struct nnwm_server *server);
