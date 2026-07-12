@@ -474,6 +474,9 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_pushboolean(L, cfg->touchpad_disable_while_typing);
     lua_setfield(L, -2, "touchpad_disable_while_typing");
 
+    lua_pushboolean(L, cfg->focus_follows_mouse);
+    lua_setfield(L, -2, "focus_follows_mouse");
+
     lua_pop(L, 1);
 }
 
@@ -521,6 +524,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                                   cfg->touchpad_natural_scroll);
     cfg->touchpad_disable_while_typing = get_bool_field(
         L, "touchpad_disable_while_typing", cfg->touchpad_disable_while_typing);
+    cfg->focus_follows_mouse = get_bool_field(L, "focus_follows_mouse",
+                                              cfg->focus_follows_mouse);
 
     char *s;
     s = get_string_field(L, "cursor_theme", cfg->cursor_theme);
@@ -702,6 +707,8 @@ nnwm_config_defaults(void)
     cfg->touchpad_tap_to_click         = true;
     cfg->touchpad_natural_scroll       = true;
     cfg->touchpad_disable_while_typing = true;
+
+    cfg->focus_follows_mouse = false;
 
     return cfg;
 }

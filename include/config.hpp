@@ -45,6 +45,9 @@ struct nnwm_config
     bool touchpad_tap_to_click;
     bool touchpad_natural_scroll;
     bool touchpad_disable_while_typing;
+
+    /* Focus */
+    bool focus_follows_mouse;
 };
 
 #ifdef __cplusplus

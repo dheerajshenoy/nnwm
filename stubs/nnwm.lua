@@ -95,6 +95,8 @@ KEY = {}
 ---@field touchpad_tap_to_click         boolean  Enable tap-to-click (default: true)
 ---@field touchpad_natural_scroll       boolean  Natural/reverse scroll direction (default: true)
 ---@field touchpad_disable_while_typing boolean  Disable touchpad while typing (default: true)
+--- Focus
+---@field focus_follows_mouse  boolean  Automatically focus the window under the cursor (default: false)
 nnwm = {}
 
 ---Register a keybinding. `combo` is an array of modifier and key name strings;
