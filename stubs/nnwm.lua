@@ -86,6 +86,7 @@ KEY = {}
 --- Keyboard
 ---@field keyboard_repeat_rate  integer  Key repeat rate in keys/sec (default: 25)
 ---@field keyboard_repeat_delay integer  Delay before repeat starts in ms (default: 600)
+---@field xkb_options  string  Comma-separated XKB options, e.g. `"caps:escape,compose:ralt"` (default: "")
 --- Cursor
 ---@field cursor_theme  string   Xcursor theme name (default: "default")
 ---@field cursor_size   integer  Cursor size in pixels (default: 24)
