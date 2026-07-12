@@ -370,6 +370,20 @@ l_nnwm_move_to_workspace(lua_State *L)
 }
 
 static int
+l_nnwm_master_ratio_grow(lua_State *L)
+{
+    nnwm_action_master_ratio_grow(get_server(L));
+    return 0;
+}
+
+static int
+l_nnwm_master_ratio_shrink(lua_State *L)
+{
+    nnwm_action_master_ratio_shrink(get_server(L));
+    return 0;
+}
+
+static int
 l_nnwm_toggle_float(lua_State *L)
 {
     nnwm_action_toggle_float(get_server(L));
@@ -399,6 +413,8 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"cycle", l_nnwm_cycle},
     {"switch_workspace", l_nnwm_switch_workspace},
     {"move_to_workspace", l_nnwm_move_to_workspace},
+    {"master_ratio_grow", l_nnwm_master_ratio_grow},
+    {"master_ratio_shrink", l_nnwm_master_ratio_shrink},
     {"toggle_float", l_nnwm_toggle_float},
     {"toggle_fullscreen", l_nnwm_toggle_fullscreen},
     {nullptr, nullptr},

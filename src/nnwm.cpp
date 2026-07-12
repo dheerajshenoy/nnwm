@@ -474,6 +474,26 @@ nnwm_action_switch_workspace(nnwm_server *server, int ws)
 }
 
 void
+nnwm_action_master_ratio_grow(nnwm_server *server)
+{
+    nnwm_config *cfg = server->config;
+    cfg->master_ratio += cfg->master_ratio_step;
+    if (cfg->master_ratio > cfg->master_ratio_max)
+        cfg->master_ratio = cfg->master_ratio_max;
+    arrange_windows(server);
+}
+
+void
+nnwm_action_master_ratio_shrink(nnwm_server *server)
+{
+    nnwm_config *cfg = server->config;
+    cfg->master_ratio -= cfg->master_ratio_step;
+    if (cfg->master_ratio < cfg->master_ratio_min)
+        cfg->master_ratio = cfg->master_ratio_min;
+    arrange_windows(server);
+}
+
+void
 nnwm_action_toggle_float(nnwm_server *server)
 {
     nnwm_toplevel *tl = get_focused_toplevel(server);

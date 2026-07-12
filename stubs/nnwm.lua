@@ -124,6 +124,12 @@ function nnwm.close() end
 ---@param cmd string  Shell command to execute
 function nnwm.spawn(cmd) end
 
+--- Increase the master column width by `master_ratio_step`, up to `master_ratio_max`.
+function nnwm.master_ratio_grow() end
+
+--- Decrease the master column width by `master_ratio_step`, down to `master_ratio_min`.
+function nnwm.master_ratio_shrink() end
+
 --- Focus the master window (first in the tiling list).
 function nnwm.focus_left() end
 

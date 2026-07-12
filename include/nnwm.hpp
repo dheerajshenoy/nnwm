@@ -251,6 +251,8 @@ void nnwm_action_swap_prev(struct nnwm_server *server);
 void nnwm_action_cycle(struct nnwm_server *server);
 void nnwm_action_switch_workspace(struct nnwm_server *server, int ws);
 void nnwm_action_move_to_workspace(struct nnwm_server *server, int ws);
+void nnwm_action_master_ratio_grow(struct nnwm_server *server);
+void nnwm_action_master_ratio_shrink(struct nnwm_server *server);
 void nnwm_action_toggle_float(struct nnwm_server *server);
 void nnwm_action_toggle_fullscreen(struct nnwm_server *server);
 
