@@ -3,8 +3,8 @@
 int
 main(int argc, char *argv[])
 {
-    wlr_log_init(WLR_DEBUG, NULL);
-    char *startup_cmd = NULL;
+    wlr_log_init(WLR_DEBUG, nullptr);
+    char *startup_cmd = nullptr;
 
     int c;
     while ((c = getopt(argc, argv, "s:h")) != -1)
@@ -25,7 +25,7 @@ main(int argc, char *argv[])
         return 0;
     }
 
-    struct tinywl_server server = {0};
+    tinywl_server server = {};
     /* The Wayland display is managed by libwayland. It handles accepting
      * clients from the Unix socket, managing Wayland globals, and so on. */
     server.wl_display           = wl_display_create();
@@ -34,8 +34,8 @@ main(int argc, char *argv[])
      * backend based on the current environment, such as opening an X11 window
      * if an X11 server is running. */
     server.backend              = wlr_backend_autocreate(
-        wl_display_get_event_loop(server.wl_display), NULL);
-    if (server.backend == NULL)
+        wl_display_get_event_loop(server.wl_display), nullptr);
+    if (server.backend == nullptr)
     {
         wlr_log(WLR_ERROR, "failed to create wlr_backend");
         return 1;
@@ -46,7 +46,7 @@ main(int argc, char *argv[])
      * The renderer is responsible for defining the various pixel formats it
      * supports for shared memory, this configures that for clients. */
     server.renderer = wlr_renderer_autocreate(server.backend);
-    if (server.renderer == NULL)
+    if (server.renderer == nullptr)
     {
         wlr_log(WLR_ERROR, "failed to create wlr_renderer");
         return 1;
@@ -60,7 +60,7 @@ main(int argc, char *argv[])
      * screen */
     server.allocator
         = wlr_allocator_autocreate(server.backend, server.renderer);
-    if (server.allocator == NULL)
+    if (server.allocator == nullptr)
     {
         wlr_log(WLR_ERROR, "failed to create wlr_allocator");
         return 1;
@@ -97,6 +97,24 @@ main(int argc, char *argv[])
     server.scene_layout
         = wlr_scene_attach_output_layout(server.scene, server.output_layout);
 
+    /* Create scene sub-trees in Z-order (back to front):
+     *   background → bottom → windows → top → overlay */
+    server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND]
+        = wlr_scene_tree_create(&server.scene->tree);
+    server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM]
+        = wlr_scene_tree_create(&server.scene->tree);
+    server.scene_windows
+        = wlr_scene_tree_create(&server.scene->tree);
+    server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP]
+        = wlr_scene_tree_create(&server.scene->tree);
+    server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY]
+        = wlr_scene_tree_create(&server.scene->tree);
+
+    /* Layer shell (needed by rofi, waybar, etc.) */
+    server.layer_shell               = wlr_layer_shell_v1_create(server.wl_display, 4);
+    server.new_layer_surface.notify  = server_new_layer_surface;
+    wl_signal_add(&server.layer_shell->events.new_surface, &server.new_layer_surface);
+
     /* Set up xdg-shell version 3. The xdg-shell is a Wayland protocol which is
      * used for application windows. For more detail on shells, refer to
      * https://drewdevault.com/2018/07/29/Wayland-shells.html.
@@ -120,7 +138,7 @@ main(int argc, char *argv[])
      * Xcursor themes to source cursor images from and makes sure that cursor
      * images are available at all scale factors on the screen (necessary for
      * HiDPI support). */
-    server.cursor_mgr = wlr_xcursor_manager_create(NULL, 24);
+    server.cursor_mgr = wlr_xcursor_manager_create(nullptr, 24);
 
     /*
      * wlr_cursor *only* displays an image on screen. It does not move around
@@ -189,7 +207,7 @@ main(int argc, char *argv[])
     {
         if (fork() == 0)
         {
-            execl("/bin/sh", "/bin/sh", "-c", startup_cmd, (void *)NULL);
+            execl("/bin/sh", "/bin/sh", "-c", startup_cmd, static_cast<char*>(nullptr));
         }
     }
     /* Run the Wayland event loop. This does not return until you exit the
@@ -204,6 +222,7 @@ main(int argc, char *argv[])
      * server. */
     wl_display_destroy_clients(server.wl_display);
 
+    wl_list_remove(&server.new_layer_surface.link);
     wl_list_remove(&server.new_xdg_toplevel.link);
     wl_list_remove(&server.new_xdg_popup.link);
 

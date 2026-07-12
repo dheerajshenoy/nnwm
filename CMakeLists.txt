@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
-project(nnwm C)
+project(nnwm CXX)
 
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(PkgConfig REQUIRED)
@@ -42,6 +42,7 @@ add_custom_command(
 add_custom_command(
     OUTPUT "${LAYER_SHELL_HEADER}"
     COMMAND "${WAYLAND_SCANNER}" server-header "${LAYER_SHELL_XML}" "${LAYER_SHELL_HEADER}"
+    COMMAND sh -c "sed -i 's/const char [*]namespace/const char *namespace_/g' '${LAYER_SHELL_HEADER}'"
     DEPENDS "${LAYER_SHELL_XML}"
 )
 add_custom_command(
@@ -51,8 +52,8 @@ add_custom_command(
 )
 
 add_executable(nnwm
-    src/main.c
-    src/nnwm.c
+    src/main.cpp
+    src/nnwm.cpp
     "${XDG_SHELL_CODE}"
     "${XDG_SHELL_HEADER}"
     "${LAYER_SHELL_CODE}"
