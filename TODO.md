@@ -19,7 +19,9 @@
 - [ ] Multi-monitor support
 - [ ] Switch monitor focus
 - [ ] Always master window option
-- [ ] Fullscreen
-- [ ] Float window
-- [ ] Floating window mouse window resize
-- [ ] Floating window mouse window move
+- [X] Fullscreen
+- [X] Float window
+- [X] Floating window mouse window resize
+- [X] Floating window mouse window move
+- [X] Focus follows mouse
+- [ ] Allow xkb options
