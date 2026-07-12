@@ -107,6 +107,9 @@ struct nnwm_server
     struct wl_listener new_output;
 
     struct nnwm_config *config;
+    char *config_path;
+    int config_inotify_fd;
+    struct wl_event_source *config_event_source;
 };
 
 struct nnwm_output
@@ -179,6 +182,7 @@ struct nnwm_layer_surface
 extern "C"
 {
 #endif
+void server_apply_config(struct nnwm_server *server);
 void server_new_output(struct wl_listener *, void *);
 void server_new_xdg_toplevel(struct wl_listener *, void *);
 void server_new_xdg_popup(struct wl_listener *, void *);

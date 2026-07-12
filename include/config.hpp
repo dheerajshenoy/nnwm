@@ -37,11 +37,11 @@ struct nnwm_config
     int keyboard_repeat_delay;
 
     /* Cursor */
-    const char *cursor_theme;
-    int         cursor_size;
+    char *cursor_theme;
+    int   cursor_size;
 
     /* Seat */
-    const char *seat_name;
+    char *seat_name;
 
     /* Input (libinput) */
     bool touchpad_tap_to_click;
@@ -49,7 +49,7 @@ struct nnwm_config
     bool touchpad_disable_while_typing;
 
     /* Launcher */
-    const char *launcher_command;
+    char *launcher_command;
 
     /* Keybindings */
     struct nnwm_keybinding key_quit;         /* Super+Shift+C */
@@ -67,6 +67,7 @@ extern "C"
 {
 #endif
 struct nnwm_config *nnwm_config_defaults(void);
+void nnwm_config_free(struct nnwm_config *cfg);
 #ifdef __cplusplus
 }
 #endif
