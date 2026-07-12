@@ -22,6 +22,7 @@ extern "C"
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_subcompositor.h>
 #include <wlr/types/wlr_xcursor_manager.h>
+#include <wlr/types/wlr_layer_shell_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
@@ -45,6 +46,13 @@ struct tinywl_server
     struct wlr_allocator *allocator;
     struct wlr_scene *scene;
     struct wlr_scene_output_layout *scene_layout;
+
+    /* Scene sub-trees ordered back-to-front for proper layering */
+    struct wlr_scene_tree *scene_layers[4]; /* indexed by zwlr_layer_shell_v1_layer */
+    struct wlr_scene_tree *scene_windows;   /* xdg toplevels live here */
+
+    struct wlr_layer_shell_v1 *layer_shell;
+    struct wl_listener new_layer_surface;
 
     struct wlr_xdg_shell *xdg_shell;
     struct wl_listener new_xdg_toplevel;
@@ -120,9 +128,22 @@ struct tinywl_keyboard
     struct wl_listener destroy;
 };
 
+struct tinywl_layer_surface
+{
+    struct tinywl_server *server;
+    struct wlr_layer_surface_v1 *wlr_layer_surface;
+    struct wlr_scene_layer_surface_v1 *scene;
+
+    struct wl_listener map;
+    struct wl_listener unmap;
+    struct wl_listener commit;
+    struct wl_listener destroy;
+};
+
 void server_new_output(struct wl_listener *, void *);
 void server_new_xdg_toplevel(struct wl_listener *, void *);
 void server_new_xdg_popup(struct wl_listener *, void *);
+void server_new_layer_surface(struct wl_listener *, void *);
 void server_cursor_motion(struct wl_listener *, void *);
 void server_cursor_motion_absolute(struct wl_listener *, void *);
 void server_cursor_button(struct wl_listener *, void *);

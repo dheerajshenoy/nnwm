@@ -836,7 +836,7 @@ server_new_xdg_toplevel(struct wl_listener *listener, void *data)
     toplevel->server                 = server;
     toplevel->xdg_toplevel           = xdg_toplevel;
     toplevel->scene_tree             = wlr_scene_xdg_surface_create(
-        &toplevel->server->scene->tree, xdg_toplevel->base);
+        toplevel->server->scene_windows, xdg_toplevel->base);
     toplevel->scene_tree->node.data = toplevel;
     xdg_toplevel->base->data        = toplevel->scene_tree;
 
@@ -921,4 +921,105 @@ server_new_xdg_popup(struct wl_listener *listener, void *data)
 
     popup->destroy.notify = handle_xdg_popup_destroy;
     wl_signal_add(&xdg_popup->events.destroy, &popup->destroy);
+}
+
+/* ---- layer shell ---- */
+
+static void
+arrange_layer_surface(struct tinywl_layer_surface *ls)
+{
+    struct wlr_output *output = ls->wlr_layer_surface->output;
+    if (!output)
+        return;
+
+    struct wlr_box full_area;
+    wlr_output_layout_get_box(ls->server->output_layout, output, &full_area);
+
+    struct wlr_box usable = full_area;
+    wlr_scene_layer_surface_v1_configure(ls->scene, &full_area, &usable);
+}
+
+static void
+layer_surface_map(struct wl_listener *listener, void *data)
+{
+    struct tinywl_layer_surface *ls = wl_container_of(listener, ls, map);
+    arrange_layer_surface(ls);
+
+    if (ls->wlr_layer_surface->current.keyboard_interactive !=
+        ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE)
+    {
+        struct wlr_keyboard *kb = wlr_seat_get_keyboard(ls->server->seat);
+        if (kb)
+            wlr_seat_keyboard_notify_enter(ls->server->seat,
+                ls->wlr_layer_surface->surface,
+                kb->keycodes, kb->num_keycodes, &kb->modifiers);
+    }
+}
+
+static void
+layer_surface_unmap(struct wl_listener *listener, void *data)
+{
+    (void)listener; (void)data;
+}
+
+static void
+layer_surface_commit(struct wl_listener *listener, void *data)
+{
+    struct tinywl_layer_surface *ls = wl_container_of(listener, ls, commit);
+
+    if (ls->wlr_layer_surface->current.committed)
+        arrange_layer_surface(ls);
+
+    if (ls->wlr_layer_surface->surface->mapped &&
+        ls->wlr_layer_surface->current.keyboard_interactive !=
+        ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE)
+    {
+        struct wlr_keyboard *kb = wlr_seat_get_keyboard(ls->server->seat);
+        if (kb)
+            wlr_seat_keyboard_notify_enter(ls->server->seat,
+                ls->wlr_layer_surface->surface,
+                kb->keycodes, kb->num_keycodes, &kb->modifiers);
+    }
+}
+
+static void
+layer_surface_destroy(struct wl_listener *listener, void *data)
+{
+    struct tinywl_layer_surface *ls = wl_container_of(listener, ls, destroy);
+    wl_list_remove(&ls->map.link);
+    wl_list_remove(&ls->unmap.link);
+    wl_list_remove(&ls->commit.link);
+    wl_list_remove(&ls->destroy.link);
+    free(ls);
+}
+
+void
+server_new_layer_surface(struct wl_listener *listener, void *data)
+{
+    struct tinywl_server *server        = wl_container_of(listener, server, new_layer_surface);
+    struct wlr_layer_surface_v1 *wlr_ls = data;
+
+    if (!wlr_ls->output && !wl_list_empty(&server->outputs))
+    {
+        struct tinywl_output *o = wl_container_of(server->outputs.next, o, link);
+        wlr_ls->output = o->wlr_output;
+    }
+
+    struct tinywl_layer_surface *ls = calloc(1, sizeof(*ls));
+    ls->server             = server;
+    ls->wlr_layer_surface  = wlr_ls;
+    ls->scene              = wlr_scene_layer_surface_v1_create(
+        server->scene_layers[wlr_ls->pending.layer], wlr_ls);
+
+    wlr_ls->data = ls;
+
+    ls->map.notify     = layer_surface_map;
+    ls->unmap.notify   = layer_surface_unmap;
+    ls->commit.notify  = layer_surface_commit;
+    ls->destroy.notify = layer_surface_destroy;
+
+    wl_signal_add(&wlr_ls->surface->events.map,    &ls->map);
+    wl_signal_add(&wlr_ls->surface->events.unmap,  &ls->unmap);
+    wl_signal_add(&wlr_ls->surface->events.commit, &ls->commit);
+    wl_signal_add(&wlr_ls->events.destroy,         &ls->destroy);
 }

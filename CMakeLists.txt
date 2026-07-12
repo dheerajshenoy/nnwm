@@ -22,18 +22,32 @@ pkg_get_variable(WAYLAND_PROTOCOLS_DIR wayland-protocols pkgdatadir)
 
 set(XDG_SHELL_XML "${WAYLAND_PROTOCOLS_DIR}/stable/xdg-shell/xdg-shell.xml")
 set(XDG_SHELL_HEADER "${CMAKE_CURRENT_BINARY_DIR}/xdg-shell-protocol.h")
-set(XDG_SHELL_CODE "${CMAKE_CURRENT_BINARY_DIR}/xdg-shell-protocol.c")
+set(XDG_SHELL_CODE   "${CMAKE_CURRENT_BINARY_DIR}/xdg-shell-protocol.c")
+
+set(LAYER_SHELL_XML    "${CMAKE_CURRENT_SOURCE_DIR}/protocol/wlr-layer-shell-unstable-v1.xml")
+set(LAYER_SHELL_HEADER "${CMAKE_CURRENT_BINARY_DIR}/wlr-layer-shell-unstable-v1-protocol.h")
+set(LAYER_SHELL_CODE   "${CMAKE_CURRENT_BINARY_DIR}/wlr-layer-shell-unstable-v1-protocol.c")
 
 add_custom_command(
     OUTPUT "${XDG_SHELL_HEADER}"
     COMMAND "${WAYLAND_SCANNER}" client-header "${XDG_SHELL_XML}" "${XDG_SHELL_HEADER}"
     DEPENDS "${XDG_SHELL_XML}"
 )
-
 add_custom_command(
     OUTPUT "${XDG_SHELL_CODE}"
     COMMAND "${WAYLAND_SCANNER}" private-code "${XDG_SHELL_XML}" "${XDG_SHELL_CODE}"
     DEPENDS "${XDG_SHELL_XML}"
+)
+
+add_custom_command(
+    OUTPUT "${LAYER_SHELL_HEADER}"
+    COMMAND "${WAYLAND_SCANNER}" server-header "${LAYER_SHELL_XML}" "${LAYER_SHELL_HEADER}"
+    DEPENDS "${LAYER_SHELL_XML}"
+)
+add_custom_command(
+    OUTPUT "${LAYER_SHELL_CODE}"
+    COMMAND "${WAYLAND_SCANNER}" private-code "${LAYER_SHELL_XML}" "${LAYER_SHELL_CODE}"
+    DEPENDS "${LAYER_SHELL_XML}"
 )
 
 add_executable(nnwm
@@ -41,6 +55,8 @@ add_executable(nnwm
     src/nnwm.c
     "${XDG_SHELL_CODE}"
     "${XDG_SHELL_HEADER}"
+    "${LAYER_SHELL_CODE}"
+    "${LAYER_SHELL_HEADER}"
 )
 
 target_include_directories(nnwm PRIVATE

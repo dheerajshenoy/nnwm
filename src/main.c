@@ -97,6 +97,24 @@ main(int argc, char *argv[])
     server.scene_layout
         = wlr_scene_attach_output_layout(server.scene, server.output_layout);
 
+    /* Create scene sub-trees in Z-order (back to front):
+     *   background → bottom → windows → top → overlay */
+    server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND]
+        = wlr_scene_tree_create(&server.scene->tree);
+    server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM]
+        = wlr_scene_tree_create(&server.scene->tree);
+    server.scene_windows
+        = wlr_scene_tree_create(&server.scene->tree);
+    server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP]
+        = wlr_scene_tree_create(&server.scene->tree);
+    server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY]
+        = wlr_scene_tree_create(&server.scene->tree);
+
+    /* Layer shell (needed by rofi, waybar, etc.) */
+    server.layer_shell               = wlr_layer_shell_v1_create(server.wl_display, 4);
+    server.new_layer_surface.notify  = server_new_layer_surface;
+    wl_signal_add(&server.layer_shell->events.new_surface, &server.new_layer_surface);
+
     /* Set up xdg-shell version 3. The xdg-shell is a Wayland protocol which is
      * used for application windows. For more detail on shells, refer to
      * https://drewdevault.com/2018/07/29/Wayland-shells.html.
@@ -204,6 +222,7 @@ main(int argc, char *argv[])
      * server. */
     wl_display_destroy_clients(server.wl_display);
 
+    wl_list_remove(&server.new_layer_surface.link);
     wl_list_remove(&server.new_xdg_toplevel.link);
     wl_list_remove(&server.new_xdg_popup.link);
 
