@@ -383,6 +383,15 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_pushnumber(L, cfg->master_ratio_max);
     lua_setfield(L, -2, "master_ratio_max");
 
+    lua_pushinteger(L, cfg->inner_gap);
+    lua_setfield(L, -2, "inner_gap");
+    lua_pushinteger(L, cfg->outer_gap);
+    lua_setfield(L, -2, "outer_gap");
+    lua_pushboolean(L, cfg->smart_gaps);
+    lua_setfield(L, -2, "smart_gaps");
+    lua_pushboolean(L, cfg->smart_borders);
+    lua_setfield(L, -2, "smart_borders");
+
     lua_pushinteger(L, cfg->border_width);
     lua_setfield(L, -2, "border_width");
 
@@ -443,6 +452,10 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     cfg->master_ratio_step = get_float_field(L, "master_ratio_step", cfg->master_ratio_step);
     cfg->master_ratio_min  = get_float_field(L, "master_ratio_min", cfg->master_ratio_min);
     cfg->master_ratio_max  = get_float_field(L, "master_ratio_max", cfg->master_ratio_max);
+    cfg->inner_gap         = get_int_field(L, "inner_gap", cfg->inner_gap);
+    cfg->outer_gap         = get_int_field(L, "outer_gap", cfg->outer_gap);
+    cfg->smart_gaps        = get_bool_field(L, "smart_gaps", cfg->smart_gaps);
+    cfg->smart_borders     = get_bool_field(L, "smart_borders", cfg->smart_borders);
     cfg->border_width      = get_int_field(L, "border_width", cfg->border_width);
 
     float dflt_foc[4] = { cfg->focused_color[0], cfg->focused_color[1],
@@ -623,6 +636,11 @@ nnwm_config_defaults(void)
     cfg->master_ratio_step = 0.05f;
     cfg->master_ratio_min  = 0.1f;
     cfg->master_ratio_max  = 0.9f;
+
+    cfg->inner_gap     = 0;
+    cfg->outer_gap     = 0;
+    cfg->smart_gaps    = false;
+    cfg->smart_borders = false;
 
     cfg->border_width = 2;
     cfg->focused_color[0]   = 0.3f;  cfg->focused_color[1]   = 0.5f;

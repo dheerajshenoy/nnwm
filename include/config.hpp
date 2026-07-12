@@ -19,6 +19,12 @@ struct nnwm_config
     float master_ratio_min;
     float master_ratio_max;
 
+    /* Gaps */
+    int  inner_gap;
+    int  outer_gap;
+    bool smart_gaps;
+    bool smart_borders;
+
     /* Borders */
     int   border_width;
     float focused_color[4];

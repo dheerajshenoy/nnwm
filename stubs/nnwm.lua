@@ -74,6 +74,11 @@ KEY = {}
 ---@field master_ratio_step  number  Step size for master ratio adjustments (default: 0.05)
 ---@field master_ratio_min   number  Minimum master ratio (default: 0.1)
 ---@field master_ratio_max   number  Maximum master ratio (default: 0.9)
+--- Gaps
+---@field inner_gap     integer  Gap in pixels between adjacent windows (default: 0)
+---@field outer_gap     integer  Gap in pixels between windows and the screen edge (default: 0)
+---@field smart_gaps    boolean  Disable gaps when only one window is on screen (default: false)
+---@field smart_borders boolean  Disable borders when only one window is on screen (default: false)
 --- Borders
 ---@field border_width        integer        Border thickness in pixels (default: 2)
 ---@field focused_color       number[]       RGBA color for the focused window border (default: {0.3, 0.5, 0.8, 1.0})

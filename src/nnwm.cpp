@@ -41,36 +41,50 @@ arrange_windows(nnwm_server *server)
     wlr_output_layout_get_box(server->output_layout, first->wlr_output, &area);
 
     int n  = wl_list_length(&server->toplevels);
-    int bw = server->config->border_width;
+    bool solo = (n == 1);
+    int bw = (solo && server->config->smart_borders) ? 0 : server->config->border_width;
+    int ig = (solo && server->config->smart_gaps)    ? 0 : server->config->inner_gap;
+    int og = (solo && server->config->smart_gaps)    ? 0 : server->config->outer_gap;
+
+    /* Shrink usable area by outer gap */
+    int x0 = area.x + og;
+    int y0 = area.y + og;
+    int W  = area.width  - 2 * og;
+    int H  = area.height - 2 * og;
 
     nnwm_toplevel *tl;
     if (n == 1) {
         tl = wl_container_of(server->toplevels.next, tl, link);
-        wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
+        wlr_scene_node_set_position(&tl->scene_tree->node, x0, y0);
         wlr_xdg_toplevel_set_size(tl->xdg_toplevel,
-                                   area.width - 2 * bw, area.height - 2 * bw);
-        update_borders(tl, area.width, area.height);
+                                   W - 2 * bw, H - 2 * bw);
+        update_borders(tl, W, H);
         return;
     }
 
-    int mw = (int)(area.width * server->config->master_ratio);
-    int sw = area.width - mw;
+    /* master column width; stack separated by one inner gap */
+    int mw = (int)(W * server->config->master_ratio);
+    int sw = W - mw - ig;
     int ns = n - 1; /* number of stack windows */
-    int sh = area.height / ns;
+
+    /* Stack height: divide H evenly with (ns-1) inner gaps between rows */
+    int total_stack_gap = (ns - 1) * ig;
+    int sh = (H - total_stack_gap) / ns;
 
     int i = 0;
     wl_list_for_each(tl, &server->toplevels, link) {
         if (i == 0) {
             /* master: left column, full height */
-            wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
+            wlr_scene_node_set_position(&tl->scene_tree->node, x0, y0);
             wlr_xdg_toplevel_set_size(tl->xdg_toplevel,
-                                       mw - 2 * bw, area.height - 2 * bw);
-            update_borders(tl, mw, area.height);
+                                       mw - 2 * bw, H - 2 * bw);
+            update_borders(tl, mw, H);
         } else {
             /* stack: right column, evenly divided rows */
-            int sy = area.y + (i - 1) * sh;
-            int h  = (i < ns) ? sh : area.height - (i - 1) * sh; /* last gets remainder */
-            wlr_scene_node_set_position(&tl->scene_tree->node, area.x + mw, sy);
+            int sy = y0 + (i - 1) * (sh + ig);
+            /* last stack window gets any remaining pixels */
+            int h  = (i < ns) ? sh : H - (i - 1) * (sh + ig);
+            wlr_scene_node_set_position(&tl->scene_tree->node, x0 + mw + ig, sy);
             wlr_xdg_toplevel_set_size(tl->xdg_toplevel,
                                        sw - 2 * bw, h - 2 * bw);
             update_borders(tl, sw, h);
@@ -161,11 +175,15 @@ keyboard_handle_modifiers(wl_listener *listener, void * /*data*/)
 static nnwm_toplevel *
 get_focused_toplevel(nnwm_server *server)
 {
-    if (wl_list_empty(&server->toplevels))
+    wlr_surface *focused = server->seat->keyboard_state.focused_surface;
+    if (!focused)
         return nullptr;
-    nnwm_toplevel *t =
-        wl_container_of(server->toplevels.next, t, link);
-    return t;
+    nnwm_toplevel *t;
+    wl_list_for_each(t, &server->toplevels, link) {
+        if (t->xdg_toplevel->base->surface == focused)
+            return t;
+    }
+    return nullptr;
 }
 
 void
@@ -177,12 +195,9 @@ nnwm_action_quit(nnwm_server *server)
 void
 nnwm_action_close(nnwm_server *server)
 {
-    if (!wl_list_empty(&server->toplevels))
-    {
-        nnwm_toplevel *focused =
-            wl_container_of(server->toplevels.next, focused, link);
+    nnwm_toplevel *focused = get_focused_toplevel(server);
+    if (focused)
         wlr_xdg_toplevel_send_close(focused->xdg_toplevel);
-    }
 }
 
 void
@@ -706,8 +721,16 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
         reset_cursor_mode(toplevel->server);
     }
 
+    nnwm_server *server = toplevel->server;
     wl_list_remove(&toplevel->link);
-    arrange_windows(toplevel->server);
+
+    if (!wl_list_empty(&server->toplevels)) {
+        nnwm_toplevel *next =
+            wl_container_of(server->toplevels.next, next, link);
+        focus_toplevel(next);
+    }
+
+    arrange_windows(server);
 }
 
 void
