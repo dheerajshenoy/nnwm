@@ -4,6 +4,53 @@
 
 extern "C" {
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+}
+
+static bool
+write_default_config(const char *path)
+{
+    /* Create ~/.config/nnwm/ directory if it doesn't exist */
+    char dir[512];
+    std::snprintf(dir, sizeof(dir), "%s/.config/nnwm", getenv("HOME"));
+    mkdir(dir, 0755);
+
+    FILE *f = std::fopen(path, "w");
+    if (!f)
+        return false;
+
+    std::fprintf(f,
+        "-- nnwm configuration\n"
+        "-- See :help nnwm for documentation\n\n"
+        "nnwm.master_ratio = 0.55\n"
+        "nnwm.master_ratio_step = 0.05\n"
+        "nnwm.master_ratio_min = 0.1\n"
+        "nnwm.master_ratio_max = 0.9\n\n"
+        "nnwm.border_width = 2\n"
+        "nnwm.focused_color = {0.3, 0.5, 0.8, 1.0}\n"
+        "nnwm.unfocused_color = {0.15, 0.15, 0.15, 1.0}\n\n"
+        "nnwm.keyboard_repeat_rate = 25\n"
+        "nnwm.keyboard_repeat_delay = 600\n\n"
+        "nnwm.cursor_theme = \"default\"\n"
+        "nnwm.cursor_size = 24\n\n"
+        "nnwm.seat_name = \"seat0\"\n\n"
+        "nnwm.touchpad_tap_to_click = true\n"
+        "nnwm.touchpad_natural_scroll = true\n"
+        "nnwm.touchpad_disable_while_typing = true\n\n"
+        "nnwm.launcher_command = \"rofi -show drun\"\n\n"
+        "nnwm.key_quit         = {MOD.Super + MOD.Shift, \"c\"}\n"
+        "nnwm.key_close        = {MOD.Super + MOD.Shift, \"q\"}\n"
+        "nnwm.key_launcher     = {MOD.Super, \"p\"}\n"
+        "nnwm.key_promote_next = {MOD.Super, \"j\"}\n"
+        "nnwm.key_promote_prev = {MOD.Super, \"k\"}\n"
+        "nnwm.key_shrink_master = {MOD.Super, \"h\"}\n"
+        "nnwm.key_grow_master   = {MOD.Super, \"l\"}\n"
+        "nnwm.key_cycle_windows = {MOD.Alt, \"F1\"}\n"
+    );
+
+    std::fclose(f);
+    return true;
 }
 
 struct nnwm_config *
@@ -98,12 +145,17 @@ main(int argc, char *argv[])
         if (home)
         {
             char path[512];
-            std::snprintf(path, sizeof(path), "%s/.config/nnwm/config.lua", home);
+            std::snprintf(path, sizeof(path), "%s/.config/nnwm/init.lua", home);
             struct stat st;
             if (stat(path, &st) == 0)
+            {
                 server.config = nnwm_config_load(path);
+            }
             else
-                server.config = nnwm_config_defaults();
+            {
+                write_default_config(path);
+                server.config = nnwm_config_load(path);
+            }
         }
         else
         {

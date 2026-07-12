@@ -276,7 +276,7 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     push_kb("key_grow_master",   &cfg->key_grow_master);
     push_kb("key_cycle_windows", &cfg->key_cycle_windows);
 
-    lua_setglobal(L, "config");
+    lua_setglobal(L, "nnwm");
 }
 
 /* ---- read back from Lua config table into C struct ---- */
@@ -284,7 +284,7 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
 static void
 read_config_table(lua_State *L, struct nnwm_config *cfg)
 {
-    lua_getglobal(L, "config");
+    lua_getglobal(L, "nnwm");
     if (!lua_istable(L, -1))
     {
         lua_pop(L, 1);
