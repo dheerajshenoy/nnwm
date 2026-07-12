@@ -495,10 +495,15 @@ keyboard_handle_key(wl_listener *listener, void *data)
     if (!handled && (modifiers & (WLR_MODIFIER_ALT | WLR_MODIFIER_LOGO))
         && event->state == WL_KEYBOARD_KEY_STATE_PRESSED)
     {
-        for (int i = 0; i < nsyms; i++)
-        {
-            handled = handle_keybinding(server, modifiers, syms[i]);
-        }
+        /* Use the base (level-0) keysym so that e.g. Super+Shift+1 matches
+         * a binding registered as {"Super","Shift","1"} rather than "exclam". */
+        xkb_layout_index_t layout = xkb_state_key_get_layout(
+            keyboard->wlr_keyboard->xkb_state, keycode);
+        const xkb_keysym_t *base_syms;
+        int n_base = xkb_keymap_key_get_syms_by_level(
+            keyboard->wlr_keyboard->keymap, keycode, layout, 0, &base_syms);
+        for (int i = 0; i < n_base; i++)
+            handled = handle_keybinding(server, modifiers, base_syms[i]) || handled;
     }
 
     if (!handled)
