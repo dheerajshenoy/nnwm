@@ -18,7 +18,7 @@
     - [ ] Theme
 - [ ] Multi-monitor support
 - [ ] Switch monitor focus
-- [ ] Always master window option
+- [X] Always master window option
 - [X] Fullscreen
 - [X] Float window
 - [X] Floating window mouse window resize
