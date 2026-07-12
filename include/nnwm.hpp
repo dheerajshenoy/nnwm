@@ -18,7 +18,14 @@ extern "C"
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_pointer.h>
-#include <wlr/types/wlr_scene.h>
+#ifdef __cplusplus
+#  pragma push_macro("static")
+#  define static
+#  include <wlr/types/wlr_scene.h>
+#  pragma pop_macro("static")
+#else
+#  include <wlr/types/wlr_scene.h>
+#endif
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_subcompositor.h>
 #include <wlr/types/wlr_xcursor_manager.h>
@@ -140,6 +147,10 @@ struct tinywl_layer_surface
     struct wl_listener destroy;
 };
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 void server_new_output(struct wl_listener *, void *);
 void server_new_xdg_toplevel(struct wl_listener *, void *);
 void server_new_xdg_popup(struct wl_listener *, void *);
@@ -153,3 +164,6 @@ void server_new_input(struct wl_listener *, void *);
 void seat_request_cursor(struct wl_listener *, void *);
 void seat_pointer_focus_change(struct wl_listener *, void *);
 void seat_request_set_selection(struct wl_listener *, void *);
+#ifdef __cplusplus
+}
+#endif
