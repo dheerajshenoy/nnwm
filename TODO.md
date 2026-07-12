@@ -30,3 +30,7 @@
 - [X] Monitor configuration
 - [ ] Switching focus from rofi doesn't work
 - [X] spawn vs spawn once
+- [X] optional window decoration
+- [X] font configuration for window decoration
+- [X] text alignment for window decoration
+- [X] color for the window decoration
