@@ -1,15 +1,18 @@
 # nnWM TODO
 
-- [ ] Handle window close
-- [ ] Tiling window management
-- [ ] Active window border
+- [X] Workspaces
+- [X] Handle window close
+- [X] Tiling window management
+- [X] Active window border
 - Layouts
-    - [ ] Master Stack
-- [ ] Lua Config Support
-    - [ ] Keybindings
+    - [X] Master Stack
+- [X] Gaps
+- [X] Smart border
+- [X] Smart gaps
+- Lua Config Support
+    - [X] Keybindings
     - [ ] Layouts
     - [ ] Rules
     - [ ] Hooks
-    - [ ] Autostart
     - [ ] Theme
 - [ ] Multi-monitor support
