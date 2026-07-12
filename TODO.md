@@ -25,3 +25,4 @@
 - [X] Floating window mouse window move
 - [X] Focus follows mouse
 - [X] Allow xkb options
+- [X] Implement `usable_area` for panel support
