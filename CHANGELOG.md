@@ -23,6 +23,16 @@
 - **9-workspace support**: `nnwm.switch_workspace(n)` and
   `nnwm.move_to_workspace(n)` (1–9). Each workspace maintains independent
   tiling and remembers the last focused window.
+- **Master ratio keybindings**: `nnwm.master_ratio_grow()` and
+  `nnwm.master_ratio_shrink()` adjust the master column width at runtime by
+  `nnwm.master_ratio_step`, clamped to `[master_ratio_min, master_ratio_max]`.
+- **New window placement**: `nnwm.new_window_master = false` appends new
+  windows to the end of the stack instead of promoting them to master
+  (default: `true`).
+- **Layer-shell exclusive zones (struts)**: tiling layout now respects panels
+  that declare an exclusive zone via `zwlr-layer-shell-v1`. The usable area is
+  recomputed across all layer surfaces in layer order whenever a panel maps,
+  commits, or closes, and `arrange_windows` tiles only within that area.
 - **Autostart fix**: `nnwm.spawn()` calls made during config loading are now
   deferred until after the Wayland socket is open and `WAYLAND_DISPLAY` is set,
   so wallpaper managers and bars start correctly on first launch.
