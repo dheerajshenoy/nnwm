@@ -36,11 +36,20 @@
 - **Autostart fix**: `nnwm.spawn()` calls made during config loading are now
   deferred until after the Wayland socket is open and `WAYLAND_DISPLAY` is set,
   so wallpaper managers and bars start correctly on first launch.
+- **`nnwm.spawn_once(cmd)`**: spawns a command only once per compositor session.
+  Subsequent calls with the same string (e.g. after a config hot-reload) are
+  silently ignored. Intended for autostart programs such as bars and wallpaper
+  managers that must not have duplicate instances.
 - **Multi-monitor support**: each connected output gets an independent workspace.
   The cursor determines the focused output; keyboard actions (focus, swap,
   workspace switching, new windows) operate on the output under the cursor.
   Switching to a workspace already visible on another output swaps the two
   outputs' workspaces instead of hiding windows.
+- **Monitor focus and window migration**: `nnwm.focus_monitor_next()` and
+  `nnwm.focus_monitor_prev()` shift keyboard focus between outputs, restoring
+  the last focused window on the target monitor. `nnwm.move_to_monitor_next()`
+  and `nnwm.move_to_monitor_prev()` send the focused window to the adjacent
+  output's active workspace; focus follows the window to the destination.
 
 - **Gaps support**: `nnwm.outer_gap` (space between windows and screen edge)
   and `nnwm.inner_gap` (space between adjacent windows) config fields. Both
