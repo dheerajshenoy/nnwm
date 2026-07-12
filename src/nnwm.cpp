@@ -51,6 +51,23 @@ output_for_workspace(nnwm_server *server, int ws)
     return nullptr;
 }
 
+/* Next (dir=+1) or previous (dir=-1) output relative to cur, wrapping. */
+static nnwm_output *
+output_cycle(nnwm_server *server, nnwm_output *cur, int dir)
+{
+    nnwm_output *outputs[32];
+    int count = 0, cur_idx = 0;
+    nnwm_output *o;
+    wl_list_for_each(o, &server->outputs, link) {
+        if (count < 32) {
+            if (o == cur) cur_idx = count;
+            outputs[count++] = o;
+        }
+    }
+    if (count <= 1) return nullptr;
+    return outputs[(cur_idx + dir + count) % count];
+}
+
 /* Output whose area contains the cursor, or nullptr. */
 static nnwm_output *
 output_at_cursor(nnwm_server *server)
@@ -364,6 +381,23 @@ nnwm_flush_autostart(nnwm_server *server)
 }
 
 void
+nnwm_action_spawn_once(nnwm_server *server, const char *cmd)
+{
+    for (int i = 0; i < server->spawn_once_count; i++)
+        if (strcmp(server->spawn_once_cmds[i], cmd) == 0)
+            return;
+
+    if (server->spawn_once_count >= server->spawn_once_cap) {
+        server->spawn_once_cap = server->spawn_once_cap ? server->spawn_once_cap * 2 : 8;
+        server->spawn_once_cmds = static_cast<char**>(
+            realloc(server->spawn_once_cmds,
+                    server->spawn_once_cap * sizeof(char*)));
+    }
+    server->spawn_once_cmds[server->spawn_once_count++] = strdup(cmd);
+    nnwm_action_spawn(server, cmd);
+}
+
+void
 nnwm_action_focus_left(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
@@ -529,6 +563,82 @@ nnwm_action_switch_workspace(nnwm_server *server, int ws)
         wlr_seat_keyboard_clear_focus(server->seat);
 
     arrange_all_outputs(server);
+}
+
+void
+nnwm_action_focus_monitor_next(nnwm_server *server)
+{
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+    nnwm_output *next = output_cycle(server, out, +1);
+    if (!next) return;
+    server->focused_output = next;
+    int ws = next->active_workspace;
+    nnwm_toplevel *tl = next->last_focused[ws];
+    if (!tl) tl = ws_first(server, next);
+    if (tl) focus_toplevel(tl);
+}
+
+void
+nnwm_action_focus_monitor_prev(nnwm_server *server)
+{
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+    nnwm_output *next = output_cycle(server, out, -1);
+    if (!next) return;
+    server->focused_output = next;
+    int ws = next->active_workspace;
+    nnwm_toplevel *tl = next->last_focused[ws];
+    if (!tl) tl = ws_first(server, next);
+    if (tl) focus_toplevel(tl);
+}
+
+static void
+move_to_monitor(nnwm_server *server, int dir)
+{
+    nnwm_toplevel *tl = get_focused_toplevel(server);
+    if (!tl) return;
+    nnwm_output *src = output_for_workspace(server, tl->workspace);
+    if (!src) return;
+    nnwm_output *dst = output_cycle(server, src, dir);
+    if (!dst) return;
+
+    int old_ws = tl->workspace;
+    int new_ws = dst->active_workspace;
+    if (old_ws == new_ws) return;
+
+    if (src->last_focused[old_ws] == tl) src->last_focused[old_ws] = nullptr;
+    if (src->prev_focused[old_ws] == tl) src->prev_focused[old_ws] = nullptr;
+
+    tl->workspace = new_ws;
+    wlr_scene_node_set_enabled(&tl->scene_tree->node,
+                               workspace_is_visible(server, new_ws));
+
+    /* Refocus src with the next best window */
+    nnwm_toplevel *next = src->prev_focused[old_ws];
+    if (!next) next = src->last_focused[old_ws];
+    if (!next) next = ws_first(server, src);
+    if (next) focus_toplevel(next);
+    else      wlr_seat_keyboard_clear_focus(server->seat);
+
+    /* Switch focus to the moved window on dst */
+    server->focused_output = dst;
+    focus_toplevel(tl);
+
+    arrange_windows(server, src);
+    arrange_windows(server, dst);
+}
+
+void
+nnwm_action_move_to_monitor_next(nnwm_server *server)
+{
+    move_to_monitor(server, +1);
+}
+
+void
+nnwm_action_move_to_monitor_prev(nnwm_server *server)
+{
+    move_to_monitor(server, -1);
 }
 
 void

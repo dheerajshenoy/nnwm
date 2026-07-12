@@ -125,6 +125,11 @@ function nnwm.close() end
 ---@param cmd string  Shell command to execute
 function nnwm.spawn(cmd) end
 
+--- Spawn a command only if it has not been launched in this compositor session.
+--- Safe to call on every config hot-reload — duplicates are silently ignored.
+---@param cmd string  Shell command to execute
+function nnwm.spawn_once(cmd) end
+
 --- Increase the master column width by `master_ratio_step`, up to `master_ratio_max`.
 function nnwm.master_ratio_grow() end
 
@@ -177,3 +182,19 @@ function nnwm.toggle_float() end
 --- When fullscreen the window covers the entire output with no borders or gaps;
 --- exiting fullscreen restores the tiling layout.
 function nnwm.toggle_fullscreen() end
+
+--- Move keyboard focus to the next monitor (output), wrapping around.
+--- Restores the last focused window on the target monitor.
+function nnwm.focus_monitor_next() end
+
+--- Move keyboard focus to the previous monitor (output), wrapping around.
+--- Restores the last focused window on the target monitor.
+function nnwm.focus_monitor_prev() end
+
+--- Move the focused window to the next monitor's active workspace.
+--- Focus follows the window to the destination monitor.
+function nnwm.move_to_monitor_next() end
+
+--- Move the focused window to the previous monitor's active workspace.
+--- Focus follows the window to the destination monitor.
+function nnwm.move_to_monitor_prev() end

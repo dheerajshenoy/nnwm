@@ -287,6 +287,14 @@ l_nnwm_spawn(lua_State *L)
 }
 
 static int
+l_nnwm_spawn_once(lua_State *L)
+{
+    const char *cmd = luaL_checkstring(L, 1);
+    nnwm_action_spawn_once(get_server(L), cmd);
+    return 0;
+}
+
+static int
 l_nnwm_focus_left(lua_State *L)
 {
     nnwm_action_focus_left(get_server(L));
@@ -397,11 +405,40 @@ l_nnwm_toggle_fullscreen(lua_State *L)
     return 0;
 }
 
+static int
+l_nnwm_focus_monitor_next(lua_State *L)
+{
+    nnwm_action_focus_monitor_next(get_server(L));
+    return 0;
+}
+
+static int
+l_nnwm_focus_monitor_prev(lua_State *L)
+{
+    nnwm_action_focus_monitor_prev(get_server(L));
+    return 0;
+}
+
+static int
+l_nnwm_move_to_monitor_next(lua_State *L)
+{
+    nnwm_action_move_to_monitor_next(get_server(L));
+    return 0;
+}
+
+static int
+l_nnwm_move_to_monitor_prev(lua_State *L)
+{
+    nnwm_action_move_to_monitor_prev(get_server(L));
+    return 0;
+}
+
 static const struct luaL_Reg nnwm_funcs[] = {
     {"key", l_nnwm_key},
     {"quit", l_nnwm_quit},
     {"close", l_nnwm_close},
     {"spawn", l_nnwm_spawn},
+    {"spawn_once", l_nnwm_spawn_once},
     {"focus_left", l_nnwm_focus_left},
     {"focus_right", l_nnwm_focus_right},
     {"focus_next", l_nnwm_focus_next},
@@ -417,6 +454,10 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"master_ratio_shrink", l_nnwm_master_ratio_shrink},
     {"toggle_float", l_nnwm_toggle_float},
     {"toggle_fullscreen", l_nnwm_toggle_fullscreen},
+    {"focus_monitor_next", l_nnwm_focus_monitor_next},
+    {"focus_monitor_prev", l_nnwm_focus_monitor_prev},
+    {"move_to_monitor_next", l_nnwm_move_to_monitor_next},
+    {"move_to_monitor_prev", l_nnwm_move_to_monitor_prev},
     {nullptr, nullptr},
 };
 

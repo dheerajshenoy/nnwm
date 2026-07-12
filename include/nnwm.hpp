@@ -136,6 +136,11 @@ struct nnwm_server
     int config_inotify_fd;
     struct wl_event_source *config_event_source;
 
+    /* spawn_once: commands already launched this session */
+    char **spawn_once_cmds;
+    int    spawn_once_count;
+    int    spawn_once_cap;
+
     /* Lua state for config and keybinding callbacks */
     struct lua_State *lua;
     struct nnwm_lua_keybinding *lua_keybindings;
@@ -241,6 +246,7 @@ void seat_request_set_selection(struct wl_listener *, void *);
 void nnwm_action_quit(struct nnwm_server *server);
 void nnwm_action_close(struct nnwm_server *server);
 void nnwm_action_spawn(struct nnwm_server *server, const char *cmd);
+void nnwm_action_spawn_once(struct nnwm_server *server, const char *cmd);
 void nnwm_flush_autostart(struct nnwm_server *server);
 void nnwm_action_focus_left(struct nnwm_server *server);
 void nnwm_action_focus_right(struct nnwm_server *server);
@@ -253,6 +259,10 @@ void nnwm_action_swap_prev(struct nnwm_server *server);
 void nnwm_action_cycle(struct nnwm_server *server);
 void nnwm_action_switch_workspace(struct nnwm_server *server, int ws);
 void nnwm_action_move_to_workspace(struct nnwm_server *server, int ws);
+void nnwm_action_focus_monitor_next(struct nnwm_server *server);
+void nnwm_action_focus_monitor_prev(struct nnwm_server *server);
+void nnwm_action_move_to_monitor_next(struct nnwm_server *server);
+void nnwm_action_move_to_monitor_prev(struct nnwm_server *server);
 void nnwm_action_master_ratio_grow(struct nnwm_server *server);
 void nnwm_action_master_ratio_shrink(struct nnwm_server *server);
 void nnwm_action_toggle_float(struct nnwm_server *server);
