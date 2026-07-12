@@ -24,4 +24,4 @@
 - [X] Floating window mouse window resize
 - [X] Floating window mouse window move
 - [X] Focus follows mouse
-- [ ] Allow xkb options
+- [X] Allow xkb options
