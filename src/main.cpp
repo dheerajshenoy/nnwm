@@ -55,7 +55,6 @@ main(int argc, char *argv[])
     }
 
     nnwm_server server = {};
-    server.active_workspace = 0;
     wl_list_init(&server.layer_surfaces);
 
     /* Initialize Lua state for config and keybinding callbacks */

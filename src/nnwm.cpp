@@ -29,77 +29,109 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
     wlr_scene_node_set_position(&toplevel->scene_surface->node, bw, bw);
 }
 
-/* ---- Workspace helpers ---- */
+/* ---- Output / workspace helpers ---- */
 
-/* First tiled toplevel on the active workspace, or nullptr. */
+/* True if any output is currently showing workspace ws. */
+static bool
+workspace_is_visible(nnwm_server *server, int ws)
+{
+    nnwm_output *o;
+    wl_list_for_each(o, &server->outputs, link)
+        if (o->active_workspace == ws) return true;
+    return false;
+}
+
+/* Output currently showing workspace ws, or nullptr. */
+static nnwm_output *
+output_for_workspace(nnwm_server *server, int ws)
+{
+    nnwm_output *o;
+    wl_list_for_each(o, &server->outputs, link)
+        if (o->active_workspace == ws) return o;
+    return nullptr;
+}
+
+/* Output whose area contains the cursor, or nullptr. */
+static nnwm_output *
+output_at_cursor(nnwm_server *server)
+{
+    wlr_output *wlr_out = wlr_output_layout_output_at(
+        server->output_layout, server->cursor->x, server->cursor->y);
+    if (!wlr_out) return nullptr;
+    nnwm_output *o;
+    wl_list_for_each(o, &server->outputs, link)
+        if (o->wlr_output == wlr_out) return o;
+    return nullptr;
+}
+
+/* ---- Workspace helpers (scoped to a single output) ---- */
+
+/* First tiled toplevel on out's active workspace, or nullptr. */
 static nnwm_toplevel *
-ws_first(nnwm_server *server)
+ws_first(nnwm_server *server, nnwm_output *out)
 {
     nnwm_toplevel *t;
     wl_list_for_each(t, &server->toplevels, link)
-        if (t->workspace == server->active_workspace && !t->floating && !t->fullscreen)
+        if (t->workspace == out->active_workspace && !t->floating && !t->fullscreen)
             return t;
     return nullptr;
 }
 
-/* Next tiled active-workspace toplevel after cur, without wrapping, or nullptr. */
+/* Next tiled toplevel on out's workspace after cur, without wrapping. */
 static nnwm_toplevel *
-ws_next(nnwm_server *server, nnwm_toplevel *cur)
+ws_next(nnwm_server *server, nnwm_output *out, nnwm_toplevel *cur)
 {
     for (wl_list *it = cur->link.next; it != &server->toplevels; it = it->next) {
         nnwm_toplevel *t = wl_container_of(it, t, link);
-        if (t->workspace == server->active_workspace && !t->floating && !t->fullscreen)
+        if (t->workspace == out->active_workspace && !t->floating && !t->fullscreen)
             return t;
     }
     return nullptr;
 }
 
-/* Previous tiled active-workspace toplevel before cur, without wrapping, or nullptr. */
+/* Previous tiled toplevel on out's workspace before cur, without wrapping. */
 static nnwm_toplevel *
-ws_prev(nnwm_server *server, nnwm_toplevel *cur)
+ws_prev(nnwm_server *server, nnwm_output *out, nnwm_toplevel *cur)
 {
     for (wl_list *it = cur->link.prev; it != &server->toplevels; it = it->prev) {
         nnwm_toplevel *t = wl_container_of(it, t, link);
-        if (t->workspace == server->active_workspace && !t->floating && !t->fullscreen)
+        if (t->workspace == out->active_workspace && !t->floating && !t->fullscreen)
             return t;
     }
     return nullptr;
 }
 
-/* Last tiled toplevel on the active workspace, or nullptr. */
+/* Last tiled toplevel on out's active workspace, or nullptr. */
 static nnwm_toplevel *
-ws_last(nnwm_server *server)
+ws_last(nnwm_server *server, nnwm_output *out)
 {
     nnwm_toplevel *t, *last = nullptr;
     wl_list_for_each(t, &server->toplevels, link)
-        if (t->workspace == server->active_workspace && !t->floating && !t->fullscreen)
+        if (t->workspace == out->active_workspace && !t->floating && !t->fullscreen)
             last = t;
     return last;
 }
 
-/* Count tiled toplevels on the active workspace. */
+/* Count tiled toplevels on out's active workspace. */
 static int
-ws_count(nnwm_server *server)
+ws_count(nnwm_server *server, nnwm_output *out)
 {
     int n = 0;
     nnwm_toplevel *t;
     wl_list_for_each(t, &server->toplevels, link)
-        if (t->workspace == server->active_workspace && !t->floating && !t->fullscreen)
+        if (t->workspace == out->active_workspace && !t->floating && !t->fullscreen)
             n++;
     return n;
 }
 
 void
-arrange_windows(nnwm_server *server)
+arrange_windows(nnwm_server *server, nnwm_output *out)
 {
-    if (wl_list_empty(&server->outputs))
+    if (!out)
         return;
 
-    int n = ws_count(server);
-    if (n == 0)
-        return;
+    int n = ws_count(server, out);
 
-    nnwm_output *out = wl_container_of(server->outputs.next, out, link);
     const wlr_box &area = out->usable_area;
 
     bool solo = (n == 1);
@@ -115,45 +147,51 @@ arrange_windows(nnwm_server *server)
     nnwm_toplevel *tl;
     if (n == 1) {
         wl_list_for_each(tl, &server->toplevels, link) {
-            if (tl->workspace != server->active_workspace || tl->floating || tl->fullscreen)
+            if (tl->workspace != out->active_workspace || tl->floating || tl->fullscreen)
                 continue;
             wlr_scene_node_set_position(&tl->scene_tree->node, x0, y0);
             wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw, H - 2 * bw);
             update_borders(tl, W, H, bw);
             break;
         }
-        return;
-    }
+    } else if (n > 1) {
+        int mw = (int)(W * server->config->master_ratio);
+        int sw = W - mw - ig;
+        int ns = n - 1;
+        int sh = (H - (ns - 1) * ig) / ns;
 
-    int mw = (int)(W * server->config->master_ratio);
-    int sw = W - mw - ig;
-    int ns = n - 1;
-    int sh = (H - (ns - 1) * ig) / ns;
-
-    int i = 0;
-    wl_list_for_each(tl, &server->toplevels, link) {
-        if (tl->workspace != server->active_workspace || tl->floating || tl->fullscreen)
-            continue;
-        if (i == 0) {
-            wlr_scene_node_set_position(&tl->scene_tree->node, x0, y0);
-            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, mw - 2 * bw, H - 2 * bw);
-            update_borders(tl, mw, H, bw);
-        } else {
-            int sy = y0 + (i - 1) * (sh + ig);
-            int h  = (i < ns) ? sh : H - (i - 1) * (sh + ig);
-            wlr_scene_node_set_position(&tl->scene_tree->node, x0 + mw + ig, sy);
-            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, sw - 2 * bw, h - 2 * bw);
-            update_borders(tl, sw, h, bw);
+        int i = 0;
+        wl_list_for_each(tl, &server->toplevels, link) {
+            if (tl->workspace != out->active_workspace || tl->floating || tl->fullscreen)
+                continue;
+            if (i == 0) {
+                wlr_scene_node_set_position(&tl->scene_tree->node, x0, y0);
+                wlr_xdg_toplevel_set_size(tl->xdg_toplevel, mw - 2 * bw, H - 2 * bw);
+                update_borders(tl, mw, H, bw);
+            } else {
+                int sy = y0 + (i - 1) * (sh + ig);
+                int h  = (i < ns) ? sh : H - (i - 1) * (sh + ig);
+                wlr_scene_node_set_position(&tl->scene_tree->node, x0 + mw + ig, sy);
+                wlr_xdg_toplevel_set_size(tl->xdg_toplevel, sw - 2 * bw, h - 2 * bw);
+                update_borders(tl, sw, h, bw);
+            }
+            ++i;
         }
-        ++i;
     }
 
-    /* Floating and fullscreen windows must always sit above tiled ones.
-     * Re-raise them so that un-floating a window doesn't leave it on top. */
+    /* Floating and fullscreen windows must always sit above tiled ones. */
     wl_list_for_each(tl, &server->toplevels, link) {
-        if (tl->workspace == server->active_workspace && (tl->floating || tl->fullscreen))
+        if (tl->workspace == out->active_workspace && (tl->floating || tl->fullscreen))
             wlr_scene_node_raise_to_top(&tl->scene_tree->node);
     }
+}
+
+static void
+arrange_all_outputs(nnwm_server *server)
+{
+    nnwm_output *out;
+    wl_list_for_each(out, &server->outputs, link)
+        arrange_windows(server, out);
 }
 
 void
@@ -209,7 +247,12 @@ focus_toplevel(nnwm_toplevel *toplevel)
     }
     if (toplevel->floating)
         wlr_scene_node_raise_to_top(&toplevel->scene_tree->node);
-    server->last_focused[server->active_workspace] = toplevel;
+
+    nnwm_output *out = output_for_workspace(server, toplevel->workspace);
+    if (out) {
+        server->focused_output = out;
+        out->last_focused[toplevel->workspace] = toplevel;
+    }
 }
 
 } /* namespace */
@@ -241,20 +284,19 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
     tl->fullscreen = !tl->fullscreen;
     wlr_xdg_toplevel_set_fullscreen(tl->xdg_toplevel, tl->fullscreen);
 
-    if (tl->fullscreen) {
+    nnwm_server *server = tl->server;
+    nnwm_output *out    = output_for_workspace(server, tl->workspace);
+
+    if (tl->fullscreen && out) {
         wlr_scene_node_raise_to_top(&tl->scene_tree->node);
-        nnwm_server *server = tl->server;
-        if (!wl_list_empty(&server->outputs)) {
-            nnwm_output *out = wl_container_of(server->outputs.next, out, link);
-            wlr_box area;
-            wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
-            wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
-            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, area.width, area.height);
-            update_borders(tl, area.width, area.height, 0);
-        }
+        wlr_box area;
+        wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
+        wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
+        wlr_xdg_toplevel_set_size(tl->xdg_toplevel, area.width, area.height);
+        update_borders(tl, area.width, area.height, 0);
     }
 
-    arrange_windows(tl->server);
+    arrange_windows(server, out);
 }
 
 static nnwm_toplevel *
@@ -265,8 +307,7 @@ get_focused_toplevel(nnwm_server *server)
         return nullptr;
     nnwm_toplevel *t;
     wl_list_for_each(t, &server->toplevels, link) {
-        if (t->workspace == server->active_workspace &&
-            t->xdg_toplevel->base->surface == focused)
+        if (t->xdg_toplevel->base->surface == focused)
             return t;
     }
     return nullptr;
@@ -322,7 +363,9 @@ nnwm_flush_autostart(nnwm_server *server)
 void
 nnwm_action_focus_left(nnwm_server *server)
 {
-    nnwm_toplevel *tl = ws_first(server);
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+    nnwm_toplevel *tl = ws_first(server, out);
     if (tl)
         focus_toplevel(tl);
 }
@@ -330,10 +373,11 @@ nnwm_action_focus_left(nnwm_server *server)
 void
 nnwm_action_focus_right(nnwm_server *server)
 {
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
     nnwm_toplevel *cur = get_focused_toplevel(server);
-    if (!cur)
-        return;
-    nnwm_toplevel *next = ws_next(server, cur);
+    if (!cur) return;
+    nnwm_toplevel *next = ws_next(server, out, cur);
     if (next)
         focus_toplevel(next);
 }
@@ -341,12 +385,13 @@ nnwm_action_focus_right(nnwm_server *server)
 void
 nnwm_action_focus_next(nnwm_server *server)
 {
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
     nnwm_toplevel *cur = get_focused_toplevel(server);
-    if (!cur)
-        return;
-    nnwm_toplevel *next = ws_next(server, cur);
+    if (!cur) return;
+    nnwm_toplevel *next = ws_next(server, out, cur);
     if (!next)
-        next = ws_first(server);
+        next = ws_first(server, out);
     if (next)
         focus_toplevel(next);
 }
@@ -354,12 +399,13 @@ nnwm_action_focus_next(nnwm_server *server)
 void
 nnwm_action_focus_prev(nnwm_server *server)
 {
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
     nnwm_toplevel *cur = get_focused_toplevel(server);
-    if (!cur)
-        return;
-    nnwm_toplevel *prev = ws_prev(server, cur);
+    if (!cur) return;
+    nnwm_toplevel *prev = ws_prev(server, out, cur);
     if (!prev)
-        prev = ws_last(server);
+        prev = ws_last(server, out);
     if (prev)
         focus_toplevel(prev);
 }
@@ -367,110 +413,119 @@ nnwm_action_focus_prev(nnwm_server *server)
 void
 nnwm_action_swap_left(nnwm_server *server)
 {
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
     nnwm_toplevel *cur   = get_focused_toplevel(server);
-    nnwm_toplevel *first = ws_first(server);
+    nnwm_toplevel *first = ws_first(server, out);
     if (!cur || cur == first)
         return;
     wl_list_remove(&cur->link);
     wl_list_insert(first->link.prev, &cur->link);
     focus_toplevel(cur);
-    arrange_windows(server);
+    arrange_windows(server, out);
 }
 
 void
 nnwm_action_swap_right(nnwm_server *server)
 {
+    nnwm_output *out    = server->focused_output;
+    if (!out) return;
     nnwm_toplevel *cur    = get_focused_toplevel(server);
-    nnwm_toplevel *master = ws_first(server);
+    nnwm_toplevel *master = ws_first(server, out);
     if (!cur || !master)
         return;
     if (cur != master) {
         wl_list_remove(&cur->link);
         wl_list_insert(master->link.prev, &cur->link);
     } else {
-        nnwm_toplevel *first_stack = ws_next(server, master);
+        nnwm_toplevel *first_stack = ws_next(server, out, master);
         if (!first_stack)
             return;
         wl_list_remove(&master->link);
         wl_list_insert(&first_stack->link, &master->link);
     }
     focus_toplevel(cur);
-    arrange_windows(server);
+    arrange_windows(server, out);
 }
 
 void
 nnwm_action_swap_next(nnwm_server *server)
 {
-    nnwm_toplevel *cur  = get_focused_toplevel(server);
-    if (!cur)
-        return;
-    nnwm_toplevel *next = ws_next(server, cur);
-    if (!next)
-        return;
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+    nnwm_toplevel *cur = get_focused_toplevel(server);
+    if (!cur) return;
+    nnwm_toplevel *next = ws_next(server, out, cur);
+    if (!next) return;
     wl_list_remove(&cur->link);
     wl_list_insert(&next->link, &cur->link);
     focus_toplevel(cur);
-    arrange_windows(server);
+    arrange_windows(server, out);
 }
 
 void
 nnwm_action_swap_prev(nnwm_server *server)
 {
-    nnwm_toplevel *cur  = get_focused_toplevel(server);
-    if (!cur)
-        return;
-    nnwm_toplevel *prev = ws_prev(server, cur);
-    if (!prev)
-        return;
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+    nnwm_toplevel *cur = get_focused_toplevel(server);
+    if (!cur) return;
+    nnwm_toplevel *prev = ws_prev(server, out, cur);
+    if (!prev) return;
     wl_list_remove(&cur->link);
     wl_list_insert(prev->link.prev, &cur->link);
     focus_toplevel(cur);
-    arrange_windows(server);
+    arrange_windows(server, out);
 }
 
 void
 nnwm_action_cycle(nnwm_server *server)
 {
-    if (ws_count(server) < 2)
-        return;
-    nnwm_toplevel *last  = ws_last(server);
-    nnwm_toplevel *first = ws_first(server);
+    nnwm_output *out = server->focused_output;
+    if (!out || ws_count(server, out) < 2) return;
+    nnwm_toplevel *last  = ws_last(server, out);
+    nnwm_toplevel *first = ws_first(server, out);
     if (!last || last == first)
         return;
     wl_list_remove(&last->link);
     wl_list_insert(first->link.prev, &last->link);
     focus_toplevel(last);
-    arrange_windows(server);
+    arrange_windows(server, out);
 }
 
 void
 nnwm_action_switch_workspace(nnwm_server *server, int ws)
 {
-    if (ws < 0 || ws >= NNWM_NUM_WORKSPACES || ws == server->active_workspace)
+    nnwm_output *out = server->focused_output;
+    if (!out || ws < 0 || ws >= NNWM_NUM_WORKSPACES || ws == out->active_workspace)
         return;
 
+    /* If another output already shows ws, swap workspaces between the two */
+    nnwm_output *other = nullptr;
+    {
+        nnwm_output *o;
+        wl_list_for_each(o, &server->outputs, link)
+            if (o != out && o->active_workspace == ws) { other = o; break; }
+    }
+    if (other)
+        other->active_workspace = out->active_workspace;
+    out->active_workspace = ws;
+
+    /* Sync scene visibility */
     nnwm_toplevel *tl;
-    wl_list_for_each(tl, &server->toplevels, link) {
-        if (tl->workspace == server->active_workspace)
-            wlr_scene_node_set_enabled(&tl->scene_tree->node, false);
-    }
+    wl_list_for_each(tl, &server->toplevels, link)
+        wlr_scene_node_set_enabled(&tl->scene_tree->node,
+                                   workspace_is_visible(server, tl->workspace));
 
-    server->active_workspace = ws;
-
-    wl_list_for_each(tl, &server->toplevels, link) {
-        if (tl->workspace == ws)
-            wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
-    }
-
-    nnwm_toplevel *next = server->last_focused[ws];
+    nnwm_toplevel *next = out->last_focused[ws];
     if (!next)
-        next = ws_first(server);
+        next = ws_first(server, out);
     if (next)
         focus_toplevel(next);
     else
         wlr_seat_keyboard_clear_focus(server->seat);
 
-    arrange_windows(server);
+    arrange_all_outputs(server);
 }
 
 void
@@ -480,7 +535,7 @@ nnwm_action_master_ratio_grow(nnwm_server *server)
     cfg->master_ratio += cfg->master_ratio_step;
     if (cfg->master_ratio > cfg->master_ratio_max)
         cfg->master_ratio = cfg->master_ratio_max;
-    arrange_windows(server);
+    arrange_all_outputs(server);
 }
 
 void
@@ -490,7 +545,7 @@ nnwm_action_master_ratio_shrink(nnwm_server *server)
     cfg->master_ratio -= cfg->master_ratio_step;
     if (cfg->master_ratio < cfg->master_ratio_min)
         cfg->master_ratio = cfg->master_ratio_min;
-    arrange_windows(server);
+    arrange_all_outputs(server);
 }
 
 void
@@ -501,21 +556,19 @@ nnwm_action_toggle_float(nnwm_server *server)
         return;
 
     tl->floating = !tl->floating;
+    nnwm_output *out = output_for_workspace(server, tl->workspace);
 
-    if (tl->floating) {
+    if (tl->floating && out) {
         wlr_scene_node_raise_to_top(&tl->scene_tree->node);
-        if (!wl_list_empty(&server->outputs)) {
-            nnwm_output *out = wl_container_of(server->outputs.next, out, link);
-            wlr_box area;
-            wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
-            wlr_box *geo = &tl->xdg_toplevel->base->geometry;
-            int x = area.x + (area.width  - geo->width)  / 2;
-            int y = area.y + (area.height - geo->height) / 2;
-            wlr_scene_node_set_position(&tl->scene_tree->node, x, y);
-        }
+        wlr_box area;
+        wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
+        wlr_box *geo = &tl->xdg_toplevel->base->geometry;
+        int x = area.x + (area.width  - geo->width)  / 2;
+        int y = area.y + (area.height - geo->height) / 2;
+        wlr_scene_node_set_position(&tl->scene_tree->node, x, y);
     }
 
-    arrange_windows(server);
+    arrange_windows(server, out);
 }
 
 void
@@ -535,21 +588,26 @@ nnwm_action_move_to_workspace(nnwm_server *server, int ws)
     if (!tl || tl->workspace == ws)
         return;
 
-    if (server->last_focused[tl->workspace] == tl)
-        server->last_focused[tl->workspace] = nullptr;
+    nnwm_output *src = output_for_workspace(server, tl->workspace);
+
+    if (src && src->last_focused[tl->workspace] == tl)
+        src->last_focused[tl->workspace] = nullptr;
 
     tl->workspace = ws;
-    wlr_scene_node_set_enabled(&tl->scene_tree->node, false);
+    wlr_scene_node_set_enabled(&tl->scene_tree->node,
+                               workspace_is_visible(server, ws));
 
-    nnwm_toplevel *next = server->last_focused[server->active_workspace];
-    if (!next)
-        next = ws_first(server);
-    if (next)
-        focus_toplevel(next);
-    else
-        wlr_seat_keyboard_clear_focus(server->seat);
+    if (src) {
+        nnwm_toplevel *next = src->last_focused[src->active_workspace];
+        if (!next) next = ws_first(server, src);
+        if (next) focus_toplevel(next);
+        else      wlr_seat_keyboard_clear_focus(server->seat);
+        arrange_windows(server, src);
+    }
 
-    arrange_windows(server);
+    nnwm_output *dst = output_for_workspace(server, ws);
+    if (dst && dst != src)
+        arrange_windows(server, dst);
 }
 
 /* ---- Keybinding dispatch (delegates to Lua) ---- */
@@ -839,6 +897,13 @@ process_cursor_motion(nnwm_server *server, uint32_t time)
         return;
     }
 
+    /* Track which output the cursor is on */
+    {
+        nnwm_output *cur_out = output_at_cursor(server);
+        if (cur_out)
+            server->focused_output = cur_out;
+    }
+
     /* Otherwise, find the toplevel under the pointer and send the event along. */
     double sx, sy;
     wlr_seat    *seat    = server->seat;
@@ -914,6 +979,14 @@ void
 output_destroy(wl_listener *listener, void * /*data*/)
 {
     nnwm_output *output = wl_container_of(listener, output, destroy);
+    nnwm_server *server = output->server;
+
+    if (server->focused_output == output) {
+        server->focused_output = nullptr;
+        nnwm_output *o;
+        wl_list_for_each(o, &server->outputs, link)
+            if (o != output) { server->focused_output = o; break; }
+    }
 
     wl_list_remove(&output->frame.link);
     wl_list_remove(&output->request_state.link);
@@ -928,13 +1001,15 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
     /* Called when the surface is mapped, or ready to display on-screen. */
     nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, map);
 
-    toplevel->workspace = toplevel->server->active_workspace;
-    if (toplevel->server->config->new_window_master)
-        wl_list_insert(&toplevel->server->toplevels, &toplevel->link);
+    nnwm_server *server = toplevel->server;
+    nnwm_output *out    = server->focused_output;
+    toplevel->workspace = out ? out->active_workspace : 0;
+    if (server->config->new_window_master)
+        wl_list_insert(&server->toplevels, &toplevel->link);
     else
-        wl_list_insert(toplevel->server->toplevels.prev, &toplevel->link);
+        wl_list_insert(server->toplevels.prev, &toplevel->link);
     focus_toplevel(toplevel);
-    arrange_windows(toplevel->server);
+    arrange_windows(server, out);
 }
 
 void
@@ -951,24 +1026,21 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
     }
 
     nnwm_server *server = toplevel->server;
-    int ws = toplevel->workspace;
+    int          ws     = toplevel->workspace;
+    nnwm_output *out    = output_for_workspace(server, ws);
 
-    if (server->last_focused[ws] == toplevel)
-        server->last_focused[ws] = nullptr;
+    if (out && out->last_focused[ws] == toplevel)
+        out->last_focused[ws] = nullptr;
 
     wl_list_remove(&toplevel->link);
 
-    if (ws == server->active_workspace) {
-        nnwm_toplevel *next = server->last_focused[ws];
-        if (!next)
-            next = ws_first(server);
-        if (next)
-            focus_toplevel(next);
-        else
-            wlr_seat_keyboard_clear_focus(server->seat);
+    if (out) {
+        nnwm_toplevel *next = out->last_focused[ws];
+        if (!next) next = ws_first(server, out);
+        if (next) focus_toplevel(next);
+        else      wlr_seat_keyboard_clear_focus(server->seat);
+        arrange_windows(server, out);
     }
-
-    arrange_windows(server);
 }
 
 void
@@ -1192,7 +1264,7 @@ arrange_layers(nnwm_server *server, wlr_output *output)
     }
 
     out->usable_area = usable;
-    arrange_windows(server);
+    arrange_windows(server, out);
 }
 
 void
@@ -1270,7 +1342,7 @@ server_apply_config(nnwm_server *server)
     }
 
     /* Re-arrange to apply border_width / master_ratio changes */
-    arrange_windows(server);
+    arrange_all_outputs(server);
 
     /* Update keymap and repeat info for all connected keyboards */
     nnwm_keyboard *kb;
@@ -1430,7 +1502,7 @@ server_cursor_button(wl_listener *listener, void *data)
     {
         if (!toplevel->floating) {
             toplevel->floating = true;
-            arrange_windows(server);
+            arrange_windows(server, output_for_workspace(server, toplevel->workspace));
         }
         focus_toplevel(toplevel);
         if (event->button == BTN_LEFT)
@@ -1510,6 +1582,17 @@ server_new_output(wl_listener *listener, void *data)
     output->wlr_output    = wlr_output;
     output->server        = server;
     wlr_output_layout_get_box(server->output_layout, wlr_output, &output->usable_area);
+
+    /* Assign a workspace not already claimed by another output */
+    {
+        int ws = 0;
+        while (ws < NNWM_NUM_WORKSPACES && workspace_is_visible(server, ws))
+            ws++;
+        output->active_workspace = ws < NNWM_NUM_WORKSPACES ? ws : 0;
+    }
+    memset(output->last_focused, 0, sizeof(output->last_focused));
+    if (!server->focused_output)
+        server->focused_output = output;
 
     /* Sets up a listener for the frame event. */
     output->frame.notify = output_frame;

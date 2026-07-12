@@ -122,9 +122,8 @@ struct nnwm_server
     struct wl_list outputs;
     struct wl_listener new_output;
 
-    /* Workspaces */
-    int active_workspace;
-    struct nnwm_toplevel *last_focused[NNWM_NUM_WORKSPACES];
+    /* Focused output — tracks which output keyboard actions operate on */
+    struct nnwm_output *focused_output;
 
     /* Autostart: commands queued from config before WAYLAND_DISPLAY is ready */
     char   **autostart_cmds;
@@ -150,6 +149,8 @@ struct nnwm_output
     struct nnwm_server *server;
     struct wlr_output *wlr_output;
     struct wlr_box usable_area; /* output area minus exclusive-zone struts */
+    int active_workspace;
+    struct nnwm_toplevel *last_focused[NNWM_NUM_WORKSPACES];
     struct wl_listener frame;
     struct wl_listener request_state;
     struct wl_listener destroy;
