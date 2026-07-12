@@ -1,5 +1,21 @@
 # nnWM TODO
 
+- Lua Config Support
+    - [X] Keybindings
+    - [ ] Layouts
+    - [ ] Rules
+        - [ ] Floating
+        - [ ] Fullscreen
+        - [ ] Monitor
+    - [ ] Hooks
+        - [ ] Window
+            - [ ] New
+            - [ ] Close
+            - [ ] Urgent
+            - [ ] Focus Change
+        - [ ] Startup
+        - [ ] Shutdown
+- [ ] Monitor configuration
 - [X] Move to workspace
 - [X] Switch workspace
 - [X] Handle window close
@@ -11,12 +27,6 @@
 - [X] Gaps
 - [X] Smart border
 - [X] Smart gaps
-- Lua Config Support
-    - [X] Keybindings
-    - [ ] Layouts
-    - [ ] Rules
-    - [ ] Hooks
-    - [ ] Theme
 - [X] Multi-monitor support
 - [X] Switch monitor focus
 - [X] Always master window option
@@ -27,8 +37,7 @@
 - [X] Focus follows mouse
 - [X] Allow xkb options
 - [X] Implement `usable_area` for panel support
-- [X] Monitor configuration
-- [ ] Switching focus from rofi doesn't work
+- [X] Switching focus from rofi doesn't work
 - [X] spawn vs spawn once
 - [X] optional window decoration
 - [X] font configuration for window decoration
