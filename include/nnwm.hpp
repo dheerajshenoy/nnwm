@@ -45,14 +45,14 @@ extern "C"
 #endif
 
 /* For brevity's sake, struct members are annotated where they are used. */
-enum tinywl_cursor_mode
+enum nnwm_cursor_mode
 {
     TINYWL_CURSOR_PASSTHROUGH,
     TINYWL_CURSOR_MOVE,
     TINYWL_CURSOR_RESIZE,
 };
 
-struct tinywl_server
+struct nnwm_server
 {
     struct wl_display *wl_display;
     struct wlr_backend *backend;
@@ -87,8 +87,8 @@ struct tinywl_server
     struct wl_listener pointer_focus_change;
     struct wl_listener request_set_selection;
     struct wl_list keyboards;
-    enum tinywl_cursor_mode cursor_mode;
-    struct tinywl_toplevel *grabbed_toplevel;
+    enum nnwm_cursor_mode cursor_mode;
+    struct nnwm_toplevel *grabbed_toplevel;
     double grab_x, grab_y;
     struct wlr_box grab_geobox;
     uint32_t resize_edges;
@@ -98,20 +98,20 @@ struct tinywl_server
     struct wl_listener new_output;
 };
 
-struct tinywl_output
+struct nnwm_output
 {
     struct wl_list link;
-    struct tinywl_server *server;
+    struct nnwm_server *server;
     struct wlr_output *wlr_output;
     struct wl_listener frame;
     struct wl_listener request_state;
     struct wl_listener destroy;
 };
 
-struct tinywl_toplevel
+struct nnwm_toplevel
 {
     struct wl_list link;
-    struct tinywl_server *server;
+    struct nnwm_server *server;
     struct wlr_xdg_toplevel *xdg_toplevel;
     struct wlr_scene_tree *scene_tree;
     struct wl_listener map;
@@ -124,17 +124,17 @@ struct tinywl_toplevel
     struct wl_listener request_fullscreen;
 };
 
-struct tinywl_popup
+struct nnwm_popup
 {
     struct wlr_xdg_popup *xdg_popup;
     struct wl_listener commit;
     struct wl_listener destroy;
 };
 
-struct tinywl_keyboard
+struct nnwm_keyboard
 {
     struct wl_list link;
-    struct tinywl_server *server;
+    struct nnwm_server *server;
     struct wlr_keyboard *wlr_keyboard;
 
     struct wl_listener modifiers;
@@ -142,9 +142,9 @@ struct tinywl_keyboard
     struct wl_listener destroy;
 };
 
-struct tinywl_layer_surface
+struct nnwm_layer_surface
 {
-    struct tinywl_server *server;
+    struct nnwm_server *server;
     struct wlr_layer_surface_v1 *wlr_layer_surface;
     struct wlr_scene_layer_surface_v1 *scene;
 

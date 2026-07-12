@@ -4,14 +4,14 @@
 namespace {
 
 void
-focus_toplevel(tinywl_toplevel *toplevel)
+focus_toplevel(nnwm_toplevel *toplevel)
 {
     /* Note: this function only deals with keyboard focus. */
     if (toplevel == nullptr)
     {
         return;
     }
-    tinywl_server *server            = toplevel->server;
+    nnwm_server *server            = toplevel->server;
     struct wlr_seat *seat            = server->seat;
     struct wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
     struct wlr_surface *surface      = toplevel->xdg_toplevel->base->surface;
@@ -59,7 +59,7 @@ keyboard_handle_modifiers(struct wl_listener *listener, void *data)
 {
     /* This event is raised when a modifier key, such as shift or alt, is
      * pressed. We simply communicate this to the client. */
-    tinywl_keyboard *keyboard
+    nnwm_keyboard *keyboard
         = wl_container_of(listener, keyboard, modifiers);
     /*
      * A seat can only have one keyboard, but this is a limitation of the
@@ -74,7 +74,7 @@ keyboard_handle_modifiers(struct wl_listener *listener, void *data)
 }
 
 bool
-handle_keybinding(tinywl_server *server, uint32_t modifiers,
+handle_keybinding(nnwm_server *server, uint32_t modifiers,
                   xkb_keysym_t sym)
 {
     /* Mask out NumLock (Mod2), CapsLock, and other state-only modifiers so
@@ -109,7 +109,7 @@ handle_keybinding(tinywl_server *server, uint32_t modifiers,
     {
         if (wl_list_length(&server->toplevels) < 2)
             return true;
-        tinywl_toplevel *next_toplevel =
+        nnwm_toplevel *next_toplevel =
             wl_container_of(server->toplevels.prev, next_toplevel, link);
         focus_toplevel(next_toplevel);
         return true;
@@ -127,8 +127,8 @@ void
 keyboard_handle_key(struct wl_listener *listener, void *data)
 {
     /* This event is raised when a key is pressed or released. */
-    tinywl_keyboard *keyboard = wl_container_of(listener, keyboard, key);
-    tinywl_server *server     = keyboard->server;
+    nnwm_keyboard *keyboard = wl_container_of(listener, keyboard, key);
+    nnwm_server *server     = keyboard->server;
     struct wlr_keyboard_key_event *event =
         static_cast<struct wlr_keyboard_key_event*>(data);
     struct wlr_seat *seat = server->seat;
@@ -167,7 +167,7 @@ keyboard_handle_destroy(struct wl_listener *listener, void *data)
      * the destruction of the wlr_keyboard. It will no longer receive events
      * and should be destroyed.
      */
-    tinywl_keyboard *keyboard
+    nnwm_keyboard *keyboard
         = wl_container_of(listener, keyboard, destroy);
     wl_list_remove(&keyboard->modifiers.link);
     wl_list_remove(&keyboard->key.link);
@@ -177,12 +177,12 @@ keyboard_handle_destroy(struct wl_listener *listener, void *data)
 }
 
 void
-server_new_keyboard(tinywl_server *server,
+server_new_keyboard(nnwm_server *server,
                     struct wlr_input_device *device)
 {
     struct wlr_keyboard *wlr_keyboard = wlr_keyboard_from_input_device(device);
 
-    tinywl_keyboard *keyboard = new tinywl_keyboard{};
+    nnwm_keyboard *keyboard = new nnwm_keyboard{};
     keyboard->server          = server;
     keyboard->wlr_keyboard    = wlr_keyboard;
 
@@ -212,7 +212,7 @@ server_new_keyboard(tinywl_server *server,
 }
 
 void
-server_new_pointer(tinywl_server *server,
+server_new_pointer(nnwm_server *server,
                    struct wlr_input_device *device)
 {
     /* We don't do anything special with pointers. All of our pointer handling
@@ -222,13 +222,13 @@ server_new_pointer(tinywl_server *server,
     wlr_cursor_attach_input_device(server->cursor, device);
 }
 
-tinywl_toplevel *
-desktop_toplevel_at(tinywl_server *server, double lx, double ly,
+nnwm_toplevel *
+desktop_toplevel_at(nnwm_server *server, double lx, double ly,
                     struct wlr_surface **surface, double *sx, double *sy)
 {
     /* This returns the topmost node in the scene at the given layout coords.
      * We only care about surface nodes as we are specifically looking for a
-     * surface in the surface tree of a tinywl_toplevel. */
+     * surface in the surface tree of a nnwm_toplevel. */
     struct wlr_scene_node *node
         = wlr_scene_node_at(&server->scene->tree.node, lx, ly, sx, sy);
     if (node == nullptr || node->type != WLR_SCENE_NODE_BUFFER)
@@ -244,18 +244,18 @@ desktop_toplevel_at(tinywl_server *server, double lx, double ly,
     }
 
     *surface                    = scene_surface->surface;
-    /* Find the node corresponding to the tinywl_toplevel at the root of this
+    /* Find the node corresponding to the nnwm_toplevel at the root of this
      * surface tree, it is the only one for which we set the data field. */
     struct wlr_scene_tree *tree = node->parent;
     while (tree != nullptr && tree->node.data == nullptr)
     {
         tree = tree->node.parent;
     }
-    return static_cast<tinywl_toplevel*>(tree->node.data);
+    return static_cast<nnwm_toplevel*>(tree->node.data);
 }
 
 void
-reset_cursor_mode(tinywl_server *server)
+reset_cursor_mode(nnwm_server *server)
 {
     /* Reset the cursor mode to passthrough. */
     server->cursor_mode      = TINYWL_CURSOR_PASSTHROUGH;
@@ -263,17 +263,17 @@ reset_cursor_mode(tinywl_server *server)
 }
 
 void
-process_cursor_move(tinywl_server *server)
+process_cursor_move(nnwm_server *server)
 {
     /* Move the grabbed toplevel to the new position. */
-    tinywl_toplevel *toplevel = server->grabbed_toplevel;
+    nnwm_toplevel *toplevel = server->grabbed_toplevel;
     wlr_scene_node_set_position(&toplevel->scene_tree->node,
                                 server->cursor->x - server->grab_x,
                                 server->cursor->y - server->grab_y);
 }
 
 void
-process_cursor_resize(tinywl_server *server)
+process_cursor_resize(nnwm_server *server)
 {
     /*
      * Resizing the grabbed toplevel can be a little bit complicated, because we
@@ -285,7 +285,7 @@ process_cursor_resize(tinywl_server *server)
      * compositor, you'd wait for the client to prepare a buffer at the new
      * size, then commit any movement that was prepared.
      */
-    tinywl_toplevel *toplevel = server->grabbed_toplevel;
+    nnwm_toplevel *toplevel = server->grabbed_toplevel;
     double border_x           = server->cursor->x - server->grab_x;
     double border_y           = server->cursor->y - server->grab_y;
     int new_left              = server->grab_geobox.x;
@@ -336,7 +336,7 @@ process_cursor_resize(tinywl_server *server)
 }
 
 void
-process_cursor_motion(tinywl_server *server, uint32_t time)
+process_cursor_motion(nnwm_server *server, uint32_t time)
 {
     /* If the mode is non-passthrough, delegate to those functions. */
     if (server->cursor_mode == TINYWL_CURSOR_MOVE)
@@ -355,7 +355,7 @@ process_cursor_motion(tinywl_server *server, uint32_t time)
     double sx, sy;
     struct wlr_seat *seat       = server->seat;
     struct wlr_surface *surface = nullptr;
-    tinywl_toplevel *toplevel   = desktop_toplevel_at(
+    nnwm_toplevel *toplevel   = desktop_toplevel_at(
         server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
     if (!toplevel)
     {
@@ -393,7 +393,7 @@ output_frame(struct wl_listener *listener, void *data)
 {
     /* This function is called every time an output is ready to display a frame,
      * generally at the output's refresh rate (e.g. 60Hz). */
-    tinywl_output *output   = wl_container_of(listener, output, frame);
+    nnwm_output *output   = wl_container_of(listener, output, frame);
     struct wlr_scene *scene = output->server->scene;
 
     struct wlr_scene_output *scene_output
@@ -413,7 +413,7 @@ output_request_state(struct wl_listener *listener, void *data)
     /* This function is called when the backend requests a new state for
      * the output. For example, Wayland and X11 backends request a new mode
      * when the output window is resized. */
-    tinywl_output *output
+    nnwm_output *output
         = wl_container_of(listener, output, request_state);
     const struct wlr_output_event_request_state *event =
         static_cast<const struct wlr_output_event_request_state*>(data);
@@ -423,7 +423,7 @@ output_request_state(struct wl_listener *listener, void *data)
 void
 output_destroy(struct wl_listener *listener, void *data)
 {
-    tinywl_output *output = wl_container_of(listener, output, destroy);
+    nnwm_output *output = wl_container_of(listener, output, destroy);
 
     wl_list_remove(&output->frame.link);
     wl_list_remove(&output->request_state.link);
@@ -436,7 +436,7 @@ void
 xdg_toplevel_map(struct wl_listener *listener, void *data)
 {
     /* Called when the surface is mapped, or ready to display on-screen. */
-    tinywl_toplevel *toplevel = wl_container_of(listener, toplevel, map);
+    nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, map);
 
     wl_list_insert(&toplevel->server->toplevels, &toplevel->link);
 
@@ -447,7 +447,7 @@ void
 xdg_toplevel_unmap(struct wl_listener *listener, void *data)
 {
     /* Called when the surface is unmapped, and should no longer be shown. */
-    tinywl_toplevel *toplevel
+    nnwm_toplevel *toplevel
         = wl_container_of(listener, toplevel, unmap);
 
     /* Reset the cursor mode if the grabbed toplevel was unmapped. */
@@ -463,13 +463,13 @@ void
 xdg_toplevel_commit(struct wl_listener *listener, void *data)
 {
     /* Called when a new surface state is committed. */
-    tinywl_toplevel *toplevel
+    nnwm_toplevel *toplevel
         = wl_container_of(listener, toplevel, commit);
 
     if (toplevel->xdg_toplevel->base->initial_commit)
     {
         /* When an xdg_surface performs an initial commit, the compositor must
-         * reply with a configure so the client can map the surface. tinywl
+         * reply with a configure so the client can map the surface. nnwm
          * configures the xdg_toplevel with 0,0 size to let the client pick the
          * dimensions itself. */
         wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, 0, 0);
@@ -480,7 +480,7 @@ void
 handle_xdg_toplevel_destroy(struct wl_listener *listener, void *data)
 {
     /* Called when the xdg_toplevel is destroyed. */
-    tinywl_toplevel *toplevel
+    nnwm_toplevel *toplevel
         = wl_container_of(listener, toplevel, destroy);
 
     wl_list_remove(&toplevel->map.link);
@@ -496,13 +496,13 @@ handle_xdg_toplevel_destroy(struct wl_listener *listener, void *data)
 }
 
 void
-begin_interactive(tinywl_toplevel *toplevel,
-                  enum tinywl_cursor_mode mode, uint32_t edges)
+begin_interactive(nnwm_toplevel *toplevel,
+                  enum nnwm_cursor_mode mode, uint32_t edges)
 {
     /* This function sets up an interactive move or resize operation, where the
      * compositor stops propagating pointer events to clients and instead
      * consumes them itself, to move or resize windows. */
-    tinywl_server *server = toplevel->server;
+    nnwm_server *server = toplevel->server;
 
     server->grabbed_toplevel = toplevel;
     server->cursor_mode      = mode;
@@ -539,7 +539,7 @@ xdg_toplevel_request_move(struct wl_listener *listener, void *data)
      * decorations. Note that a more sophisticated compositor should check the
      * provided serial against a list of button press serials sent to this
      * client, to prevent the client from requesting this whenever they want. */
-    tinywl_toplevel *toplevel
+    nnwm_toplevel *toplevel
         = wl_container_of(listener, toplevel, request_move);
     begin_interactive(toplevel, TINYWL_CURSOR_MOVE, 0);
 }
@@ -554,7 +554,7 @@ xdg_toplevel_request_resize(struct wl_listener *listener, void *data)
      * client, to prevent the client from requesting this whenever they want. */
     struct wlr_xdg_toplevel_resize_event *event =
         static_cast<struct wlr_xdg_toplevel_resize_event*>(data);
-    tinywl_toplevel *toplevel
+    nnwm_toplevel *toplevel
         = wl_container_of(listener, toplevel, request_resize);
     begin_interactive(toplevel, TINYWL_CURSOR_RESIZE, event->edges);
 }
@@ -564,12 +564,12 @@ xdg_toplevel_request_maximize(struct wl_listener *listener, void *data)
 {
     /* This event is raised when a client would like to maximize itself,
      * typically because the user clicked on the maximize button on client-side
-     * decorations. tinywl doesn't support maximization, but to conform to
+     * decorations. nnwm doesn't support maximization, but to conform to
      * xdg-shell protocol we still must send a configure.
      * wlr_xdg_surface_schedule_configure() is used to send an empty reply.
      * However, if the request was sent before an initial commit, we don't do
      * anything and let the client finish the initial surface setup. */
-    tinywl_toplevel *toplevel
+    nnwm_toplevel *toplevel
         = wl_container_of(listener, toplevel, request_maximize);
     if (toplevel->xdg_toplevel->base->initialized)
     {
@@ -581,7 +581,7 @@ void
 xdg_toplevel_request_fullscreen(struct wl_listener *listener, void *data)
 {
     /* Just as with request_maximize, we must send a configure here. */
-    tinywl_toplevel *toplevel
+    nnwm_toplevel *toplevel
         = wl_container_of(listener, toplevel, request_fullscreen);
     if (toplevel->xdg_toplevel->base->initialized)
     {
@@ -593,13 +593,13 @@ void
 xdg_popup_commit(struct wl_listener *listener, void *data)
 {
     /* Called when a new surface state is committed. */
-    tinywl_popup *popup = wl_container_of(listener, popup, commit);
+    nnwm_popup *popup = wl_container_of(listener, popup, commit);
 
     if (popup->xdg_popup->base->initial_commit)
     {
         /* When an xdg_surface performs an initial commit, the compositor must
          * reply with a configure so the client can map the surface.
-         * tinywl sends an empty configure. A more sophisticated compositor
+         * nnwm sends an empty configure. A more sophisticated compositor
          * might change an xdg_popup's geometry to ensure it's not positioned
          * off-screen, for example. */
         wlr_xdg_surface_schedule_configure(popup->xdg_popup->base);
@@ -610,7 +610,7 @@ void
 handle_xdg_popup_destroy(struct wl_listener *listener, void *data)
 {
     /* Called when the xdg_popup is destroyed. */
-    tinywl_popup *popup = wl_container_of(listener, popup, destroy);
+    nnwm_popup *popup = wl_container_of(listener, popup, destroy);
 
     wl_list_remove(&popup->commit.link);
     wl_list_remove(&popup->destroy.link);
@@ -621,7 +621,7 @@ handle_xdg_popup_destroy(struct wl_listener *listener, void *data)
 /* ---- layer shell ---- */
 
 void
-arrange_layer_surface(tinywl_layer_surface *ls)
+arrange_layer_surface(nnwm_layer_surface *ls)
 {
     struct wlr_output *output = ls->wlr_layer_surface->output;
     if (!output)
@@ -637,7 +637,7 @@ arrange_layer_surface(tinywl_layer_surface *ls)
 void
 layer_surface_map(struct wl_listener *listener, void *data)
 {
-    tinywl_layer_surface *ls = wl_container_of(listener, ls, map);
+    nnwm_layer_surface *ls = wl_container_of(listener, ls, map);
     arrange_layer_surface(ls);
 
     if (ls->wlr_layer_surface->current.keyboard_interactive !=
@@ -660,7 +660,7 @@ layer_surface_unmap(struct wl_listener *listener, void *data)
 void
 layer_surface_commit(struct wl_listener *listener, void *data)
 {
-    tinywl_layer_surface *ls = wl_container_of(listener, ls, commit);
+    nnwm_layer_surface *ls = wl_container_of(listener, ls, commit);
 
     if (ls->wlr_layer_surface->current.committed)
         arrange_layer_surface(ls);
@@ -680,7 +680,7 @@ layer_surface_commit(struct wl_listener *listener, void *data)
 void
 layer_surface_destroy(struct wl_listener *listener, void *data)
 {
-    tinywl_layer_surface *ls = wl_container_of(listener, ls, destroy);
+    nnwm_layer_surface *ls = wl_container_of(listener, ls, destroy);
     wl_list_remove(&ls->map.link);
     wl_list_remove(&ls->unmap.link);
     wl_list_remove(&ls->commit.link);
@@ -695,7 +695,7 @@ server_new_input(struct wl_listener *listener, void *data)
 {
     /* This event is raised by the backend when a new input device becomes
      * available. */
-    tinywl_server *server = wl_container_of(listener, server, new_input);
+    nnwm_server *server = wl_container_of(listener, server, new_input);
     struct wlr_input_device *device = static_cast<struct wlr_input_device*>(data);
     switch (device->type)
     {
@@ -722,7 +722,7 @@ server_new_input(struct wl_listener *listener, void *data)
 void
 seat_request_cursor(struct wl_listener *listener, void *data)
 {
-    tinywl_server *server
+    nnwm_server *server
         = wl_container_of(listener, server, request_cursor);
     /* This event is raised by the seat when a client provides a cursor image */
     struct wlr_seat_pointer_request_set_cursor_event *event =
@@ -745,7 +745,7 @@ seat_request_cursor(struct wl_listener *listener, void *data)
 void
 seat_pointer_focus_change(struct wl_listener *listener, void *data)
 {
-    tinywl_server *server
+    nnwm_server *server
         = wl_container_of(listener, server, pointer_focus_change);
     /* This event is raised when the pointer focus is changed, including when
      * the client is closed. We set the cursor image to its default if target
@@ -763,10 +763,10 @@ seat_request_set_selection(struct wl_listener *listener, void *data)
 {
     /* This event is raised by the seat when a client wants to set the
      * selection, usually when the user copies something. wlroots allows
-     * compositors to ignore such requests if they so choose, but in tinywl we
+     * compositors to ignore such requests if they so choose, but in nnwm we
      * always honor
      */
-    tinywl_server *server
+    nnwm_server *server
         = wl_container_of(listener, server, request_set_selection);
     struct wlr_seat_request_set_selection_event *event =
         static_cast<struct wlr_seat_request_set_selection_event*>(data);
@@ -778,7 +778,7 @@ server_cursor_motion(struct wl_listener *listener, void *data)
 {
     /* This event is forwarded by the cursor when a pointer emits a _relative_
      * pointer motion event (i.e. a delta) */
-    tinywl_server *server
+    nnwm_server *server
         = wl_container_of(listener, server, cursor_motion);
     struct wlr_pointer_motion_event *event =
         static_cast<struct wlr_pointer_motion_event*>(data);
@@ -801,7 +801,7 @@ server_cursor_motion_absolute(struct wl_listener *listener, void *data)
      * move the mouse over the window. You could enter the window from any edge,
      * so we have to warp the mouse there. There is also some hardware which
      * emits these events. */
-    tinywl_server *server
+    nnwm_server *server
         = wl_container_of(listener, server, cursor_motion_absolute);
     struct wlr_pointer_motion_absolute_event *event =
         static_cast<struct wlr_pointer_motion_absolute_event*>(data);
@@ -815,7 +815,7 @@ server_cursor_button(struct wl_listener *listener, void *data)
 {
     /* This event is forwarded by the cursor when a pointer emits a button
      * event. */
-    tinywl_server *server
+    nnwm_server *server
         = wl_container_of(listener, server, cursor_button);
     struct wlr_pointer_button_event *event =
         static_cast<struct wlr_pointer_button_event*>(data);
@@ -832,7 +832,7 @@ server_cursor_button(struct wl_listener *listener, void *data)
         /* Focus that client if the button was _pressed_ */
         double sx, sy;
         struct wlr_surface *surface = nullptr;
-        tinywl_toplevel *toplevel   = desktop_toplevel_at(
+        nnwm_toplevel *toplevel   = desktop_toplevel_at(
             server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
         focus_toplevel(toplevel);
     }
@@ -843,7 +843,7 @@ server_cursor_axis(struct wl_listener *listener, void *data)
 {
     /* This event is forwarded by the cursor when a pointer emits an axis event,
      * for example when you move the scroll wheel. */
-    tinywl_server *server
+    nnwm_server *server
         = wl_container_of(listener, server, cursor_axis);
     struct wlr_pointer_axis_event *event =
         static_cast<struct wlr_pointer_axis_event*>(data);
@@ -860,7 +860,7 @@ server_cursor_frame(struct wl_listener *listener, void *data)
      * event. Frame events are sent after regular pointer events to group
      * multiple events together. For instance, two axis events may happen at the
      * same time, in which case a frame event won't be sent in between. */
-    tinywl_server *server
+    nnwm_server *server
         = wl_container_of(listener, server, cursor_frame);
     /* Notify the client with pointer focus of the frame event. */
     wlr_seat_pointer_notify_frame(server->seat);
@@ -871,7 +871,7 @@ server_new_output(struct wl_listener *listener, void *data)
 {
     /* This event is raised by the backend when a new output (aka a display or
      * monitor) becomes available. */
-    tinywl_server *server
+    nnwm_server *server
         = wl_container_of(listener, server, new_output);
     struct wlr_output *wlr_output = static_cast<struct wlr_output*>(data);
 
@@ -900,7 +900,7 @@ server_new_output(struct wl_listener *listener, void *data)
     wlr_output_state_finish(&state);
 
     /* Allocates and configures our state for this output */
-    tinywl_output *output = new tinywl_output{};
+    nnwm_output *output = new nnwm_output{};
     output->wlr_output    = wlr_output;
     output->server        = server;
 
@@ -940,13 +940,13 @@ server_new_xdg_toplevel(struct wl_listener *listener, void *data)
 {
     /* This event is raised when a client creates a new toplevel (application
      * window). */
-    tinywl_server *server
+    nnwm_server *server
         = wl_container_of(listener, server, new_xdg_toplevel);
     struct wlr_xdg_toplevel *xdg_toplevel =
         static_cast<struct wlr_xdg_toplevel*>(data);
 
-    /* Allocate a tinywl_toplevel for this surface */
-    tinywl_toplevel *toplevel = new tinywl_toplevel{};
+    /* Allocate a nnwm_toplevel for this surface */
+    nnwm_toplevel *toplevel = new nnwm_toplevel{};
     toplevel->server          = server;
     toplevel->xdg_toplevel    = xdg_toplevel;
     toplevel->scene_tree      = wlr_scene_xdg_surface_create(
@@ -987,7 +987,7 @@ server_new_xdg_popup(struct wl_listener *listener, void *data)
     struct wlr_xdg_popup *xdg_popup =
         static_cast<struct wlr_xdg_popup*>(data);
 
-    tinywl_popup *popup = new tinywl_popup{};
+    nnwm_popup *popup = new nnwm_popup{};
     popup->xdg_popup    = xdg_popup;
 
     /* We must add xdg popups to the scene graph so they get rendered. The
@@ -1013,17 +1013,17 @@ server_new_xdg_popup(struct wl_listener *listener, void *data)
 void
 server_new_layer_surface(struct wl_listener *listener, void *data)
 {
-    tinywl_server *server        = wl_container_of(listener, server, new_layer_surface);
+    nnwm_server *server        = wl_container_of(listener, server, new_layer_surface);
     struct wlr_layer_surface_v1 *wlr_ls =
         static_cast<struct wlr_layer_surface_v1*>(data);
 
     if (!wlr_ls->output && !wl_list_empty(&server->outputs))
     {
-        tinywl_output *o = wl_container_of(server->outputs.next, o, link);
+        nnwm_output *o = wl_container_of(server->outputs.next, o, link);
         wlr_ls->output = o->wlr_output;
     }
 
-    tinywl_layer_surface *ls = new tinywl_layer_surface{};
+    nnwm_layer_surface *ls = new nnwm_layer_surface{};
     ls->server               = server;
     ls->wlr_layer_surface    = wlr_ls;
     ls->scene                = wlr_scene_layer_surface_v1_create(
