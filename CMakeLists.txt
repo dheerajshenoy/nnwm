@@ -80,4 +80,7 @@ target_compile_options(nnwm PRIVATE
     ${WLROOTS_CFLAGS_OTHER}
     ${WAYLAND_SERVER_CFLAGS_OTHER}
     ${XKBCOMMON_CFLAGS_OTHER}
+    $<$<CONFIG:Debug>:-ggdb3>
+    $<$<CONFIG:Debug>:-O0>
+    $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
 )

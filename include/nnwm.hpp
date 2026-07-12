@@ -38,11 +38,14 @@ extern "C"
 #  include <wlr/types/wlr_layer_shell_v1.h>
 #endif
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #ifdef __cplusplus
 }
 #endif
+
+struct nnwm_decoration; /* forward declaration — defined below nnwm_toplevel */
 
 /* For brevity's sake, struct members are annotated where they are used. */
 enum nnwm_cursor_mode
@@ -67,6 +70,9 @@ struct nnwm_server
 
     struct wlr_layer_shell_v1 *layer_shell;
     struct wl_listener new_layer_surface;
+
+    struct wlr_xdg_decoration_manager_v1 *decoration_manager;
+    struct wl_listener new_decoration;
 
     struct wlr_xdg_shell *xdg_shell;
     struct wl_listener new_xdg_toplevel;
@@ -114,6 +120,7 @@ struct nnwm_toplevel
     struct nnwm_server *server;
     struct wlr_xdg_toplevel *xdg_toplevel;
     struct wlr_scene_tree *scene_tree;
+    struct nnwm_decoration *decoration; /* pending decoration, applied on initial commit */
     struct wl_listener map;
     struct wl_listener unmap;
     struct wl_listener commit;
@@ -142,6 +149,13 @@ struct nnwm_keyboard
     struct wl_listener destroy;
 };
 
+struct nnwm_decoration
+{
+    struct wlr_xdg_toplevel_decoration_v1 *wlr_deco;
+    struct wl_listener request_mode;
+    struct wl_listener destroy;
+};
+
 struct nnwm_layer_surface
 {
     struct nnwm_server *server;
@@ -162,6 +176,7 @@ void server_new_output(struct wl_listener *, void *);
 void server_new_xdg_toplevel(struct wl_listener *, void *);
 void server_new_xdg_popup(struct wl_listener *, void *);
 void server_new_layer_surface(struct wl_listener *, void *);
+void server_new_decoration(struct wl_listener *, void *);
 void server_cursor_motion(struct wl_listener *, void *);
 void server_cursor_motion_absolute(struct wl_listener *, void *);
 void server_cursor_button(struct wl_listener *, void *);

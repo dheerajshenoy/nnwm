@@ -1,4 +1,5 @@
 #include "nnwm.hpp"
+#include <cstdio>
 
 int
 main(int argc, char *argv[])
@@ -15,13 +16,13 @@ main(int argc, char *argv[])
                 startup_cmd = optarg;
                 break;
             default:
-                printf("Usage: %s [-s startup command]\n", argv[0]);
+                std::fprintf(stderr, "Usage: %s [-s startup command]\n", argv[0]);
                 return 0;
         }
     }
     if (optind < argc)
     {
-        printf("Usage: %s [-s startup command]\n", argv[0]);
+        std::fprintf(stderr, "Usage: %s [-s startup command]\n", argv[0]);
         return 0;
     }
 
@@ -115,6 +116,12 @@ main(int argc, char *argv[])
     server.new_layer_surface.notify  = server_new_layer_surface;
     wl_signal_add(&server.layer_shell->events.new_surface, &server.new_layer_surface);
 
+    /* XDG decoration: tell clients to use client-side decorations */
+    server.decoration_manager       = wlr_xdg_decoration_manager_v1_create(server.wl_display);
+    server.new_decoration.notify    = server_new_decoration;
+    wl_signal_add(&server.decoration_manager->events.new_toplevel_decoration,
+                  &server.new_decoration);
+
     /* Set up xdg-shell version 3. The xdg-shell is a Wayland protocol which is
      * used for application windows. For more detail on shells, refer to
      * https://drewdevault.com/2018/07/29/Wayland-shells.html.
@@ -150,7 +157,7 @@ main(int argc, char *argv[])
      *
      * And more comments are sprinkled throughout the notify functions above.
      */
-    server.cursor_mode          = TINYWL_CURSOR_PASSTHROUGH;
+    server.cursor_mode          = NNWM_CURSOR_PASSTHROUGH;
     server.cursor_motion.notify = server_cursor_motion;
     wl_signal_add(&server.cursor->events.motion, &server.cursor_motion);
     server.cursor_motion_absolute.notify = server_cursor_motion_absolute;
@@ -203,6 +210,11 @@ main(int argc, char *argv[])
     /* Set the WAYLAND_DISPLAY environment variable to our socket and run the
      * startup command if requested. */
     setenv("WAYLAND_DISPLAY", socket, true);
+    /* Unset DISPLAY so clients don't try to connect to a non-existent X server.
+     * Without this, toolkits like GLFW/SDL that support both X11 and Wayland
+     * will attempt X11 first (because $DISPLAY is set from the parent TTY
+     * session) and fail with an EGL/GLX error. */
+    unsetenv("DISPLAY");
     if (startup_cmd)
     {
         if (fork() == 0)
@@ -222,6 +234,7 @@ main(int argc, char *argv[])
      * server. */
     wl_display_destroy_clients(server.wl_display);
 
+    wl_list_remove(&server.new_decoration.link);
     wl_list_remove(&server.new_layer_surface.link);
     wl_list_remove(&server.new_xdg_toplevel.link);
     wl_list_remove(&server.new_xdg_popup.link);
