@@ -1,0 +1,2 @@
+---@meta
+nnwm = nnwm or {}

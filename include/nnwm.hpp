@@ -104,6 +104,8 @@ struct nnwm_server
     struct wlr_output_layout *output_layout;
     struct wl_list outputs;
     struct wl_listener new_output;
+
+    float master_ratio; /* fraction of screen width given to the master window */
 };
 
 struct nnwm_output

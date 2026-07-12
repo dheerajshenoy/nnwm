@@ -4,6 +4,48 @@
 namespace {
 
 void
+arrange_windows(nnwm_server *server)
+{
+    if (wl_list_empty(&server->outputs) || wl_list_empty(&server->toplevels))
+        return;
+
+    nnwm_output *first = wl_container_of(server->outputs.next, first, link);
+    wlr_box area;
+    wlr_output_layout_get_box(server->output_layout, first->wlr_output, &area);
+
+    int n = wl_list_length(&server->toplevels);
+
+    nnwm_toplevel *tl;
+    if (n == 1) {
+        tl = wl_container_of(server->toplevels.next, tl, link);
+        wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
+        wlr_xdg_toplevel_set_size(tl->xdg_toplevel, area.width, area.height);
+        return;
+    }
+
+    int mw = (int)(area.width * server->master_ratio);
+    int sw = area.width - mw;
+    int ns = n - 1; /* number of stack windows */
+    int sh = area.height / ns;
+
+    int i = 0;
+    wl_list_for_each(tl, &server->toplevels, link) {
+        if (i == 0) {
+            /* master: left column, full height */
+            wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
+            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, mw, area.height);
+        } else {
+            /* stack: right column, evenly divided rows */
+            int sy = area.y + (i - 1) * sh;
+            int h  = (i < ns) ? sh : area.height - (i - 1) * sh; /* last gets remainder */
+            wlr_scene_node_set_position(&tl->scene_tree->node, area.x + mw, sy);
+            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, sw, h);
+        }
+        ++i;
+    }
+}
+
+void
 focus_toplevel(nnwm_toplevel *toplevel)
 {
     /* Note: this function only deals with keyboard focus. */
@@ -52,6 +94,8 @@ focus_toplevel(nnwm_toplevel *toplevel)
                                        keyboard->num_keycodes,
                                        &keyboard->modifiers);
     }
+
+    arrange_windows(server);
 }
 
 void
@@ -116,7 +160,47 @@ handle_keybinding(nnwm_server *server, uint32_t modifiers,
         return true;
     }
 
-    /* Alt+F1: cycle windows */
+    /* Super+J: focus next window (moves it to master) */
+    if (mods == SUPER && key == XKB_KEY_j)
+    {
+        if (wl_list_length(&server->toplevels) < 2)
+            return true;
+        nnwm_toplevel *cur  = wl_container_of(server->toplevels.next, cur, link);
+        wl_list       *next = cur->link.next == &server->toplevels
+                                  ? server->toplevels.next->next
+                                  : cur->link.next;
+        nnwm_toplevel *tl   = wl_container_of(next, tl, link);
+        focus_toplevel(tl);
+        return true;
+    }
+
+    /* Super+K: focus previous window */
+    if (mods == SUPER && key == XKB_KEY_k)
+    {
+        if (wl_list_length(&server->toplevels) < 2)
+            return true;
+        nnwm_toplevel *tl = wl_container_of(server->toplevels.prev, tl, link);
+        focus_toplevel(tl);
+        return true;
+    }
+
+    /* Super+H/L: shrink / grow master area */
+    if (mods == SUPER && key == XKB_KEY_h)
+    {
+        server->master_ratio -= 0.05f;
+        if (server->master_ratio < 0.1f) server->master_ratio = 0.1f;
+        arrange_windows(server);
+        return true;
+    }
+    if (mods == SUPER && key == XKB_KEY_l)
+    {
+        server->master_ratio += 0.05f;
+        if (server->master_ratio > 0.9f) server->master_ratio = 0.9f;
+        arrange_windows(server);
+        return true;
+    }
+
+    /* Alt+F1: cycle windows (legacy binding kept) */
     if (mods == ALT && sym == XKB_KEY_F1)
     {
         if (wl_list_length(&server->toplevels) < 2)
@@ -478,6 +562,7 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
     }
 
     wl_list_remove(&toplevel->link);
+    arrange_windows(toplevel->server);
 }
 
 void
@@ -590,29 +675,15 @@ begin_interactive(nnwm_toplevel *toplevel,
 }
 
 void
-xdg_toplevel_request_move(wl_listener *listener, void * /*data*/)
+xdg_toplevel_request_move(wl_listener * /*listener*/, void * /*data*/)
 {
-    /* This event is raised when a client would like to begin an interactive
-     * move, typically because the user clicked on their client-side
-     * decorations. Note that a more sophisticated compositor should check the
-     * provided serial against a list of button press serials sent to this
-     * client, to prevent the client from requesting this whenever they want. */
-    nnwm_toplevel *toplevel
-        = wl_container_of(listener, toplevel, request_move);
-    begin_interactive(toplevel, NNWM_CURSOR_MOVE, 0);
+    /* Tiling layout owns geometry — interactive move is disabled. */
 }
 
 void
-xdg_toplevel_request_resize(wl_listener *listener, void *data)
+xdg_toplevel_request_resize(wl_listener * /*listener*/, void * /*data*/)
 {
-    /* This event is raised when a client would like to begin an interactive
-     * resize, typically because the user clicked on their client-side
-     * decorations. Note that a more sophisticated compositor should check the
-     * provided serial against a list of button press serials sent to this
-     * client, to prevent the client from requesting this whenever they want. */
-    auto          *event    = static_cast<wlr_xdg_toplevel_resize_event*>(data);
-    nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, request_resize);
-    begin_interactive(toplevel, NNWM_CURSOR_RESIZE, event->edges);
+    /* Tiling layout owns geometry — interactive resize is disabled. */
 }
 
 void

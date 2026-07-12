@@ -26,7 +26,8 @@ main(int argc, char *argv[])
         return 0;
     }
 
-    nnwm_server server = {};
+    nnwm_server server  = {};
+    server.master_ratio = 0.55f;
     /* The Wayland display is managed by libwayland. It handles accepting
      * clients from the Unix socket, managing Wayland globals, and so on. */
     server.wl_display           = wl_display_create();
