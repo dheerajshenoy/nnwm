@@ -28,6 +28,11 @@ main(int argc, char *argv[])
 
     nnwm_server server  = {};
     server.master_ratio = 0.55f;
+    server.border_width = 2;
+    server.focused_color[0] = 0.3f; server.focused_color[1] = 0.5f;
+    server.focused_color[2] = 0.8f; server.focused_color[3] = 1.0f;
+    server.unfocused_color[0] = 0.15f; server.unfocused_color[1] = 0.15f;
+    server.unfocused_color[2] = 0.15f; server.unfocused_color[3] = 1.0f;
     /* The Wayland display is managed by libwayland. It handles accepting
      * clients from the Unix socket, managing Wayland globals, and so on. */
     server.wl_display           = wl_display_create();

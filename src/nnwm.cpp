@@ -4,6 +4,31 @@
 namespace {
 
 void
+update_borders(nnwm_toplevel *toplevel, int width, int height)
+{
+    int bw = toplevel->server->border_width;
+
+    /* border[0]: top */
+    wlr_scene_node_set_position(&toplevel->border[0]->node, 0, 0);
+    wlr_scene_rect_set_size(toplevel->border[0], width, bw);
+
+    /* border[1]: bottom */
+    wlr_scene_node_set_position(&toplevel->border[1]->node, 0, height - bw);
+    wlr_scene_rect_set_size(toplevel->border[1], width, bw);
+
+    /* border[2]: left */
+    wlr_scene_node_set_position(&toplevel->border[2]->node, 0, bw);
+    wlr_scene_rect_set_size(toplevel->border[2], bw, height - 2 * bw);
+
+    /* border[3]: right */
+    wlr_scene_node_set_position(&toplevel->border[3]->node, width - bw, bw);
+    wlr_scene_rect_set_size(toplevel->border[3], bw, height - 2 * bw);
+
+    /* window surface offset inside borders */
+    wlr_scene_node_set_position(&toplevel->scene_surface->node, bw, bw);
+}
+
+void
 arrange_windows(nnwm_server *server)
 {
     if (wl_list_empty(&server->outputs) || wl_list_empty(&server->toplevels))
@@ -13,13 +38,16 @@ arrange_windows(nnwm_server *server)
     wlr_box area;
     wlr_output_layout_get_box(server->output_layout, first->wlr_output, &area);
 
-    int n = wl_list_length(&server->toplevels);
+    int n  = wl_list_length(&server->toplevels);
+    int bw = server->border_width;
 
     nnwm_toplevel *tl;
     if (n == 1) {
         tl = wl_container_of(server->toplevels.next, tl, link);
         wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
-        wlr_xdg_toplevel_set_size(tl->xdg_toplevel, area.width, area.height);
+        wlr_xdg_toplevel_set_size(tl->xdg_toplevel,
+                                   area.width - 2 * bw, area.height - 2 * bw);
+        update_borders(tl, area.width, area.height);
         return;
     }
 
@@ -33,13 +61,17 @@ arrange_windows(nnwm_server *server)
         if (i == 0) {
             /* master: left column, full height */
             wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
-            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, mw, area.height);
+            wlr_xdg_toplevel_set_size(tl->xdg_toplevel,
+                                       mw - 2 * bw, area.height - 2 * bw);
+            update_borders(tl, mw, area.height);
         } else {
             /* stack: right column, evenly divided rows */
             int sy = area.y + (i - 1) * sh;
             int h  = (i < ns) ? sh : area.height - (i - 1) * sh; /* last gets remainder */
             wlr_scene_node_set_position(&tl->scene_tree->node, area.x + mw, sy);
-            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, sw, h);
+            wlr_xdg_toplevel_set_size(tl->xdg_toplevel,
+                                       sw - 2 * bw, h - 2 * bw);
+            update_borders(tl, sw, h);
         }
         ++i;
     }
@@ -79,6 +111,17 @@ focus_toplevel(nnwm_toplevel *toplevel)
     wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
     /* Activate the new surface */
     wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
+
+    /* Update border colors for all windows */
+    nnwm_toplevel *tl;
+    wl_list_for_each(tl, &server->toplevels, link) {
+        float *color = (tl == toplevel)
+            ? server->focused_color
+            : server->unfocused_color;
+        for (int i = 0; i < 4; i++)
+            wlr_scene_rect_set_color(tl->border[i], color);
+    }
+
     if (keyboard != nullptr)
     {
         wlr_seat_keyboard_notify_enter(seat, surface, keyboard->keycodes,
@@ -438,7 +481,10 @@ process_cursor_resize(nnwm_server *server)
 
     int new_width  = new_right - new_left;
     int new_height = new_bottom - new_top;
-    wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, new_width, new_height);
+    int bw = toplevel->server->border_width;
+    wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel,
+                               new_width - 2 * bw, new_height - 2 * bw);
+    update_borders(toplevel, new_width, new_height);
 }
 
 void
@@ -1070,10 +1116,21 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     nnwm_toplevel *toplevel = new nnwm_toplevel{};
     toplevel->server          = server;
     toplevel->xdg_toplevel    = xdg_toplevel;
-    toplevel->scene_tree      = wlr_scene_xdg_surface_create(
-        toplevel->server->scene_windows, xdg_toplevel->base);
+
+    /* Create wrapper tree in scene_windows */
+    toplevel->scene_tree = wlr_scene_tree_create(server->scene_windows);
     toplevel->scene_tree->node.data = toplevel;
-    xdg_toplevel->base->data        = toplevel->scene_tree;
+
+    /* Create four border rects as children of the wrapper */
+    for (int i = 0; i < 4; i++)
+        toplevel->border[i] = wlr_scene_rect_create(
+            toplevel->scene_tree, 0, 0, server->unfocused_color);
+
+    /* Create xdg surface as child of the wrapper, offset by border width */
+    toplevel->scene_surface = wlr_scene_xdg_surface_create(
+        toplevel->scene_tree, xdg_toplevel->base);
+    toplevel->scene_surface->node.data = toplevel;
+    xdg_toplevel->base->data           = toplevel->scene_surface;
 
     /* Listen to the various events it can emit */
     toplevel->map.notify = xdg_toplevel_map;

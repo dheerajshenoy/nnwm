@@ -106,6 +106,10 @@ struct nnwm_server
     struct wl_listener new_output;
 
     float master_ratio; /* fraction of screen width given to the master window */
+
+    int border_width;
+    float focused_color[4];
+    float unfocused_color[4];
 };
 
 struct nnwm_output
@@ -124,6 +128,8 @@ struct nnwm_toplevel
     struct nnwm_server *server;
     struct wlr_xdg_toplevel *xdg_toplevel;
     struct wlr_scene_tree *scene_tree;
+    struct wlr_scene_rect *border[4];      /* top, bottom, left, right */
+    struct wlr_scene_tree *scene_surface;
     struct nnwm_decoration *decoration; /* pending decoration, applied on initial commit */
     struct wl_listener map;
     struct wl_listener unmap;
