@@ -1,4 +1,4 @@
-# nnWM
+# nnwm
 
 **no name Window Manager (nnWM)** is a lightweight and minimalistic tiling wayland compositor.
 
