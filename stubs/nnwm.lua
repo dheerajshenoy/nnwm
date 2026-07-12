@@ -95,8 +95,6 @@ KEY = {}
 ---@field touchpad_tap_to_click         boolean  Enable tap-to-click (default: true)
 ---@field touchpad_natural_scroll       boolean  Natural/reverse scroll direction (default: true)
 ---@field touchpad_disable_while_typing boolean  Disable touchpad while typing (default: true)
---- Launcher
----@field launcher_command  string  Shell command for the launcher (default: "rofi -show drun")
 nnwm = {}
 
 ---Register a keybinding. `combo` is an array of modifier and key name strings;

@@ -132,12 +132,6 @@ All fields are set directly on the `nnwm` table.
 | `touchpad_natural_scroll`    | bool | `true`  | Natural (reverse) scroll       |
 | `touchpad_disable_while_typing`| bool | `true`| Disable touchpad while typing  |
 
-### Launcher
-
-| Field              | Type   | Default             | Description           |
-|--------------------|--------|---------------------|-----------------------|
-| `launcher_command` | string | `"rofi -show drun"` | Command for launcher  |
-
 ## Example Config
 
 ```lua
@@ -150,9 +144,6 @@ nnwm.unfocused_color = {0.15, 0.15, 0.15, 1.0}
 -- Cursor
 nnwm.cursor_theme = "default"
 nnwm.cursor_size = 24
-
--- Launcher
-nnwm.launcher_command = "rofi -show drun"
 
 -- Keybindings
 nnwm.key({"Super", "Shift", "c"}, function() nnwm.quit() end)

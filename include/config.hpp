@@ -20,13 +20,13 @@ struct nnwm_config
     float master_ratio_max;
 
     /* Gaps */
-    int  inner_gap;
-    int  outer_gap;
+    int inner_gap;
+    int outer_gap;
     bool smart_gaps;
     bool smart_borders;
 
     /* Borders */
-    int   border_width;
+    int border_width;
     float focused_color[4];
     float unfocused_color[4];
 
@@ -36,7 +36,7 @@ struct nnwm_config
 
     /* Cursor */
     char *cursor_theme;
-    int   cursor_size;
+    int cursor_size;
 
     /* Seat */
     char *seat_name;
@@ -45,17 +45,14 @@ struct nnwm_config
     bool touchpad_tap_to_click;
     bool touchpad_natural_scroll;
     bool touchpad_disable_while_typing;
-
-    /* Launcher */
-    char *launcher_command;
 };
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-struct nnwm_config *nnwm_config_defaults(void);
-void nnwm_config_free(struct nnwm_config *cfg);
+    struct nnwm_config *nnwm_config_defaults(void);
+    void nnwm_config_free(struct nnwm_config *cfg);
 #ifdef __cplusplus
 }
 #endif

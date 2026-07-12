@@ -1,10 +1,12 @@
 #include "lua/config.hpp"
+
 #include "config.hpp"
 #include "nnwm.hpp"
 
-extern "C" {
-#include <lua.h>
+extern "C"
+{
 #include <lauxlib.h>
+#include <lua.h>
 #include <lualib.h>
 #include <xkbcommon/xkbcommon.h>
 }
@@ -19,7 +21,7 @@ static struct nnwm_server *
 get_server(lua_State *L)
 {
     lua_getfield(L, LUA_REGISTRYINDEX, "_nnwm_server");
-    auto *server = static_cast<struct nnwm_server*>(lua_touserdata(L, -1));
+    auto *server = static_cast<struct nnwm_server *>(lua_touserdata(L, -1));
     lua_pop(L, 1);
     return server;
 }
@@ -56,7 +58,7 @@ get_string_field(lua_State *L, const char *name, const char *dflt)
 {
     lua_getfield(L, -1, name);
     const char *v = lua_isstring(L, -1) ? lua_tostring(L, -1) : dflt;
-    char *r = v ? strdup(v) : nullptr;
+    char *r       = v ? strdup(v) : nullptr;
     lua_pop(L, 1);
     return r;
 }
@@ -93,16 +95,20 @@ resolve_keysym(const char *name)
 
 /* ---- MOD and KEY constant tables ---- */
 
-static const struct { const char *name; int value; } mod_entries[] = {
-    { "Shift",  WLR_MODIFIER_SHIFT },
-    { "Caps",   WLR_MODIFIER_CAPS },
-    { "Ctrl",   WLR_MODIFIER_CTRL },
-    { "Alt",    WLR_MODIFIER_ALT },
-    { "Mod2",   WLR_MODIFIER_MOD2 },
-    { "Mod3",   WLR_MODIFIER_MOD3 },
-    { "Super",  WLR_MODIFIER_LOGO },
-    { "Mod5",   WLR_MODIFIER_MOD5 },
-    { nullptr, 0 },
+static const struct
+{
+    const char *name;
+    int value;
+} mod_entries[] = {
+    {"Shift", WLR_MODIFIER_SHIFT},
+    {"Caps", WLR_MODIFIER_CAPS},
+    {"Ctrl", WLR_MODIFIER_CTRL},
+    {"Alt", WLR_MODIFIER_ALT},
+    {"Mod2", WLR_MODIFIER_MOD2},
+    {"Mod3", WLR_MODIFIER_MOD3},
+    {"Super", WLR_MODIFIER_LOGO},
+    {"Mod5", WLR_MODIFIER_MOD5},
+    {nullptr, 0},
 };
 
 static bool
@@ -138,7 +144,7 @@ push_key_table(lua_State *L)
 
     for (char c = 'a'; c <= 'z'; c++)
     {
-        char buf[2] = { c, '\0' };
+        char buf[2]      = {c, '\0'};
         xkb_keysym_t sym = xkb_keysym_from_name(buf, XKB_KEYSYM_NO_FLAGS);
         if (sym != XKB_KEY_NoSymbol)
         {
@@ -159,22 +165,20 @@ push_key_table(lua_State *L)
         }
     }
 
-    struct { const char *name; const char *xkb; } special[] = {
-        { "Return",  "Return" },
-        { "Space",   "space" },
-        { "Tab",     "Tab" },
-        { "Escape",  "Escape" },
-        { "Backspace", "BackSpace" },
-        { "Delete",  "Delete" },
-        { "Up",      "Up" },
-        { "Down",    "Down" },
-        { "Left",    "Left" },
-        { "Right",   "Right" },
-        { nullptr, nullptr },
+    struct
+    {
+        const char *name;
+        const char *xkb;
+    } special[] = {
+        {"Return", "Return"}, {"Space", "space"},         {"Tab", "Tab"},
+        {"Escape", "Escape"}, {"Backspace", "BackSpace"}, {"Delete", "Delete"},
+        {"Up", "Up"},         {"Down", "Down"},           {"Left", "Left"},
+        {"Right", "Right"},   {nullptr, nullptr},
     };
     for (int i = 0; special[i].name != nullptr; i++)
     {
-        xkb_keysym_t sym = xkb_keysym_from_name(special[i].xkb, XKB_KEYSYM_NO_FLAGS);
+        xkb_keysym_t sym
+            = xkb_keysym_from_name(special[i].xkb, XKB_KEYSYM_NO_FLAGS);
         if (sym != XKB_KEY_NoSymbol)
         {
             lua_pushinteger(L, sym);
@@ -195,8 +199,8 @@ l_nnwm_key(lua_State *L)
 
     struct nnwm_server *server = get_server(L);
 
-    uint32_t      mods  = 0;
-    xkb_keysym_t  keysym = XKB_KEY_NoSymbol;
+    uint32_t mods       = 0;
+    xkb_keysym_t keysym = XKB_KEY_NoSymbol;
 
     int len = static_cast<int>(lua_rawlen(L, 1));
     for (int i = 1; i <= len; i++)
@@ -206,7 +210,8 @@ l_nnwm_key(lua_State *L)
         if (!name)
         {
             lua_pop(L, 1);
-            return luaL_error(L, "nnwm.key: combo table entries must be strings");
+            return luaL_error(L,
+                              "nnwm.key: combo table entries must be strings");
         }
 
         uint32_t mod;
@@ -241,17 +246,17 @@ l_nnwm_key(lua_State *L)
     /* Grow keybinding array if needed */
     if (server->lua_keybinding_count >= server->lua_keybinding_cap)
     {
-        server->lua_keybinding_cap = server->lua_keybinding_cap
-            ? server->lua_keybinding_cap * 2 : 16;
-        server->lua_keybindings = static_cast<struct nnwm_lua_keybinding*>(
-            std::realloc(server->lua_keybindings,
-                         sizeof(struct nnwm_lua_keybinding)
-                         * server->lua_keybinding_cap));
+        server->lua_keybinding_cap
+            = server->lua_keybinding_cap ? server->lua_keybinding_cap * 2 : 16;
+        server->lua_keybindings
+            = static_cast<struct nnwm_lua_keybinding *>(std::realloc(
+                server->lua_keybindings, sizeof(struct nnwm_lua_keybinding)
+                                             * server->lua_keybinding_cap));
     }
 
-    auto &kb = server->lua_keybindings[server->lua_keybinding_count++];
-    kb.mods    = mods;
-    kb.keysym  = keysym;
+    auto &kb    = server->lua_keybindings[server->lua_keybinding_count++];
+    kb.mods     = mods;
+    kb.keysym   = keysym;
     kb.func_ref = func_ref;
 
     return 0;
@@ -345,20 +350,20 @@ l_nnwm_cycle(lua_State *L)
 }
 
 static const struct luaL_Reg nnwm_funcs[] = {
-    { "key",          l_nnwm_key },
-    { "quit",         l_nnwm_quit },
-    { "close",        l_nnwm_close },
-    { "spawn",        l_nnwm_spawn },
-    { "focus_left",   l_nnwm_focus_left },
-    { "focus_right",  l_nnwm_focus_right },
-    { "focus_next",   l_nnwm_focus_next },
-    { "focus_prev",   l_nnwm_focus_prev },
-    { "swap_left",    l_nnwm_swap_left },
-    { "swap_right",   l_nnwm_swap_right },
-    { "swap_next",    l_nnwm_swap_next },
-    { "swap_prev",    l_nnwm_swap_prev },
-    { "cycle",        l_nnwm_cycle },
-    { nullptr, nullptr },
+    {"key", l_nnwm_key},
+    {"quit", l_nnwm_quit},
+    {"close", l_nnwm_close},
+    {"spawn", l_nnwm_spawn},
+    {"focus_left", l_nnwm_focus_left},
+    {"focus_right", l_nnwm_focus_right},
+    {"focus_next", l_nnwm_focus_next},
+    {"focus_prev", l_nnwm_focus_prev},
+    {"swap_left", l_nnwm_swap_left},
+    {"swap_right", l_nnwm_swap_right},
+    {"swap_next", l_nnwm_swap_next},
+    {"swap_prev", l_nnwm_swap_prev},
+    {"cycle", l_nnwm_cycle},
+    {nullptr, nullptr},
 };
 
 /* ---- push config defaults into the Lua nnwm table ---- */
@@ -367,7 +372,8 @@ static void
 push_config_defaults(lua_State *L, struct nnwm_config *cfg)
 {
     lua_getglobal(L, "nnwm");
-    if (!lua_istable(L, -1)) {
+    if (!lua_istable(L, -1))
+    {
         lua_pop(L, 1);
         lua_newtable(L);
         lua_pushvalue(L, -1);
@@ -430,9 +436,6 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_pushboolean(L, cfg->touchpad_disable_while_typing);
     lua_setfield(L, -2, "touchpad_disable_while_typing");
 
-    lua_pushstring(L, cfg->launcher_command);
-    lua_setfield(L, -2, "launcher_command");
-
     lua_pop(L, 1);
 }
 
@@ -448,35 +451,38 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         return;
     }
 
-    cfg->master_ratio      = get_float_field(L, "master_ratio", cfg->master_ratio);
-    cfg->master_ratio_step = get_float_field(L, "master_ratio_step", cfg->master_ratio_step);
-    cfg->master_ratio_min  = get_float_field(L, "master_ratio_min", cfg->master_ratio_min);
-    cfg->master_ratio_max  = get_float_field(L, "master_ratio_max", cfg->master_ratio_max);
-    cfg->inner_gap         = get_int_field(L, "inner_gap", cfg->inner_gap);
-    cfg->outer_gap         = get_int_field(L, "outer_gap", cfg->outer_gap);
-    cfg->smart_gaps        = get_bool_field(L, "smart_gaps", cfg->smart_gaps);
-    cfg->smart_borders     = get_bool_field(L, "smart_borders", cfg->smart_borders);
-    cfg->border_width      = get_int_field(L, "border_width", cfg->border_width);
+    cfg->master_ratio = get_float_field(L, "master_ratio", cfg->master_ratio);
+    cfg->master_ratio_step
+        = get_float_field(L, "master_ratio_step", cfg->master_ratio_step);
+    cfg->master_ratio_min
+        = get_float_field(L, "master_ratio_min", cfg->master_ratio_min);
+    cfg->master_ratio_max
+        = get_float_field(L, "master_ratio_max", cfg->master_ratio_max);
+    cfg->inner_gap     = get_int_field(L, "inner_gap", cfg->inner_gap);
+    cfg->outer_gap     = get_int_field(L, "outer_gap", cfg->outer_gap);
+    cfg->smart_gaps    = get_bool_field(L, "smart_gaps", cfg->smart_gaps);
+    cfg->smart_borders = get_bool_field(L, "smart_borders", cfg->smart_borders);
+    cfg->border_width  = get_int_field(L, "border_width", cfg->border_width);
 
-    float dflt_foc[4] = { cfg->focused_color[0], cfg->focused_color[1],
-                           cfg->focused_color[2], cfg->focused_color[3] };
+    float dflt_foc[4] = {cfg->focused_color[0], cfg->focused_color[1],
+                         cfg->focused_color[2], cfg->focused_color[3]};
     get_color_field(L, "focused_color", cfg->focused_color, dflt_foc);
 
-    float dflt_unf[4] = { cfg->unfocused_color[0], cfg->unfocused_color[1],
-                           cfg->unfocused_color[2], cfg->unfocused_color[3] };
+    float dflt_unf[4] = {cfg->unfocused_color[0], cfg->unfocused_color[1],
+                         cfg->unfocused_color[2], cfg->unfocused_color[3]};
     get_color_field(L, "unfocused_color", cfg->unfocused_color, dflt_unf);
 
-    cfg->keyboard_repeat_rate  = get_int_field(L, "keyboard_repeat_rate",
-                                               cfg->keyboard_repeat_rate);
-    cfg->keyboard_repeat_delay = get_int_field(L, "keyboard_repeat_delay",
-                                               cfg->keyboard_repeat_delay);
-    cfg->cursor_size  = get_int_field(L, "cursor_size", cfg->cursor_size);
-    cfg->touchpad_tap_to_click = get_bool_field(L, "touchpad_tap_to_click",
-                                                 cfg->touchpad_tap_to_click);
+    cfg->keyboard_repeat_rate
+        = get_int_field(L, "keyboard_repeat_rate", cfg->keyboard_repeat_rate);
+    cfg->keyboard_repeat_delay
+        = get_int_field(L, "keyboard_repeat_delay", cfg->keyboard_repeat_delay);
+    cfg->cursor_size = get_int_field(L, "cursor_size", cfg->cursor_size);
+    cfg->touchpad_tap_to_click   = get_bool_field(L, "touchpad_tap_to_click",
+                                                  cfg->touchpad_tap_to_click);
     cfg->touchpad_natural_scroll = get_bool_field(L, "touchpad_natural_scroll",
-                                                   cfg->touchpad_natural_scroll);
-    cfg->touchpad_disable_while_typing = get_bool_field(L, "touchpad_disable_while_typing",
-                                                         cfg->touchpad_disable_while_typing);
+                                                  cfg->touchpad_natural_scroll);
+    cfg->touchpad_disable_while_typing = get_bool_field(
+        L, "touchpad_disable_while_typing", cfg->touchpad_disable_while_typing);
 
     char *s;
     s = get_string_field(L, "cursor_theme", cfg->cursor_theme);
@@ -486,10 +492,6 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     s = get_string_field(L, "seat_name", cfg->seat_name);
     free(cfg->seat_name);
     cfg->seat_name = s;
-
-    s = get_string_field(L, "launcher_command", cfg->launcher_command);
-    free(cfg->launcher_command);
-    cfg->launcher_command = s;
 
     lua_pop(L, 1);
 }
@@ -522,7 +524,7 @@ nnwm_lua_init(struct nnwm_server *server)
     lua_setglobal(server->lua, "nnwm");
 
     /* Initialize keybinding registry */
-    server->lua_keybindings     = nullptr;
+    server->lua_keybindings      = nullptr;
     server->lua_keybinding_count = 0;
     server->lua_keybinding_cap   = 0;
 }
@@ -538,7 +540,7 @@ nnwm_lua_fini(struct nnwm_server *server)
         luaL_unref(server->lua, LUA_REGISTRYINDEX,
                    server->lua_keybindings[i].func_ref);
     std::free(server->lua_keybindings);
-    server->lua_keybindings     = nullptr;
+    server->lua_keybindings      = nullptr;
     server->lua_keybinding_count = 0;
     server->lua_keybinding_cap   = 0;
 
@@ -548,7 +550,7 @@ nnwm_lua_fini(struct nnwm_server *server)
 
 extern "C" void
 nnwm_lua_load_config(struct nnwm_server *server, struct nnwm_config *cfg,
-                      const char *path)
+                     const char *path)
 {
     if (!server->lua)
         return;
@@ -565,8 +567,8 @@ nnwm_lua_load_config(struct nnwm_server *server, struct nnwm_config *cfg,
 
     read_config_table(server->lua, cfg);
 
-    std::fprintf(stderr, "nnwm: loaded config from %s (%d keybindings)\n",
-                 path, server->lua_keybinding_count);
+    std::fprintf(stderr, "nnwm: loaded config from %s (%d keybindings)\n", path,
+                 server->lua_keybinding_count);
 }
 
 extern "C" void
@@ -598,8 +600,8 @@ nnwm_lua_reload(struct nnwm_server *server, struct nnwm_config *cfg)
 }
 
 extern "C" int
-nnwm_lua_handle_keybinding(struct nnwm_server *server,
-                            uint32_t mods, unsigned int keysym)
+nnwm_lua_handle_keybinding(struct nnwm_server *server, uint32_t mods,
+                           unsigned int keysym)
 {
     if (!server->lua)
         return 0;
@@ -642,22 +644,25 @@ nnwm_config_defaults(void)
     cfg->smart_gaps    = false;
     cfg->smart_borders = false;
 
-    cfg->border_width = 2;
-    cfg->focused_color[0]   = 0.3f;  cfg->focused_color[1]   = 0.5f;
-    cfg->focused_color[2]   = 0.8f;  cfg->focused_color[3]   = 1.0f;
-    cfg->unfocused_color[0] = 0.15f; cfg->unfocused_color[1] = 0.15f;
-    cfg->unfocused_color[2] = 0.15f; cfg->unfocused_color[3] = 1.0f;
+    cfg->border_width       = 2;
+    cfg->focused_color[0]   = 0.3f;
+    cfg->focused_color[1]   = 0.5f;
+    cfg->focused_color[2]   = 0.8f;
+    cfg->focused_color[3]   = 1.0f;
+    cfg->unfocused_color[0] = 0.15f;
+    cfg->unfocused_color[1] = 0.15f;
+    cfg->unfocused_color[2] = 0.15f;
+    cfg->unfocused_color[3] = 1.0f;
 
     cfg->keyboard_repeat_rate  = 25;
     cfg->keyboard_repeat_delay = 600;
 
-    cfg->cursor_theme    = strdup("default");
-    cfg->cursor_size     = 24;
-    cfg->seat_name       = strdup("seat0");
-    cfg->launcher_command = strdup("rofi -show drun");
+    cfg->cursor_theme = strdup("default");
+    cfg->cursor_size  = 24;
+    cfg->seat_name    = strdup("seat0");
 
-    cfg->touchpad_tap_to_click       = true;
-    cfg->touchpad_natural_scroll     = true;
+    cfg->touchpad_tap_to_click         = true;
+    cfg->touchpad_natural_scroll       = true;
     cfg->touchpad_disable_while_typing = true;
 
     return cfg;
@@ -670,6 +675,5 @@ nnwm_config_free(struct nnwm_config *cfg)
         return;
     free(cfg->cursor_theme);
     free(cfg->seat_name);
-    free(cfg->launcher_command);
     delete cfg;
 }
