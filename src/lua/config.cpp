@@ -369,6 +369,13 @@ l_nnwm_move_to_workspace(lua_State *L)
     return 0;
 }
 
+static int
+l_nnwm_toggle_float(lua_State *L)
+{
+    nnwm_action_toggle_float(get_server(L));
+    return 0;
+}
+
 static const struct luaL_Reg nnwm_funcs[] = {
     {"key", l_nnwm_key},
     {"quit", l_nnwm_quit},
@@ -385,6 +392,7 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"cycle", l_nnwm_cycle},
     {"switch_workspace", l_nnwm_switch_workspace},
     {"move_to_workspace", l_nnwm_move_to_workspace},
+    {"toggle_float", l_nnwm_toggle_float},
     {nullptr, nullptr},
 };
 
