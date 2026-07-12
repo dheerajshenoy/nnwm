@@ -148,6 +148,13 @@ arrange_windows(nnwm_server *server)
         }
         ++i;
     }
+
+    /* Floating and fullscreen windows must always sit above tiled ones.
+     * Re-raise them so that un-floating a window doesn't leave it on top. */
+    wl_list_for_each(tl, &server->toplevels, link) {
+        if (tl->workspace == server->active_workspace && (tl->floating || tl->fullscreen))
+            wlr_scene_node_raise_to_top(&tl->scene_tree->node);
+    }
 }
 
 void
