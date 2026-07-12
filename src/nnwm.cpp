@@ -1,5 +1,7 @@
 #include "nnwm.hpp"
+#include "lua/config.hpp"
 #include <cassert>
+#include <cstdio>
 
 namespace {
 
@@ -133,6 +135,8 @@ focus_toplevel(nnwm_toplevel *toplevel)
      * only transfers keyboard focus without disturbing the tiling order. */
 }
 
+} /* namespace */
+
 void
 keyboard_handle_modifiers(wl_listener *listener, void * /*data*/)
 {
@@ -152,122 +156,187 @@ keyboard_handle_modifiers(wl_listener *listener, void * /*data*/)
                                        &keyboard->wlr_keyboard->modifiers);
 }
 
+/* ---- Compositor actions (called from Lua keybinding callbacks) ---- */
+
+static nnwm_toplevel *
+get_focused_toplevel(nnwm_server *server)
+{
+    if (wl_list_empty(&server->toplevels))
+        return nullptr;
+    nnwm_toplevel *t =
+        wl_container_of(server->toplevels.next, t, link);
+    return t;
+}
+
+void
+nnwm_action_quit(nnwm_server *server)
+{
+    wl_display_terminate(server->wl_display);
+}
+
+void
+nnwm_action_close(nnwm_server *server)
+{
+    if (!wl_list_empty(&server->toplevels))
+    {
+        nnwm_toplevel *focused =
+            wl_container_of(server->toplevels.next, focused, link);
+        wlr_xdg_toplevel_send_close(focused->xdg_toplevel);
+    }
+}
+
+void
+nnwm_action_spawn(const char *cmd)
+{
+    if (fork() == 0)
+        execl("/bin/sh", "/bin/sh", "-c", cmd,
+              static_cast<char*>(nullptr));
+}
+
+void
+nnwm_action_focus_left(nnwm_server *server)
+{
+    if (!wl_list_empty(&server->toplevels))
+    {
+        nnwm_toplevel *tl =
+            wl_container_of(server->toplevels.next, tl, link);
+        focus_toplevel(tl);
+    }
+}
+
+void
+nnwm_action_focus_right(nnwm_server *server)
+{
+    nnwm_toplevel *cur = get_focused_toplevel(server);
+    if (cur && cur->link.next != &server->toplevels)
+    {
+        nnwm_toplevel *tl =
+            wl_container_of(cur->link.next, tl, link);
+        focus_toplevel(tl);
+    }
+}
+
+void
+nnwm_action_focus_next(nnwm_server *server)
+{
+    nnwm_toplevel *cur = get_focused_toplevel(server);
+    if (cur)
+    {
+        wl_list *next = cur->link.next == &server->toplevels
+                            ? server->toplevels.next
+                            : cur->link.next;
+        nnwm_toplevel *tl = wl_container_of(next, tl, link);
+        focus_toplevel(tl);
+    }
+}
+
+void
+nnwm_action_focus_prev(nnwm_server *server)
+{
+    nnwm_toplevel *cur = get_focused_toplevel(server);
+    if (cur)
+    {
+        wl_list *prev = cur->link.prev == &server->toplevels
+                            ? server->toplevels.prev
+                            : cur->link.prev;
+        nnwm_toplevel *tl = wl_container_of(prev, tl, link);
+        focus_toplevel(tl);
+    }
+}
+
+void
+nnwm_action_swap_left(nnwm_server *server)
+{
+    nnwm_toplevel *cur = get_focused_toplevel(server);
+    if (cur && cur->link.prev != &server->toplevels)
+    {
+        wl_list_remove(&cur->link);
+        wl_list_insert(&server->toplevels, &cur->link);
+        focus_toplevel(cur);
+        arrange_windows(server);
+    }
+}
+
+void
+nnwm_action_swap_right(nnwm_server *server)
+{
+    nnwm_toplevel *cur = get_focused_toplevel(server);
+    if (cur && !wl_list_empty(&server->toplevels))
+    {
+        nnwm_toplevel *master =
+            wl_container_of(server->toplevels.next, master, link);
+        if (cur != master)
+        {
+            wl_list_remove(&cur->link);
+            wl_list_insert(&master->link, &cur->link);
+            focus_toplevel(cur);
+            arrange_windows(server);
+        }
+        else if (master->link.next != &server->toplevels)
+        {
+            nnwm_toplevel *first_stack =
+                wl_container_of(master->link.next, first_stack, link);
+            wl_list_remove(&master->link);
+            wl_list_insert(&first_stack->link, &master->link);
+            focus_toplevel(master);
+            arrange_windows(server);
+        }
+    }
+}
+
+void
+nnwm_action_swap_next(nnwm_server *server)
+{
+    nnwm_toplevel *cur = get_focused_toplevel(server);
+    if (cur && cur->link.next != &server->toplevels)
+    {
+        wl_list *next = cur->link.next;
+        wl_list_remove(next);
+        wl_list_insert(&cur->link, next);
+        focus_toplevel(cur);
+        arrange_windows(server);
+    }
+}
+
+void
+nnwm_action_swap_prev(nnwm_server *server)
+{
+    nnwm_toplevel *cur = get_focused_toplevel(server);
+    if (cur && cur->link.prev != &server->toplevels)
+    {
+        wl_list *prev = cur->link.prev;
+        wl_list_remove(&cur->link);
+        wl_list_insert(prev, &cur->link);
+        focus_toplevel(cur);
+        arrange_windows(server);
+    }
+}
+
+void
+nnwm_action_cycle(nnwm_server *server)
+{
+    if (wl_list_length(&server->toplevels) < 2)
+        return;
+    nnwm_toplevel *tl = wl_container_of(server->toplevels.prev, tl, link);
+    wl_list_remove(&tl->link);
+    wl_list_insert(&server->toplevels, &tl->link);
+    focus_toplevel(tl);
+    arrange_windows(server);
+}
+
+/* ---- Keybinding dispatch (delegates to Lua) ---- */
+
 bool
 handle_keybinding(nnwm_server *server, uint32_t modifiers,
                   xkb_keysym_t sym)
 {
-    /* Mask out NumLock (Mod2), CapsLock, and other state-only modifiers so
-     * they don't interfere with binding matches. */
 #define MODS_MASK   (WLR_MODIFIER_LOGO | WLR_MODIFIER_SHIFT | \
                      WLR_MODIFIER_ALT  | WLR_MODIFIER_CTRL)
 
     uint32_t mods = modifiers & MODS_MASK;
-    /* Normalize to lowercase so Shift doesn't change the keysym we match. */
-    xkb_keysym_t key = xkb_keysym_to_lower(sym);
-
-    /* Quit compositor */
-    if (mods == server->config->key_quit.mods
-        && key == server->config->key_quit.keysym)
-    {
-        wl_display_terminate(server->wl_display);
-        return true;
-    }
-
-    /* Close focused window */
-    if (mods == server->config->key_close.mods
-        && key == server->config->key_close.keysym)
-    {
-        if (!wl_list_empty(&server->toplevels))
-        {
-            nnwm_toplevel *focused =
-                wl_container_of(server->toplevels.next, focused, link);
-            wlr_xdg_toplevel_send_close(focused->xdg_toplevel);
-        }
-        return true;
-    }
-
-    /* Launch application */
-    if (mods == server->config->key_launcher.mods
-        && key == server->config->key_launcher.keysym)
-    {
-        if (fork() == 0)
-            execl("/bin/sh", "/bin/sh", "-c",
-                  server->config->launcher_command,
-                  static_cast<char*>(nullptr));
-        return true;
-    }
-
-    /* Promote next window to master */
-    if (mods == server->config->key_promote_next.mods
-        && key == server->config->key_promote_next.keysym)
-    {
-        if (wl_list_length(&server->toplevels) < 2)
-            return true;
-        nnwm_toplevel *cur  = wl_container_of(server->toplevels.next, cur, link);
-        wl_list       *next = cur->link.next == &server->toplevels
-                                  ? server->toplevels.next->next
-                                  : cur->link.next;
-        nnwm_toplevel *tl   = wl_container_of(next, tl, link);
-        wl_list_remove(&tl->link);
-        wl_list_insert(&server->toplevels, &tl->link);
-        focus_toplevel(tl);
-        arrange_windows(server);
-        return true;
-    }
-
-    /* Promote previous window to master */
-    if (mods == server->config->key_promote_prev.mods
-        && key == server->config->key_promote_prev.keysym)
-    {
-        if (wl_list_length(&server->toplevels) < 2)
-            return true;
-        nnwm_toplevel *tl = wl_container_of(server->toplevels.prev, tl, link);
-        wl_list_remove(&tl->link);
-        wl_list_insert(&server->toplevels, &tl->link);
-        focus_toplevel(tl);
-        arrange_windows(server);
-        return true;
-    }
-
-    /* Shrink master area */
-    if (mods == server->config->key_shrink_master.mods
-        && key == server->config->key_shrink_master.keysym)
-    {
-        server->config->master_ratio -= server->config->master_ratio_step;
-        if (server->config->master_ratio < server->config->master_ratio_min)
-            server->config->master_ratio = server->config->master_ratio_min;
-        arrange_windows(server);
-        return true;
-    }
-
-    /* Grow master area */
-    if (mods == server->config->key_grow_master.mods
-        && key == server->config->key_grow_master.keysym)
-    {
-        server->config->master_ratio += server->config->master_ratio_step;
-        if (server->config->master_ratio > server->config->master_ratio_max)
-            server->config->master_ratio = server->config->master_ratio_max;
-        arrange_windows(server);
-        return true;
-    }
-
-    /* Cycle windows */
-    if (mods == server->config->key_cycle_windows.mods
-        && key == server->config->key_cycle_windows.keysym)
-    {
-        if (wl_list_length(&server->toplevels) < 2)
-            return true;
-        nnwm_toplevel *tl = wl_container_of(server->toplevels.prev, tl, link);
-        wl_list_remove(&tl->link);
-        wl_list_insert(&server->toplevels, &tl->link);
-        focus_toplevel(tl);
-        arrange_windows(server);
-        return true;
-    }
+    return nnwm_lua_handle_keybinding(server, mods, (unsigned int)sym);
 
 #undef MODS_MASK
-
-    return false;
 }
 
 void
@@ -874,8 +943,6 @@ layer_surface_destroy(wl_listener *listener, void * /*data*/)
     wl_list_remove(&ls->destroy.link);
     delete ls;
 }
-
-} // namespace
 
 void
 server_apply_config(nnwm_server *server)

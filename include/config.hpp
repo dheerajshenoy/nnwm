@@ -7,17 +7,9 @@ extern "C"
 {
 #endif
 #include <cstdint>
-#include <xkbcommon/xkbcommon.h>
-#include <wlr/types/wlr_seat.h>
 #ifdef __cplusplus
 }
 #endif
-
-struct nnwm_keybinding
-{
-    uint32_t    mods;   /* WLR_MODIFIER_* mask */
-    xkb_keysym_t keysym;
-};
 
 struct nnwm_config
 {
@@ -50,16 +42,6 @@ struct nnwm_config
 
     /* Launcher */
     char *launcher_command;
-
-    /* Keybindings */
-    struct nnwm_keybinding key_quit;         /* Super+Shift+C */
-    struct nnwm_keybinding key_close;        /* Super+Shift+Q */
-    struct nnwm_keybinding key_launcher;     /* Super+P */
-    struct nnwm_keybinding key_promote_next; /* Super+J */
-    struct nnwm_keybinding key_promote_prev; /* Super+K */
-    struct nnwm_keybinding key_shrink_master; /* Super+H */
-    struct nnwm_keybinding key_grow_master;   /* Super+L */
-    struct nnwm_keybinding key_cycle_windows; /* Alt+F1 */
 };
 
 #ifdef __cplusplus
