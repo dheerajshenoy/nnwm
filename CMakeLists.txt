@@ -16,6 +16,7 @@ pkg_check_modules(WAYLAND_SERVER REQUIRED wayland-server)
 pkg_check_modules(XKBCOMMON REQUIRED xkbcommon)
 pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols)
 pkg_check_modules(LIBINPUT REQUIRED libinput)
+pkg_check_modules(LUA REQUIRED lua5.4)
 
 find_program(WAYLAND_SCANNER wayland-scanner REQUIRED)
 
@@ -55,6 +56,7 @@ add_custom_command(
 add_executable(nnwm
     src/main.cpp
     src/nnwm.cpp
+    src/lua_config.cpp
     "${XDG_SHELL_CODE}"
     "${XDG_SHELL_HEADER}"
     "${LAYER_SHELL_CODE}"
@@ -68,6 +70,7 @@ target_include_directories(nnwm PRIVATE
     ${WAYLAND_SERVER_INCLUDE_DIRS}
     ${XKBCOMMON_INCLUDE_DIRS}
     ${LIBINPUT_INCLUDE_DIRS}
+    ${LUA_INCLUDE_DIRS}
 )
 
 target_compile_definitions(nnwm PRIVATE WLR_USE_UNSTABLE _DEFAULT_SOURCE)
@@ -77,12 +80,14 @@ target_link_libraries(nnwm PRIVATE
     ${WAYLAND_SERVER_LIBRARIES}
     ${XKBCOMMON_LIBRARIES}
     ${LIBINPUT_LIBRARIES}
+    ${LUA_LIBRARIES}
 )
 
 target_compile_options(nnwm PRIVATE
     ${WLROOTS_CFLAGS_OTHER}
     ${WAYLAND_SERVER_CFLAGS_OTHER}
     ${XKBCOMMON_CFLAGS_OTHER}
+    ${LUA_CFLAGS_OTHER}
     $<$<CONFIG:Debug>:-ggdb3>
     $<$<CONFIG:Debug>:-O0>
     $<$<CONFIG:Debug>:-fno-omit-frame-pointer>

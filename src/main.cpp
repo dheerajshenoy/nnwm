@@ -1,5 +1,10 @@
 #include "nnwm.hpp"
+#include "lua_config.hpp"
 #include <cstdio>
+
+extern "C" {
+#include <sys/stat.h>
+}
 
 struct nnwm_config *
 nnwm_config_defaults(void)
@@ -55,18 +60,22 @@ int
 main(int argc, char *argv[])
 {
     wlr_log_init(WLR_DEBUG, nullptr);
-    char *startup_cmd = nullptr;
+    char *startup_cmd  = nullptr;
+    char *config_path  = nullptr;
 
     int c;
-    while ((c = getopt(argc, argv, "s:h")) != -1)
+    while ((c = getopt(argc, argv, "c:s:h")) != -1)
     {
         switch (c)
         {
+            case 'c':
+                config_path = optarg;
+                break;
             case 's':
                 startup_cmd = optarg;
                 break;
             default:
-                std::fprintf(stderr, "Usage: %s [-s startup command]\n", argv[0]);
+                std::fprintf(stderr, "Usage: %s [-c config.lua] [-s startup command]\n", argv[0]);
                 return 0;
         }
     }
@@ -77,7 +86,30 @@ main(int argc, char *argv[])
     }
 
     nnwm_server server = {};
-    server.config = nnwm_config_defaults();
+
+    /* Load config: explicit -c path, then ~/.config/nnwm/config.lua, then defaults */
+    if (config_path)
+    {
+        server.config = nnwm_config_load(config_path);
+    }
+    else
+    {
+        const char *home = getenv("HOME");
+        if (home)
+        {
+            char path[512];
+            std::snprintf(path, sizeof(path), "%s/.config/nnwm/config.lua", home);
+            struct stat st;
+            if (stat(path, &st) == 0)
+                server.config = nnwm_config_load(path);
+            else
+                server.config = nnwm_config_defaults();
+        }
+        else
+        {
+            server.config = nnwm_config_defaults();
+        }
+    }
     /* The Wayland display is managed by libwayland. It handles accepting
      * clients from the Unix socket, managing Wayland globals, and so on. */
     server.wl_display           = wl_display_create();
