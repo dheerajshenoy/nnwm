@@ -695,6 +695,7 @@ handle_xdg_toplevel_destroy(wl_listener *listener, void * /*data*/)
     wl_list_remove(&toplevel->request_maximize.link);
     wl_list_remove(&toplevel->request_fullscreen.link);
 
+    wlr_scene_node_destroy(&toplevel->scene_tree->node);
     delete toplevel;
 }
 
