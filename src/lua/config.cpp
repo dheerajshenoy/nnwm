@@ -41,13 +41,15 @@ get_bool_field(lua_State *L, const char *name, bool dflt)
     return v;
 }
 
-static const char *
+/* Returns a strdup'd string. Caller must free(). */
+static char *
 get_string_field(lua_State *L, const char *name, const char *dflt)
 {
     lua_getfield(L, -1, name);
     const char *v = lua_isstring(L, -1) ? lua_tostring(L, -1) : dflt;
+    char *r = v ? strdup(v) : nullptr;
     lua_pop(L, 1);
-    return v;
+    return r;
 }
 
 /* Read a 4-element Lua table {r, g, b, a} into a float[4]. */
@@ -309,18 +311,28 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                                cfg->keyboard_repeat_rate);
     cfg->keyboard_repeat_delay = get_int_field(L, "keyboard_repeat_delay",
                                                cfg->keyboard_repeat_delay);
-    cfg->cursor_theme = get_string_field(L, "cursor_theme", cfg->cursor_theme);
     cfg->cursor_size  = get_int_field(L, "cursor_size", cfg->cursor_size);
-    cfg->seat_name    = get_string_field(L, "seat_name", cfg->seat_name);
-
     cfg->touchpad_tap_to_click = get_bool_field(L, "touchpad_tap_to_click",
                                                  cfg->touchpad_tap_to_click);
     cfg->touchpad_natural_scroll = get_bool_field(L, "touchpad_natural_scroll",
                                                    cfg->touchpad_natural_scroll);
     cfg->touchpad_disable_while_typing = get_bool_field(L, "touchpad_disable_while_typing",
                                                          cfg->touchpad_disable_while_typing);
-    cfg->launcher_command = get_string_field(L, "launcher_command",
-                                             cfg->launcher_command);
+
+    /* String fields: free old, strdup new */
+    char *s;
+
+    s = get_string_field(L, "cursor_theme", cfg->cursor_theme);
+    free(cfg->cursor_theme);
+    cfg->cursor_theme = s;
+
+    s = get_string_field(L, "seat_name", cfg->seat_name);
+    free(cfg->seat_name);
+    cfg->seat_name = s;
+
+    s = get_string_field(L, "launcher_command", cfg->launcher_command);
+    free(cfg->launcher_command);
+    cfg->launcher_command = s;
 
     cfg->key_quit         = get_keybinding_field(L, "key_quit",
                                 cfg->key_quit.mods, cfg->key_quit.keysym);
@@ -345,6 +357,57 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
 /* ---- public API ---- */
 
 extern "C" struct nnwm_config *
+nnwm_config_defaults(void)
+{
+    auto *cfg = new nnwm_config{};
+
+    cfg->master_ratio      = 0.55f;
+    cfg->master_ratio_step = 0.05f;
+    cfg->master_ratio_min  = 0.1f;
+    cfg->master_ratio_max  = 0.9f;
+
+    cfg->border_width = 2;
+    cfg->focused_color[0]   = 0.3f;  cfg->focused_color[1]   = 0.5f;
+    cfg->focused_color[2]   = 0.8f;  cfg->focused_color[3]   = 1.0f;
+    cfg->unfocused_color[0] = 0.15f; cfg->unfocused_color[1] = 0.15f;
+    cfg->unfocused_color[2] = 0.15f; cfg->unfocused_color[3] = 1.0f;
+
+    cfg->keyboard_repeat_rate  = 25;
+    cfg->keyboard_repeat_delay = 600;
+
+    cfg->cursor_theme    = strdup("default");
+    cfg->cursor_size     = 24;
+    cfg->seat_name       = strdup("seat0");
+    cfg->launcher_command = strdup("rofi -show drun");
+
+    cfg->touchpad_tap_to_click       = true;
+    cfg->touchpad_natural_scroll     = true;
+    cfg->touchpad_disable_while_typing = true;
+
+    cfg->key_quit         = { WLR_MODIFIER_LOGO | WLR_MODIFIER_SHIFT, XKB_KEY_c };
+    cfg->key_close        = { WLR_MODIFIER_LOGO | WLR_MODIFIER_SHIFT, XKB_KEY_q };
+    cfg->key_launcher     = { WLR_MODIFIER_LOGO,                       XKB_KEY_p };
+    cfg->key_promote_next = { WLR_MODIFIER_LOGO,                       XKB_KEY_j };
+    cfg->key_promote_prev = { WLR_MODIFIER_LOGO,                       XKB_KEY_k };
+    cfg->key_shrink_master = { WLR_MODIFIER_LOGO,                      XKB_KEY_h };
+    cfg->key_grow_master   = { WLR_MODIFIER_LOGO,                      XKB_KEY_l };
+    cfg->key_cycle_windows = { WLR_MODIFIER_ALT,                       XKB_KEY_F1 };
+
+    return cfg;
+}
+
+extern "C" void
+nnwm_config_free(struct nnwm_config *cfg)
+{
+    if (!cfg)
+        return;
+    free(cfg->cursor_theme);
+    free(cfg->seat_name);
+    free(cfg->launcher_command);
+    delete cfg;
+}
+
+extern "C" struct nnwm_config *
 nnwm_config_load(const char *path)
 {
     struct nnwm_config *cfg = nnwm_config_defaults();
@@ -358,14 +421,10 @@ nnwm_config_load(const char *path)
 
     luaL_openlibs(L);
 
-    /* Push MOD and KEY constant tables */
     push_mod_table(L);
     push_key_table(L);
-
-    /* Push the config table pre-populated with defaults */
     push_config_defaults(L, cfg);
 
-    /* Execute the user's config file */
     if (luaL_dofile(L, path) != LUA_OK)
     {
         std::fprintf(stderr, "nnwm: config error: %s\n", lua_tostring(L, -1));
@@ -374,9 +433,82 @@ nnwm_config_load(const char *path)
         return cfg;
     }
 
-    /* Read back any values the script changed */
     read_config_table(L, cfg);
 
     lua_close(L);
     return cfg;
+}
+
+extern "C" void
+nnwm_config_reload(struct nnwm_config *cfg, const char *path)
+{
+    /* Load fresh config from Lua */
+    struct nnwm_config *fresh = nnwm_config_defaults();
+
+    lua_State *L = luaL_newstate();
+    if (!L)
+    {
+        std::fprintf(stderr, "nnwm: failed to create Lua state\n");
+        nnwm_config_free(fresh);
+        return;
+    }
+
+    luaL_openlibs(L);
+
+    push_mod_table(L);
+    push_key_table(L);
+    push_config_defaults(L, fresh);
+
+    if (luaL_dofile(L, path) != LUA_OK)
+    {
+        std::fprintf(stderr, "nnwm: config error: %s\n", lua_tostring(L, -1));
+        lua_pop(L, 1);
+        lua_close(L);
+        nnwm_config_free(fresh);
+        return;
+    }
+
+    read_config_table(L, fresh);
+    lua_close(L);
+
+    /* Copy non-string fields */
+    cfg->master_ratio      = fresh->master_ratio;
+    cfg->master_ratio_step = fresh->master_ratio_step;
+    cfg->master_ratio_min  = fresh->master_ratio_min;
+    cfg->master_ratio_max  = fresh->master_ratio_max;
+    cfg->border_width      = fresh->border_width;
+    for (int i = 0; i < 4; i++)
+    {
+        cfg->focused_color[i]   = fresh->focused_color[i];
+        cfg->unfocused_color[i] = fresh->unfocused_color[i];
+    }
+    cfg->keyboard_repeat_rate  = fresh->keyboard_repeat_rate;
+    cfg->keyboard_repeat_delay = fresh->keyboard_repeat_delay;
+    cfg->cursor_size           = fresh->cursor_size;
+    cfg->touchpad_tap_to_click       = fresh->touchpad_tap_to_click;
+    cfg->touchpad_natural_scroll     = fresh->touchpad_natural_scroll;
+    cfg->touchpad_disable_while_typing = fresh->touchpad_disable_while_typing;
+    cfg->key_quit         = fresh->key_quit;
+    cfg->key_close        = fresh->key_close;
+    cfg->key_launcher     = fresh->key_launcher;
+    cfg->key_promote_next = fresh->key_promote_next;
+    cfg->key_promote_prev = fresh->key_promote_prev;
+    cfg->key_shrink_master = fresh->key_shrink_master;
+    cfg->key_grow_master   = fresh->key_grow_master;
+    cfg->key_cycle_windows = fresh->key_cycle_windows;
+
+    /* Swap string fields: free old, take ownership from fresh */
+    free(cfg->cursor_theme);
+    cfg->cursor_theme = fresh->cursor_theme;
+    fresh->cursor_theme = nullptr;
+
+    free(cfg->seat_name);
+    cfg->seat_name = fresh->seat_name;
+    fresh->seat_name = nullptr;
+
+    free(cfg->launcher_command);
+    cfg->launcher_command = fresh->launcher_command;
+    fresh->launcher_command = nullptr;
+
+    nnwm_config_free(fresh);
 }

@@ -877,6 +877,31 @@ layer_surface_destroy(wl_listener *listener, void * /*data*/)
 } // namespace
 
 void
+server_apply_config(nnwm_server *server)
+{
+    /* Update border colors for all windows */
+    nnwm_toplevel *tl;
+    wl_list_for_each(tl, &server->toplevels, link) {
+        float *color = (tl == wl_container_of(server->toplevels.next, tl, link))
+            ? server->config->focused_color
+            : server->config->unfocused_color;
+        for (int i = 0; i < 4; i++)
+            wlr_scene_rect_set_color(tl->border[i], color);
+    }
+
+    /* Re-arrange to apply border_width / master_ratio changes */
+    arrange_windows(server);
+
+    /* Update keyboard repeat info for all connected keyboards */
+    nnwm_keyboard *kb;
+    wl_list_for_each(kb, &server->keyboards, link) {
+        wlr_keyboard_set_repeat_info(kb->wlr_keyboard,
+                                     server->config->keyboard_repeat_rate,
+                                     server->config->keyboard_repeat_delay);
+    }
+}
+
+void
 server_new_input(wl_listener *listener, void *data)
 {
     /* This event is raised by the backend when a new input device becomes

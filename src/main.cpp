@@ -4,6 +4,7 @@
 
 extern "C" {
 #include <sys/stat.h>
+#include <sys/inotify.h>
 #include <fcntl.h>
 #include <unistd.h>
 }
@@ -53,54 +54,20 @@ write_default_config(const char *path)
     return true;
 }
 
-struct nnwm_config *
-nnwm_config_defaults(void)
+static int
+config_file_changed(int /*fd*/, uint32_t /*mask*/, void *data)
 {
-    auto *cfg = new nnwm_config{};
+    auto *server = static_cast<nnwm_server*>(data);
 
-    /* Layout */
-    cfg->master_ratio      = 0.55f;
-    cfg->master_ratio_step = 0.05f;
-    cfg->master_ratio_min  = 0.1f;
-    cfg->master_ratio_max  = 0.9f;
+    /* Drain inotify events */
+    char buf[sizeof(struct inotify_event) + 256];
+    while (read(server->config_inotify_fd, buf, sizeof(buf)) > 0)
+        ;
 
-    /* Borders */
-    cfg->border_width = 2;
-    cfg->focused_color[0]   = 0.3f;  cfg->focused_color[1]   = 0.5f;
-    cfg->focused_color[2]   = 0.8f;  cfg->focused_color[3]   = 1.0f;
-    cfg->unfocused_color[0] = 0.15f; cfg->unfocused_color[1] = 0.15f;
-    cfg->unfocused_color[2] = 0.15f; cfg->unfocused_color[3] = 1.0f;
-
-    /* Keyboard */
-    cfg->keyboard_repeat_rate  = 25;
-    cfg->keyboard_repeat_delay = 600;
-
-    /* Cursor */
-    cfg->cursor_theme = "default";
-    cfg->cursor_size  = 24;
-
-    /* Seat */
-    cfg->seat_name = "seat0";
-
-    /* Input */
-    cfg->touchpad_tap_to_click       = true;
-    cfg->touchpad_natural_scroll     = true;
-    cfg->touchpad_disable_while_typing = true;
-
-    /* Launcher */
-    cfg->launcher_command = "rofi -show drun";
-
-    /* Keybindings */
-    cfg->key_quit         = { WLR_MODIFIER_LOGO | WLR_MODIFIER_SHIFT, XKB_KEY_c };
-    cfg->key_close        = { WLR_MODIFIER_LOGO | WLR_MODIFIER_SHIFT, XKB_KEY_q };
-    cfg->key_launcher     = { WLR_MODIFIER_LOGO,                       XKB_KEY_p };
-    cfg->key_promote_next = { WLR_MODIFIER_LOGO,                       XKB_KEY_j };
-    cfg->key_promote_prev = { WLR_MODIFIER_LOGO,                       XKB_KEY_k };
-    cfg->key_shrink_master = { WLR_MODIFIER_LOGO,                      XKB_KEY_h };
-    cfg->key_grow_master   = { WLR_MODIFIER_LOGO,                      XKB_KEY_l };
-    cfg->key_cycle_windows = { WLR_MODIFIER_ALT,                       XKB_KEY_F1 };
-
-    return cfg;
+    std::fprintf(stderr, "nnwm: reloading config\n");
+    nnwm_config_reload(server->config, server->config_path);
+    server_apply_config(server);
+    return 0;
 }
 
 int
@@ -134,10 +101,12 @@ main(int argc, char *argv[])
 
     nnwm_server server = {};
 
-    /* Load config: explicit -c path, then ~/.config/nnwm/config.lua, then defaults */
+    /* Load config: explicit -c path, then ~/.config/nnwm/init.lua, then defaults */
+    server.config_inotify_fd = -1;
     if (config_path)
     {
         server.config = nnwm_config_load(config_path);
+        server.config_path = strdup(config_path);
     }
     else
     {
@@ -156,6 +125,7 @@ main(int argc, char *argv[])
                 write_default_config(path);
                 server.config = nnwm_config_load(path);
             }
+            server.config_path = strdup(path);
         }
         else
         {
@@ -359,6 +329,31 @@ main(int argc, char *argv[])
             execl("/bin/sh", "/bin/sh", "-c", startup_cmd, static_cast<char*>(nullptr));
         }
     }
+    /* Set up inotify watch on config file for hot-reload */
+    if (server.config_path)
+    {
+        server.config_inotify_fd = inotify_init1(IN_NONBLOCK);
+        if (server.config_inotify_fd >= 0)
+        {
+            int wd = inotify_add_watch(server.config_inotify_fd,
+                                       server.config_path, IN_MODIFY);
+            if (wd >= 0)
+            {
+                struct wl_event_loop *loop
+                    = wl_display_get_event_loop(server.wl_display);
+                server.config_event_source = wl_event_loop_add_fd(
+                    loop, server.config_inotify_fd, WL_EVENT_READABLE,
+                    config_file_changed, &server);
+            }
+            else
+            {
+                std::fprintf(stderr, "nnwm: inotify_add_watch failed\n");
+                close(server.config_inotify_fd);
+                server.config_inotify_fd = -1;
+            }
+        }
+    }
+
     /* Run the Wayland event loop. This does not return until you exit the
      * compositor. Starting the backend rigged up all of the necessary event
      * loop configuration to listen to libinput events, DRM events, generate
@@ -396,6 +391,11 @@ main(int argc, char *argv[])
     wlr_renderer_destroy(server.renderer);
     wlr_backend_destroy(server.backend);
     wl_display_destroy(server.wl_display);
-    delete server.config;
+    if (server.config_event_source)
+        wl_event_source_remove(server.config_event_source);
+    if (server.config_inotify_fd >= 0)
+        close(server.config_inotify_fd);
+    free(server.config_path);
+    nnwm_config_free(server.config);
     return 0;
 }
