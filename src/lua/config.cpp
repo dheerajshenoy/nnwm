@@ -1,4 +1,4 @@
-#include "lua_config.hpp"
+#include "lua/config.hpp"
 #include "config.hpp"
 
 extern "C" {

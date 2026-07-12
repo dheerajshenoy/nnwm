@@ -56,7 +56,7 @@ add_custom_command(
 add_executable(nnwm
     src/main.cpp
     src/nnwm.cpp
-    src/lua_config.cpp
+    src/lua/config.cpp
     "${XDG_SHELL_CODE}"
     "${XDG_SHELL_HEADER}"
     "${LAYER_SHELL_CODE}"

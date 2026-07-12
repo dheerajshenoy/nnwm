@@ -1,5 +1,5 @@
 #include "nnwm.hpp"
-#include "lua_config.hpp"
+#include "lua/config.hpp"
 #include <cstdio>
 
 extern "C" {
