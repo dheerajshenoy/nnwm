@@ -4,6 +4,14 @@
 
 ### Features
 
+- **Gaps support**: `nnwm.outer_gap` (space between windows and screen edge)
+  and `nnwm.inner_gap` (space between adjacent windows) config fields. Both
+  default to `0`. Applied in the tiling layout for all window arrangements.
+- **Smart gaps**: `nnwm.smart_gaps = true` collapses gaps to zero when only
+  one window is on screen (default: `false`).
+- **Smart borders**: `nnwm.smart_borders = true` collapses border width to
+  zero when only one window is on screen (default: `false`).
+
 - **Lua config with hot-reload**: Lua 5.4 configuration loaded from
   `~/.config/nnwm/init.lua` (or `-c` path). Edits are picked up automatically
   via inotify without restarting the compositor.
@@ -30,6 +38,16 @@
 - `DISPLAY` is unset so toolkits don't fall back to X11.
 
 ### Bug Fixes
+
+- **Focus on window close**: when a window is unmapped, keyboard focus now
+  transfers to the next window in the tiling list (new master). Previously
+  focus was left dangling with no window focused.
+- **Focus tracking**: `get_focused_toplevel` was always returning the master
+  window (first in the tiling list) instead of the actually keyboard-focused
+  window. Now resolves the focused toplevel from `seat->keyboard_state.focused_surface`.
+  Fixes `nnwm.close()`, `nnwm.focus_right/next/prev()`, and all `nnwm.swap_*()` actions
+  when called after a focus change.
+
 
 - **VT switching**: Ctrl+Alt+F<n> now switches to the corresponding TTY.
   The compositor intercepts `XF86Switch_VT_1..12` keysyms and calls
