@@ -6,7 +6,7 @@ namespace {
 void
 update_borders(nnwm_toplevel *toplevel, int width, int height)
 {
-    int bw = toplevel->server->border_width;
+    int bw = toplevel->server->config->border_width;
 
     /* border[0]: top */
     wlr_scene_node_set_position(&toplevel->border[0]->node, 0, 0);
@@ -39,7 +39,7 @@ arrange_windows(nnwm_server *server)
     wlr_output_layout_get_box(server->output_layout, first->wlr_output, &area);
 
     int n  = wl_list_length(&server->toplevels);
-    int bw = server->border_width;
+    int bw = server->config->border_width;
 
     nnwm_toplevel *tl;
     if (n == 1) {
@@ -51,7 +51,7 @@ arrange_windows(nnwm_server *server)
         return;
     }
 
-    int mw = (int)(area.width * server->master_ratio);
+    int mw = (int)(area.width * server->config->master_ratio);
     int sw = area.width - mw;
     int ns = n - 1; /* number of stack windows */
     int sh = area.height / ns;
@@ -116,8 +116,8 @@ focus_toplevel(nnwm_toplevel *toplevel)
     nnwm_toplevel *tl;
     wl_list_for_each(tl, &server->toplevels, link) {
         float *color = (tl == toplevel)
-            ? server->focused_color
-            : server->unfocused_color;
+            ? server->config->focused_color
+            : server->config->unfocused_color;
         for (int i = 0; i < 4; i++)
             wlr_scene_rect_set_color(tl->border[i], color);
     }
@@ -160,23 +160,22 @@ handle_keybinding(nnwm_server *server, uint32_t modifiers,
      * they don't interfere with binding matches. */
 #define MODS_MASK   (WLR_MODIFIER_LOGO | WLR_MODIFIER_SHIFT | \
                      WLR_MODIFIER_ALT  | WLR_MODIFIER_CTRL)
-#define SUPER       WLR_MODIFIER_LOGO
-#define SUPER_SHIFT (WLR_MODIFIER_LOGO | WLR_MODIFIER_SHIFT)
-#define ALT         WLR_MODIFIER_ALT
 
     uint32_t mods = modifiers & MODS_MASK;
     /* Normalize to lowercase so Shift doesn't change the keysym we match. */
     xkb_keysym_t key = xkb_keysym_to_lower(sym);
 
-    /* Super+Shift+C: quit compositor */
-    if (mods == SUPER_SHIFT && key == XKB_KEY_c)
+    /* Quit compositor */
+    if (mods == server->config->key_quit.mods
+        && key == server->config->key_quit.keysym)
     {
         wl_display_terminate(server->wl_display);
         return true;
     }
 
-    /* Super+Shift+Q: close focused window */
-    if (mods == SUPER_SHIFT && key == XKB_KEY_q)
+    /* Close focused window */
+    if (mods == server->config->key_close.mods
+        && key == server->config->key_close.keysym)
     {
         if (!wl_list_empty(&server->toplevels))
         {
@@ -187,16 +186,20 @@ handle_keybinding(nnwm_server *server, uint32_t modifiers,
         return true;
     }
 
-    /* Super+P: launch rofi */
-    if (mods == SUPER && key == XKB_KEY_p)
+    /* Launch application */
+    if (mods == server->config->key_launcher.mods
+        && key == server->config->key_launcher.keysym)
     {
         if (fork() == 0)
-            execl("/bin/sh", "/bin/sh", "-c", "rofi -show drun", static_cast<char*>(nullptr));
+            execl("/bin/sh", "/bin/sh", "-c",
+                  server->config->launcher_command,
+                  static_cast<char*>(nullptr));
         return true;
     }
 
-    /* Super+J: promote next window to master */
-    if (mods == SUPER && key == XKB_KEY_j)
+    /* Promote next window to master */
+    if (mods == server->config->key_promote_next.mods
+        && key == server->config->key_promote_next.keysym)
     {
         if (wl_list_length(&server->toplevels) < 2)
             return true;
@@ -212,8 +215,9 @@ handle_keybinding(nnwm_server *server, uint32_t modifiers,
         return true;
     }
 
-    /* Super+K: promote previous window to master */
-    if (mods == SUPER && key == XKB_KEY_k)
+    /* Promote previous window to master */
+    if (mods == server->config->key_promote_prev.mods
+        && key == server->config->key_promote_prev.keysym)
     {
         if (wl_list_length(&server->toplevels) < 2)
             return true;
@@ -225,24 +229,31 @@ handle_keybinding(nnwm_server *server, uint32_t modifiers,
         return true;
     }
 
-    /* Super+H/L: shrink / grow master area */
-    if (mods == SUPER && key == XKB_KEY_h)
+    /* Shrink master area */
+    if (mods == server->config->key_shrink_master.mods
+        && key == server->config->key_shrink_master.keysym)
     {
-        server->master_ratio -= 0.05f;
-        if (server->master_ratio < 0.1f) server->master_ratio = 0.1f;
-        arrange_windows(server);
-        return true;
-    }
-    if (mods == SUPER && key == XKB_KEY_l)
-    {
-        server->master_ratio += 0.05f;
-        if (server->master_ratio > 0.9f) server->master_ratio = 0.9f;
+        server->config->master_ratio -= server->config->master_ratio_step;
+        if (server->config->master_ratio < server->config->master_ratio_min)
+            server->config->master_ratio = server->config->master_ratio_min;
         arrange_windows(server);
         return true;
     }
 
-    /* Alt+F1: cycle windows (legacy binding kept) */
-    if (mods == ALT && sym == XKB_KEY_F1)
+    /* Grow master area */
+    if (mods == server->config->key_grow_master.mods
+        && key == server->config->key_grow_master.keysym)
+    {
+        server->config->master_ratio += server->config->master_ratio_step;
+        if (server->config->master_ratio > server->config->master_ratio_max)
+            server->config->master_ratio = server->config->master_ratio_max;
+        arrange_windows(server);
+        return true;
+    }
+
+    /* Cycle windows */
+    if (mods == server->config->key_cycle_windows.mods
+        && key == server->config->key_cycle_windows.keysym)
     {
         if (wl_list_length(&server->toplevels) < 2)
             return true;
@@ -255,9 +266,6 @@ handle_keybinding(nnwm_server *server, uint32_t modifiers,
     }
 
 #undef MODS_MASK
-#undef SUPER
-#undef SUPER_SHIFT
-#undef ALT
 
     return false;
 }
@@ -332,7 +340,9 @@ server_new_keyboard(nnwm_server *server, wlr_input_device *device)
     wlr_keyboard_set_keymap(wlr_keyboard, keymap);
     xkb_keymap_unref(keymap);
     xkb_context_unref(context);
-    wlr_keyboard_set_repeat_info(wlr_keyboard, 25, 600);
+    wlr_keyboard_set_repeat_info(wlr_keyboard,
+                                 server->config->keyboard_repeat_rate,
+                                 server->config->keyboard_repeat_delay);
 
     /* Here we set up listeners for keyboard events. */
     keyboard->modifiers.notify = keyboard_handle_modifiers;
@@ -355,15 +365,18 @@ server_new_pointer(nnwm_server *server, wlr_input_device *device)
         libinput_device *li = wlr_libinput_get_device_handle(device);
 
         /* Tap-to-click */
-        if (libinput_device_config_tap_get_finger_count(li) > 0)
+        if (server->config->touchpad_tap_to_click
+            && libinput_device_config_tap_get_finger_count(li) > 0)
             libinput_device_config_tap_set_enabled(li, LIBINPUT_CONFIG_TAP_ENABLED);
 
         /* Natural scrolling */
-        if (libinput_device_config_scroll_has_natural_scroll(li))
+        if (server->config->touchpad_natural_scroll
+            && libinput_device_config_scroll_has_natural_scroll(li))
             libinput_device_config_scroll_set_natural_scroll_enabled(li, true);
 
         /* Disable touchpad while typing */
-        if (libinput_device_config_dwt_is_available(li))
+        if (server->config->touchpad_disable_while_typing
+            && libinput_device_config_dwt_is_available(li))
             libinput_device_config_dwt_set_enabled(li, LIBINPUT_CONFIG_DWT_ENABLED);
     }
 
@@ -481,7 +494,7 @@ process_cursor_resize(nnwm_server *server)
 
     int new_width  = new_right - new_left;
     int new_height = new_bottom - new_top;
-    int bw = toplevel->server->border_width;
+    int bw = toplevel->server->config->border_width;
     wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel,
                                new_width - 2 * bw, new_height - 2 * bw);
     update_borders(toplevel, new_width, new_height);
@@ -1124,7 +1137,7 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     /* Create four border rects as children of the wrapper */
     for (int i = 0; i < 4; i++)
         toplevel->border[i] = wlr_scene_rect_create(
-            toplevel->scene_tree, 0, 0, server->unfocused_color);
+            toplevel->scene_tree, 0, 0, server->config->unfocused_color);
 
     /* Create xdg surface as child of the wrapper, offset by border width */
     toplevel->scene_surface = wlr_scene_xdg_surface_create(

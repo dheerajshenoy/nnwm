@@ -1,6 +1,56 @@
 #include "nnwm.hpp"
 #include <cstdio>
 
+struct nnwm_config *
+nnwm_config_defaults(void)
+{
+    auto *cfg = new nnwm_config{};
+
+    /* Layout */
+    cfg->master_ratio      = 0.55f;
+    cfg->master_ratio_step = 0.05f;
+    cfg->master_ratio_min  = 0.1f;
+    cfg->master_ratio_max  = 0.9f;
+
+    /* Borders */
+    cfg->border_width = 2;
+    cfg->focused_color[0]   = 0.3f;  cfg->focused_color[1]   = 0.5f;
+    cfg->focused_color[2]   = 0.8f;  cfg->focused_color[3]   = 1.0f;
+    cfg->unfocused_color[0] = 0.15f; cfg->unfocused_color[1] = 0.15f;
+    cfg->unfocused_color[2] = 0.15f; cfg->unfocused_color[3] = 1.0f;
+
+    /* Keyboard */
+    cfg->keyboard_repeat_rate  = 25;
+    cfg->keyboard_repeat_delay = 600;
+
+    /* Cursor */
+    cfg->cursor_theme = "default";
+    cfg->cursor_size  = 24;
+
+    /* Seat */
+    cfg->seat_name = "seat0";
+
+    /* Input */
+    cfg->touchpad_tap_to_click       = true;
+    cfg->touchpad_natural_scroll     = true;
+    cfg->touchpad_disable_while_typing = true;
+
+    /* Launcher */
+    cfg->launcher_command = "rofi -show drun";
+
+    /* Keybindings */
+    cfg->key_quit         = { WLR_MODIFIER_LOGO | WLR_MODIFIER_SHIFT, XKB_KEY_c };
+    cfg->key_close        = { WLR_MODIFIER_LOGO | WLR_MODIFIER_SHIFT, XKB_KEY_q };
+    cfg->key_launcher     = { WLR_MODIFIER_LOGO,                       XKB_KEY_p };
+    cfg->key_promote_next = { WLR_MODIFIER_LOGO,                       XKB_KEY_j };
+    cfg->key_promote_prev = { WLR_MODIFIER_LOGO,                       XKB_KEY_k };
+    cfg->key_shrink_master = { WLR_MODIFIER_LOGO,                      XKB_KEY_h };
+    cfg->key_grow_master   = { WLR_MODIFIER_LOGO,                      XKB_KEY_l };
+    cfg->key_cycle_windows = { WLR_MODIFIER_ALT,                       XKB_KEY_F1 };
+
+    return cfg;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -26,13 +76,8 @@ main(int argc, char *argv[])
         return 0;
     }
 
-    nnwm_server server  = {};
-    server.master_ratio = 0.55f;
-    server.border_width = 2;
-    server.focused_color[0] = 0.3f; server.focused_color[1] = 0.5f;
-    server.focused_color[2] = 0.8f; server.focused_color[3] = 1.0f;
-    server.unfocused_color[0] = 0.15f; server.unfocused_color[1] = 0.15f;
-    server.unfocused_color[2] = 0.15f; server.unfocused_color[3] = 1.0f;
+    nnwm_server server = {};
+    server.config = nnwm_config_defaults();
     /* The Wayland display is managed by libwayland. It handles accepting
      * clients from the Unix socket, managing Wayland globals, and so on. */
     server.wl_display           = wl_display_create();
@@ -151,7 +196,8 @@ main(int argc, char *argv[])
      * Xcursor themes to source cursor images from and makes sure that cursor
      * images are available at all scale factors on the screen (necessary for
      * HiDPI support). */
-    server.cursor_mgr = wlr_xcursor_manager_create(nullptr, 24);
+    server.cursor_mgr = wlr_xcursor_manager_create(
+        server.config->cursor_theme, server.config->cursor_size);
 
     /*
      * wlr_cursor *only* displays an image on screen. It does not move around
@@ -185,7 +231,8 @@ main(int argc, char *argv[])
     wl_list_init(&server.keyboards);
     server.new_input.notify = server_new_input;
     wl_signal_add(&server.backend->events.new_input, &server.new_input);
-    server.seat                  = wlr_seat_create(server.wl_display, "seat0");
+    server.seat                  = wlr_seat_create(server.wl_display,
+                                                    server.config->seat_name);
     server.request_cursor.notify = seat_request_cursor;
     wl_signal_add(&server.seat->events.request_set_cursor,
                   &server.request_cursor);
@@ -265,5 +312,6 @@ main(int argc, char *argv[])
     wlr_renderer_destroy(server.renderer);
     wlr_backend_destroy(server.backend);
     wl_display_destroy(server.wl_display);
+    delete server.config;
     return 0;
 }

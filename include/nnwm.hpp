@@ -42,10 +42,11 @@ extern "C"
 #include <wlr/backend/libinput.h>
 #include <wlr/util/log.h>
 #include <libinput.h>
-#include <xkbcommon/xkbcommon.h>
 #ifdef __cplusplus
 }
 #endif
+
+#include "config.hpp"
 
 struct nnwm_decoration; /* forward declaration — defined below nnwm_toplevel */
 
@@ -105,11 +106,7 @@ struct nnwm_server
     struct wl_list outputs;
     struct wl_listener new_output;
 
-    float master_ratio; /* fraction of screen width given to the master window */
-
-    int border_width;
-    float focused_color[4];
-    float unfocused_color[4];
+    struct nnwm_config *config;
 };
 
 struct nnwm_output
