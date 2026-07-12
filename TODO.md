@@ -7,6 +7,7 @@
 - [X] Active window border
 - Layouts
     - [X] Master Stack
+    - [ ] Sway-like tabbed layout
 - [X] Gaps
 - [X] Smart border
 - [X] Smart gaps
@@ -26,3 +27,6 @@
 - [X] Focus follows mouse
 - [X] Allow xkb options
 - [X] Implement `usable_area` for panel support
+- [X] Monitor configuration
+- [ ] Switching focus from rofi doesn't work
+- [X] spawn vs spawn once
