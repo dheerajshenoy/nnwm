@@ -100,8 +100,7 @@ arrange_windows(nnwm_server *server)
         return;
 
     nnwm_output *out = wl_container_of(server->outputs.next, out, link);
-    wlr_box area;
-    wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
+    const wlr_box &area = out->usable_area;
 
     bool solo = (n == 1);
     int bw = (solo && server->config->smart_borders) ? 0 : server->config->border_width;
@@ -1135,25 +1134,49 @@ handle_xdg_popup_destroy(wl_listener *listener, void * /*data*/)
 
 /* ---- layer shell ---- */
 
-void
-arrange_layer_surface(nnwm_layer_surface *ls)
+/* Recompute usable area for an output by processing all layer surfaces in
+ * layer order.  Each surface's exclusive zone shrinks the usable area from
+ * the anchored edge.  The result is stored on the output so arrange_windows
+ * can pick it up, and arrange_windows is called to re-tile. */
+static void
+arrange_layers(nnwm_server *server, wlr_output *output)
 {
-    wlr_output *output = ls->wlr_layer_surface->output;
-    if (!output)
+    nnwm_output *out = nullptr;
+    {
+        nnwm_output *o;
+        wl_list_for_each(o, &server->outputs, link) {
+            if (o->wlr_output == output) { out = o; break; }
+        }
+    }
+    if (!out)
         return;
 
     wlr_box full_area;
-    wlr_output_layout_get_box(ls->server->output_layout, output, &full_area);
-
+    wlr_output_layout_get_box(server->output_layout, output, &full_area);
     wlr_box usable = full_area;
-    wlr_scene_layer_surface_v1_configure(ls->scene, &full_area, &usable);
+
+    for (int layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
+         layer <= ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY; layer++)
+    {
+        nnwm_layer_surface *ls;
+        wl_list_for_each(ls, &server->layer_surfaces, link) {
+            if (ls->wlr_layer_surface->output != output)
+                continue;
+            if ((int)ls->wlr_layer_surface->current.layer != layer)
+                continue;
+            wlr_scene_layer_surface_v1_configure(ls->scene, &full_area, &usable);
+        }
+    }
+
+    out->usable_area = usable;
+    arrange_windows(server);
 }
 
 void
 layer_surface_map(wl_listener *listener, void * /*data*/)
 {
     nnwm_layer_surface *ls = wl_container_of(listener, ls, map);
-    arrange_layer_surface(ls);
+    arrange_layers(ls->server, ls->wlr_layer_surface->output);
 
     if (ls->wlr_layer_surface->current.keyboard_interactive !=
         ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE)
@@ -1167,8 +1190,10 @@ layer_surface_map(wl_listener *listener, void * /*data*/)
 }
 
 void
-layer_surface_unmap(wl_listener * /*listener*/, void * /*data*/)
+layer_surface_unmap(wl_listener *listener, void * /*data*/)
 {
+    nnwm_layer_surface *ls = wl_container_of(listener, ls, unmap);
+    arrange_layers(ls->server, ls->wlr_layer_surface->output);
 }
 
 void
@@ -1177,7 +1202,7 @@ layer_surface_commit(wl_listener *listener, void * /*data*/)
     nnwm_layer_surface *ls = wl_container_of(listener, ls, commit);
 
     if (ls->wlr_layer_surface->current.committed)
-        arrange_layer_surface(ls);
+        arrange_layers(ls->server, ls->wlr_layer_surface->output);
 
     if (ls->wlr_layer_surface->surface->mapped &&
         ls->wlr_layer_surface->current.keyboard_interactive !=
@@ -1195,11 +1220,16 @@ void
 layer_surface_destroy(wl_listener *listener, void * /*data*/)
 {
     nnwm_layer_surface *ls = wl_container_of(listener, ls, destroy);
+    nnwm_server *server = ls->server;
+    wlr_output  *output = ls->wlr_layer_surface->output;
+    wl_list_remove(&ls->link);
     wl_list_remove(&ls->map.link);
     wl_list_remove(&ls->unmap.link);
     wl_list_remove(&ls->commit.link);
     wl_list_remove(&ls->destroy.link);
     delete ls;
+    if (output)
+        arrange_layers(server, output);
 }
 
 void
@@ -1456,6 +1486,7 @@ server_new_output(wl_listener *listener, void *data)
     nnwm_output *output = new nnwm_output{};
     output->wlr_output    = wlr_output;
     output->server        = server;
+    wlr_output_layout_get_box(server->output_layout, wlr_output, &output->usable_area);
 
     /* Sets up a listener for the frame event. */
     output->frame.notify = output_frame;
@@ -1591,6 +1622,7 @@ server_new_layer_surface(wl_listener *listener, void *data)
         server->scene_layers[wlr_ls->pending.layer], wlr_ls);
 
     wlr_ls->data = ls;
+    wl_list_insert(&server->layer_surfaces, &ls->link);
 
     ls->map.notify     = layer_surface_map;
     ls->unmap.notify   = layer_surface_unmap;

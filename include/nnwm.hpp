@@ -85,6 +85,8 @@ struct nnwm_server
     struct wlr_scene_tree *scene_layers[4]; /* indexed by zwlr_layer_shell_v1_layer */
     struct wlr_scene_tree *scene_windows;   /* xdg toplevels live here */
 
+    struct wl_list layer_surfaces; /* nnwm_layer_surface::link */
+
     struct wlr_layer_shell_v1 *layer_shell;
     struct wl_listener new_layer_surface;
 
@@ -147,6 +149,7 @@ struct nnwm_output
     struct wl_list link;
     struct nnwm_server *server;
     struct wlr_output *wlr_output;
+    struct wlr_box usable_area; /* output area minus exclusive-zone struts */
     struct wl_listener frame;
     struct wl_listener request_state;
     struct wl_listener destroy;
@@ -201,6 +204,7 @@ struct nnwm_decoration
 
 struct nnwm_layer_surface
 {
+    struct wl_list link; /* nnwm_server::layer_surfaces */
     struct nnwm_server *server;
     struct wlr_layer_surface_v1 *wlr_layer_surface;
     struct wlr_scene_layer_surface_v1 *scene;
