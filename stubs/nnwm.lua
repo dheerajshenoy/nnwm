@@ -70,6 +70,7 @@ KEY = {}
 
 ---@class nnwm
 --- Layout
+---@field new_window_master  boolean  When true new windows become master; when false they append to the stack (default: true)
 ---@field master_ratio       number  Fraction of screen width for the master column (default: 0.55)
 ---@field master_ratio_step  number  Step size for master ratio adjustments (default: 0.05)
 ---@field master_ratio_min   number  Minimum master ratio (default: 0.1)

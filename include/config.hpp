@@ -49,6 +49,9 @@ struct nnwm_config
 
     /* Focus */
     bool focus_follows_mouse;
+
+    /* Layout behaviour */
+    bool new_window_master; /* true = new window becomes master, false = appended to stack */
 };
 
 #ifdef __cplusplus

@@ -929,7 +929,10 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
     nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, map);
 
     toplevel->workspace = toplevel->server->active_workspace;
-    wl_list_insert(&toplevel->server->toplevels, &toplevel->link);
+    if (toplevel->server->config->new_window_master)
+        wl_list_insert(&toplevel->server->toplevels, &toplevel->link);
+    else
+        wl_list_insert(toplevel->server->toplevels.prev, &toplevel->link);
     focus_toplevel(toplevel);
     arrange_windows(toplevel->server);
 }
