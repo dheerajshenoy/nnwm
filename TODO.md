@@ -16,8 +16,8 @@
     - [ ] Rules
     - [ ] Hooks
     - [ ] Theme
-- [ ] Multi-monitor support
-- [ ] Switch monitor focus
+- [X] Multi-monitor support
+- [X] Switch monitor focus
 - [X] Always master window option
 - [X] Fullscreen
 - [X] Float window
