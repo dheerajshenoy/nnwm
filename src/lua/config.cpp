@@ -537,6 +537,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "focus_follows_mouse");
     lua_pushboolean(L, cfg->new_window_master);
     lua_setfield(L, -2, "new_window_master");
+    lua_pushboolean(L, cfg->client_decorations);
+    lua_setfield(L, -2, "client_decorations");
 
     lua_pop(L, 1);
 }
@@ -589,6 +591,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                               cfg->focus_follows_mouse);
     cfg->new_window_master   = get_bool_field(L, "new_window_master",
                                               cfg->new_window_master);
+    cfg->client_decorations  = get_bool_field(L, "client_decorations",
+                                              cfg->client_decorations);
 
     char *s;
     s = get_string_field(L, "cursor_theme", cfg->cursor_theme);
@@ -778,6 +782,7 @@ nnwm_config_defaults(void)
 
     cfg->focus_follows_mouse = false;
     cfg->new_window_master   = true;
+    cfg->client_decorations  = false;
 
     return cfg;
 }

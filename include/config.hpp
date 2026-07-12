@@ -52,6 +52,9 @@ struct nnwm_config
 
     /* Layout behaviour */
     bool new_window_master; /* true = new window becomes master, false = appended to stack */
+
+    /* Decorations */
+    bool client_decorations; /* true = CSD (client draws titlebar), false = SSD (no titlebar) */
 };
 
 #ifdef __cplusplus

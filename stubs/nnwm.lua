@@ -99,6 +99,8 @@ KEY = {}
 ---@field touchpad_disable_while_typing boolean  Disable touchpad while typing (default: true)
 --- Focus
 ---@field focus_follows_mouse  boolean  Automatically focus the window under the cursor (default: false)
+--- Decorations
+---@field client_decorations   boolean  Allow clients to draw their own titlebars via CSD. When false the compositor requests server-side decoration so clients strip their titlebar (default: false)
 nnwm = {}
 
 ---Register a keybinding. `combo` is an array of modifier and key name strings;

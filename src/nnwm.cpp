@@ -1162,13 +1162,32 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
         else      wlr_seat_keyboard_clear_focus(server->seat);
         arrange_windows(server, out);
     }
+
+    /* Restore pointer focus to whatever is now under the cursor. Without this,
+     * dismissing a popup (e.g. rofi) without moving the mouse leaves the seat
+     * with no pointer focus and the window underneath never gets enter events. */
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    process_cursor_motion(server,
+        (uint32_t)(now.tv_sec * 1000 + now.tv_nsec / 1000000));
 }
 
-void
-decoration_set_csd(nnwm_decoration *deco)
+static nnwm_toplevel *
+toplevel_from_deco(nnwm_decoration *deco)
 {
-    wlr_xdg_toplevel_decoration_v1_set_mode(
-        deco->wlr_deco, WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
+    auto *tree = static_cast<wlr_scene_tree*>(deco->wlr_deco->toplevel->base->data);
+    if (tree && tree->node.data)
+        return static_cast<nnwm_toplevel*>(tree->node.data);
+    return nullptr;
+}
+
+static void
+decoration_apply(nnwm_decoration *deco, bool client_side)
+{
+    auto mode = client_side
+        ? WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE
+        : WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE;
+    wlr_xdg_toplevel_decoration_v1_set_mode(deco->wlr_deco, mode);
 }
 
 void
@@ -1176,22 +1195,27 @@ decoration_handle_request_mode(wl_listener *listener, void * /*data*/)
 {
     nnwm_decoration  *deco    = wl_container_of(listener, deco, request_mode);
     wlr_xdg_toplevel *xdg_tl = deco->wlr_deco->toplevel;
+    nnwm_toplevel    *tl      = toplevel_from_deco(deco);
+
+    /* Always keep a back-reference so server_apply_config can re-apply. */
+    if (tl) tl->decoration = deco;
 
     if (xdg_tl->base->initialized) {
-        decoration_set_csd(deco);
+        bool csd = tl ? tl->server->config->client_decorations : false;
+        decoration_apply(deco, csd);
         return;
     }
     /* Surface not yet initialized — defer to xdg_toplevel_commit's
      * initial_commit handling where schedule_configure is safe to call. */
-    auto *tree = static_cast<wlr_scene_tree*>(xdg_tl->base->data);
-    if (tree && tree->node.data)
-        static_cast<nnwm_toplevel*>(tree->node.data)->decoration = deco;
 }
 
 void
 decoration_handle_destroy(wl_listener *listener, void * /*data*/)
 {
     nnwm_decoration *deco = wl_container_of(listener, deco, destroy);
+    nnwm_toplevel   *tl   = toplevel_from_deco(deco);
+    if (tl && tl->decoration == deco)
+        tl->decoration = nullptr;
     wl_list_remove(&deco->request_mode.link);
     wl_list_remove(&deco->destroy.link);
     delete deco;
@@ -1214,7 +1238,8 @@ xdg_toplevel_commit(wl_listener *listener, void * /*data*/)
         /* Apply any decoration mode that was deferred because request_mode
          * arrived before the surface was initialized. */
         if (toplevel->decoration)
-            decoration_set_csd(toplevel->decoration);
+            decoration_apply(toplevel->decoration,
+                             toplevel->server->config->client_decorations);
     }
 }
 
@@ -1410,6 +1435,11 @@ layer_surface_unmap(wl_listener *listener, void * /*data*/)
 {
     nnwm_layer_surface *ls = wl_container_of(listener, ls, unmap);
     arrange_layers(ls->server, ls->wlr_layer_surface->output);
+
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    process_cursor_motion(ls->server,
+        (uint32_t)(now.tv_sec * 1000 + now.tv_nsec / 1000000));
 }
 
 void
@@ -1460,6 +1490,12 @@ server_apply_config(nnwm_server *server)
             : server->config->unfocused_color;
         for (int i = 0; i < 4; i++)
             wlr_scene_rect_set_color(tl->border[i], color);
+    }
+
+    /* Re-apply decoration mode (CSD vs SSD) to all live toplevels */
+    wl_list_for_each(tl, &server->toplevels, link) {
+        if (tl->decoration)
+            decoration_apply(tl->decoration, server->config->client_decorations);
     }
 
     /* Re-arrange to apply border_width / master_ratio changes */
