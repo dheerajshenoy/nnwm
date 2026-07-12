@@ -36,6 +36,11 @@
 - **Autostart fix**: `nnwm.spawn()` calls made during config loading are now
   deferred until after the Wayland socket is open and `WAYLAND_DISPLAY` is set,
   so wallpaper managers and bars start correctly on first launch.
+- **Multi-monitor support**: each connected output gets an independent workspace.
+  The cursor determines the focused output; keyboard actions (focus, swap,
+  workspace switching, new windows) operate on the output under the cursor.
+  Switching to a workspace already visible on another output swaps the two
+  outputs' workspaces instead of hiding windows.
 
 - **Gaps support**: `nnwm.outer_gap` (space between windows and screen edge)
   and `nnwm.inner_gap` (space between adjacent windows) config fields. Both
@@ -72,9 +77,9 @@
 
 ### Bug Fixes
 
-- **Focus on window close**: when a window is unmapped, keyboard focus now
-  transfers to the next window in the tiling list (new master). Previously
-  focus was left dangling with no window focused.
+- **Focus on window close**: when the focused window is closed, focus transfers
+  to the previously focused window (the one focused before it). Falls back to
+  the current workspace master if no history is available.
 - **Focus tracking**: `get_focused_toplevel` was always returning the master
   window (first in the tiling list) instead of the actually keyboard-focused
   window. Now resolves the focused toplevel from `seat->keyboard_state.focused_surface`.
