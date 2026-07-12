@@ -1,7 +1,6 @@
 # nnWM TODO
 
 - [ ] Handle window close
-
 - [ ] Tiling window management
 - [ ] Active window border
 - Layouts

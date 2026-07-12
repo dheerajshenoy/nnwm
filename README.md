@@ -8,4 +8,8 @@ Latest Version: 0.1.0
 
 # TODO
 
+Check out the [TODO](./TODO.md) file.
+
 # CHANGELOG
+
+Check out the [CHANGELOG](./CHANGELOG.md) file.
