@@ -31,6 +31,15 @@
 
 ### Bug Fixes
 
+- **VT switching**: Ctrl+Alt+F<n> now switches to the corresponding TTY.
+  The compositor intercepts `XF86Switch_VT_1..12` keysyms and calls
+  `wlr_session_change_vt`; no-op when running nested (session is null).
+- Fixed `nnwm_lua_init`: missing `lua_newtable` before `luaL_setfuncs` was
+  causing a crash on startup.
+- Fixed `push_config_defaults`: was replacing the `nnwm` global table with a
+  new empty one on every config load, discarding all registered action
+  functions (`nnwm.key`, `nnwm.quit`, etc.). Now updates the existing table
+  in place so functions survive config loads and reloads.
 - Fixed window destroy: scene tree is now properly destroyed when an XDG
   toplevel is unmapped, preventing stale scene nodes.
 - Focus changes update border colors for all windows (focused vs unfocused).
