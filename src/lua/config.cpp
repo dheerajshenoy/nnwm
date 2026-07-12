@@ -459,6 +459,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "keyboard_repeat_rate");
     lua_pushinteger(L, cfg->keyboard_repeat_delay);
     lua_setfield(L, -2, "keyboard_repeat_delay");
+    lua_pushstring(L, cfg->xkb_options ? cfg->xkb_options : "");
+    lua_setfield(L, -2, "xkb_options");
 
     lua_pushstring(L, cfg->cursor_theme);
     lua_setfield(L, -2, "cursor_theme");
@@ -535,6 +537,10 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     s = get_string_field(L, "seat_name", cfg->seat_name);
     free(cfg->seat_name);
     cfg->seat_name = s;
+
+    s = get_string_field(L, "xkb_options", cfg->xkb_options);
+    free(cfg->xkb_options);
+    cfg->xkb_options = s;
 
     lua_pop(L, 1);
 }
@@ -699,6 +705,7 @@ nnwm_config_defaults(void)
 
     cfg->keyboard_repeat_rate  = 25;
     cfg->keyboard_repeat_delay = 600;
+    cfg->xkb_options           = strdup("");
 
     cfg->cursor_theme = strdup("default");
     cfg->cursor_size  = 24;
@@ -720,5 +727,6 @@ nnwm_config_free(struct nnwm_config *cfg)
         return;
     free(cfg->cursor_theme);
     free(cfg->seat_name);
+    free(cfg->xkb_options);
     delete cfg;
 }

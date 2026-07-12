@@ -33,6 +33,7 @@ struct nnwm_config
     /* Keyboard */
     int keyboard_repeat_rate;
     int keyboard_repeat_delay;
+    char *xkb_options;
 
     /* Cursor */
     char *cursor_theme;

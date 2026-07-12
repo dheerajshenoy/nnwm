@@ -596,6 +596,20 @@ keyboard_handle_destroy(wl_listener *listener, void * /*data*/)
     delete keyboard;
 }
 
+static void
+apply_keymap(wlr_keyboard *wlr_keyboard, nnwm_config *cfg)
+{
+    xkb_context    *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+    xkb_rule_names  rules   = {};
+    const char     *opts    = cfg->xkb_options;
+    rules.options = (opts && opts[0]) ? opts : nullptr;
+    xkb_keymap *keymap = xkb_keymap_new_from_names(context, &rules,
+                                                    XKB_KEYMAP_COMPILE_NO_FLAGS);
+    wlr_keyboard_set_keymap(wlr_keyboard, keymap);
+    xkb_keymap_unref(keymap);
+    xkb_context_unref(context);
+}
+
 void
 server_new_keyboard(nnwm_server *server, wlr_input_device *device)
 {
@@ -605,15 +619,7 @@ server_new_keyboard(nnwm_server *server, wlr_input_device *device)
     keyboard->server          = server;
     keyboard->wlr_keyboard    = wlr_keyboard;
 
-    /* We need to prepare an XKB keymap and assign it to the keyboard. This
-     * assumes the defaults (e.g. layout = "us"). */
-    xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-    xkb_keymap  *keymap
-        = xkb_keymap_new_from_names(context, nullptr, XKB_KEYMAP_COMPILE_NO_FLAGS);
-
-    wlr_keyboard_set_keymap(wlr_keyboard, keymap);
-    xkb_keymap_unref(keymap);
-    xkb_context_unref(context);
+    apply_keymap(wlr_keyboard, server->config);
     wlr_keyboard_set_repeat_info(wlr_keyboard,
                                  server->config->keyboard_repeat_rate,
                                  server->config->keyboard_repeat_delay);
@@ -1188,9 +1194,10 @@ server_apply_config(nnwm_server *server)
     /* Re-arrange to apply border_width / master_ratio changes */
     arrange_windows(server);
 
-    /* Update keyboard repeat info for all connected keyboards */
+    /* Update keymap and repeat info for all connected keyboards */
     nnwm_keyboard *kb;
     wl_list_for_each(kb, &server->keyboards, link) {
+        apply_keymap(kb->wlr_keyboard, server->config);
         wlr_keyboard_set_repeat_info(kb->wlr_keyboard,
                                      server->config->keyboard_repeat_rate,
                                      server->config->keyboard_repeat_delay);
