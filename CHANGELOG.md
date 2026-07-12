@@ -4,6 +4,29 @@
 
 ### Features
 
+- **Floating windows**: `nnwm.toggle_float()` toggles the focused window
+  between floating and tiled mode. When made floating the window is centered on
+  screen and raised above all tiled windows. Super+left-click drags a floating
+  window; Super+right-click resizes it from the bottom-right corner. Tiling a
+  floating window re-enters the master-stack layout automatically. Floating
+  windows are always rendered above tiled windows.
+- **Fullscreen**: `nnwm.toggle_fullscreen()` makes the focused window cover the
+  entire output with no borders or gaps. Exits fullscreen by calling the action
+  again, or via the client's own request (e.g. F11 in a browser). Both floating
+  and fullscreen windows are excluded from the tiling layout.
+- **Focus follows mouse**: `nnwm.focus_follows_mouse = true` transfers keyboard
+  focus to whichever window the cursor moves over (default: `false`). Has no
+  effect during move/resize drags.
+- **XKB options**: `nnwm.xkb_options` accepts a comma-separated XKB options
+  string (e.g. `"caps:escape,compose:ralt"`). Applied to all keyboards on
+  startup and re-applied on config hot-reload (default: `""`).
+- **9-workspace support**: `nnwm.switch_workspace(n)` and
+  `nnwm.move_to_workspace(n)` (1–9). Each workspace maintains independent
+  tiling and remembers the last focused window.
+- **Autostart fix**: `nnwm.spawn()` calls made during config loading are now
+  deferred until after the Wayland socket is open and `WAYLAND_DISPLAY` is set,
+  so wallpaper managers and bars start correctly on first launch.
+
 - **Gaps support**: `nnwm.outer_gap` (space between windows and screen edge)
   and `nnwm.inner_gap` (space between adjacent windows) config fields. Both
   default to `0`. Applied in the tiling layout for all window arrangements.
