@@ -77,25 +77,17 @@ focus_toplevel(nnwm_toplevel *toplevel)
         }
     }
     wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
-    /* Move the toplevel to the front */
-    wlr_scene_node_raise_to_top(&toplevel->scene_tree->node);
-    wl_list_remove(&toplevel->link);
-    wl_list_insert(&server->toplevels, &toplevel->link);
     /* Activate the new surface */
     wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
-    /*
-     * Tell the seat to have the keyboard enter this surface. wlroots will keep
-     * track of this and automatically send key events to the appropriate
-     * clients without additional work on your part.
-     */
     if (keyboard != nullptr)
     {
         wlr_seat_keyboard_notify_enter(seat, surface, keyboard->keycodes,
                                        keyboard->num_keycodes,
                                        &keyboard->modifiers);
     }
-
-    arrange_windows(server);
+    /* List reordering and arrange_windows are the caller's responsibility
+     * when a layout change is intentional (map, keybindings). A plain click
+     * only transfers keyboard focus without disturbing the tiling order. */
 }
 
 void
@@ -160,7 +152,7 @@ handle_keybinding(nnwm_server *server, uint32_t modifiers,
         return true;
     }
 
-    /* Super+J: focus next window (moves it to master) */
+    /* Super+J: promote next window to master */
     if (mods == SUPER && key == XKB_KEY_j)
     {
         if (wl_list_length(&server->toplevels) < 2)
@@ -170,17 +162,23 @@ handle_keybinding(nnwm_server *server, uint32_t modifiers,
                                   ? server->toplevels.next->next
                                   : cur->link.next;
         nnwm_toplevel *tl   = wl_container_of(next, tl, link);
+        wl_list_remove(&tl->link);
+        wl_list_insert(&server->toplevels, &tl->link);
         focus_toplevel(tl);
+        arrange_windows(server);
         return true;
     }
 
-    /* Super+K: focus previous window */
+    /* Super+K: promote previous window to master */
     if (mods == SUPER && key == XKB_KEY_k)
     {
         if (wl_list_length(&server->toplevels) < 2)
             return true;
         nnwm_toplevel *tl = wl_container_of(server->toplevels.prev, tl, link);
+        wl_list_remove(&tl->link);
+        wl_list_insert(&server->toplevels, &tl->link);
         focus_toplevel(tl);
+        arrange_windows(server);
         return true;
     }
 
@@ -205,9 +203,11 @@ handle_keybinding(nnwm_server *server, uint32_t modifiers,
     {
         if (wl_list_length(&server->toplevels) < 2)
             return true;
-        nnwm_toplevel *next_toplevel =
-            wl_container_of(server->toplevels.prev, next_toplevel, link);
-        focus_toplevel(next_toplevel);
+        nnwm_toplevel *tl = wl_container_of(server->toplevels.prev, tl, link);
+        wl_list_remove(&tl->link);
+        wl_list_insert(&server->toplevels, &tl->link);
+        focus_toplevel(tl);
+        arrange_windows(server);
         return true;
     }
 
@@ -543,9 +543,10 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
     /* Called when the surface is mapped, or ready to display on-screen. */
     nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, map);
 
+    /* New windows become master by being inserted at the list head. */
     wl_list_insert(&toplevel->server->toplevels, &toplevel->link);
-
     focus_toplevel(toplevel);
+    arrange_windows(toplevel->server);
 }
 
 void
