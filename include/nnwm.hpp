@@ -41,6 +41,7 @@ extern "C"
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/backend/libinput.h>
+#include <wlr/backend/session.h>
 #include <wlr/util/log.h>
 #include <libinput.h>
 #ifdef __cplusplus
@@ -72,6 +73,7 @@ struct nnwm_server
 {
     struct wl_display *wl_display;
     struct wlr_backend *backend;
+    struct wlr_session *session;
     struct wlr_renderer *renderer;
     struct wlr_allocator *allocator;
     struct wlr_scene *scene;

@@ -366,7 +366,13 @@ static const struct luaL_Reg nnwm_funcs[] = {
 static void
 push_config_defaults(lua_State *L, struct nnwm_config *cfg)
 {
-    lua_newtable(L);
+    lua_getglobal(L, "nnwm");
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        lua_newtable(L);
+        lua_pushvalue(L, -1);
+        lua_setglobal(L, "nnwm");
+    }
 
     lua_pushnumber(L, cfg->master_ratio);
     lua_setfield(L, -2, "master_ratio");
@@ -418,7 +424,7 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_pushstring(L, cfg->launcher_command);
     lua_setfield(L, -2, "launcher_command");
 
-    lua_setglobal(L, "nnwm");
+    lua_pop(L, 1);
 }
 
 /* ---- read back non-keybinding settings from Lua ---- */
@@ -498,6 +504,7 @@ nnwm_lua_init(struct nnwm_server *server)
     push_key_table(server->lua);
 
     /* Register nnwm table with key() and action functions */
+    lua_newtable(server->lua);
     luaL_setfuncs(server->lua, nnwm_funcs, 0);
     lua_setglobal(server->lua, "nnwm");
 

@@ -357,7 +357,23 @@ keyboard_handle_key(wl_listener *listener, void *data)
 
     bool     handled   = false;
     uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->wlr_keyboard);
-    if ((modifiers & (WLR_MODIFIER_ALT | WLR_MODIFIER_LOGO))
+
+    if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED)
+    {
+        for (int i = 0; i < nsyms; i++)
+        {
+            if (syms[i] >= XKB_KEY_XF86Switch_VT_1 &&
+                syms[i] <= XKB_KEY_XF86Switch_VT_12)
+            {
+                if (server->session)
+                    wlr_session_change_vt(server->session,
+                        syms[i] - XKB_KEY_XF86Switch_VT_1 + 1);
+                handled = true;
+            }
+        }
+    }
+
+    if (!handled && (modifiers & (WLR_MODIFIER_ALT | WLR_MODIFIER_LOGO))
         && event->state == WL_KEYBOARD_KEY_STATE_PRESSED)
     {
         for (int i = 0; i < nsyms; i++)
