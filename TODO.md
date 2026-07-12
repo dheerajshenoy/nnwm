@@ -1,6 +1,7 @@
 # nnWM TODO
 
-- [X] Workspaces
+- [X] Move to workspace
+- [X] Switch workspace
 - [X] Handle window close
 - [X] Tiling window management
 - [X] Active window border
@@ -16,3 +17,9 @@
     - [ ] Hooks
     - [ ] Theme
 - [ ] Multi-monitor support
+- [ ] Switch monitor focus
+- [ ] Always master window option
+- [ ] Fullscreen
+- [ ] Float window
+- [ ] Floating window mouse window resize
+- [ ] Floating window mouse window move
