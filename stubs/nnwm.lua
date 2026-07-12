@@ -157,3 +157,13 @@ function nnwm.switch_workspace(n) end
 --- immediately and focus transfers to the next available window.
 ---@param n integer  Workspace index (1-indexed)
 function nnwm.move_to_workspace(n) end
+
+--- Toggle the focused window between floating and tiled mode.
+--- When made floating the window is centered on screen; when returned to tiled
+--- the layout is re-arranged automatically.
+function nnwm.toggle_float() end
+
+--- Toggle the focused window between fullscreen and its previous mode.
+--- When fullscreen the window covers the entire output with no borders or gaps;
+--- exiting fullscreen restores the tiling layout.
+function nnwm.toggle_fullscreen() end

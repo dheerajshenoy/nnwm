@@ -152,6 +152,7 @@ struct nnwm_toplevel
     struct nnwm_server *server;
     int workspace;
     bool floating;
+    bool fullscreen;
     struct wlr_xdg_toplevel *xdg_toplevel;
     struct wlr_scene_tree *scene_tree;
     struct wlr_scene_rect *border[4];      /* top, bottom, left, right */
@@ -240,6 +241,7 @@ void nnwm_action_cycle(struct nnwm_server *server);
 void nnwm_action_switch_workspace(struct nnwm_server *server, int ws);
 void nnwm_action_move_to_workspace(struct nnwm_server *server, int ws);
 void nnwm_action_toggle_float(struct nnwm_server *server);
+void nnwm_action_toggle_fullscreen(struct nnwm_server *server);
 
 #ifdef __cplusplus
 }

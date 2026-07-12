@@ -37,7 +37,7 @@ ws_first(nnwm_server *server)
 {
     nnwm_toplevel *t;
     wl_list_for_each(t, &server->toplevels, link)
-        if (t->workspace == server->active_workspace && !t->floating)
+        if (t->workspace == server->active_workspace && !t->floating && !t->fullscreen)
             return t;
     return nullptr;
 }
@@ -48,7 +48,7 @@ ws_next(nnwm_server *server, nnwm_toplevel *cur)
 {
     for (wl_list *it = cur->link.next; it != &server->toplevels; it = it->next) {
         nnwm_toplevel *t = wl_container_of(it, t, link);
-        if (t->workspace == server->active_workspace && !t->floating)
+        if (t->workspace == server->active_workspace && !t->floating && !t->fullscreen)
             return t;
     }
     return nullptr;
@@ -60,7 +60,7 @@ ws_prev(nnwm_server *server, nnwm_toplevel *cur)
 {
     for (wl_list *it = cur->link.prev; it != &server->toplevels; it = it->prev) {
         nnwm_toplevel *t = wl_container_of(it, t, link);
-        if (t->workspace == server->active_workspace && !t->floating)
+        if (t->workspace == server->active_workspace && !t->floating && !t->fullscreen)
             return t;
     }
     return nullptr;
@@ -72,7 +72,7 @@ ws_last(nnwm_server *server)
 {
     nnwm_toplevel *t, *last = nullptr;
     wl_list_for_each(t, &server->toplevels, link)
-        if (t->workspace == server->active_workspace && !t->floating)
+        if (t->workspace == server->active_workspace && !t->floating && !t->fullscreen)
             last = t;
     return last;
 }
@@ -84,7 +84,7 @@ ws_count(nnwm_server *server)
     int n = 0;
     nnwm_toplevel *t;
     wl_list_for_each(t, &server->toplevels, link)
-        if (t->workspace == server->active_workspace && !t->floating)
+        if (t->workspace == server->active_workspace && !t->floating && !t->fullscreen)
             n++;
     return n;
 }
@@ -116,7 +116,7 @@ arrange_windows(nnwm_server *server)
     nnwm_toplevel *tl;
     if (n == 1) {
         wl_list_for_each(tl, &server->toplevels, link) {
-            if (tl->workspace != server->active_workspace || tl->floating)
+            if (tl->workspace != server->active_workspace || tl->floating || tl->fullscreen)
                 continue;
             wlr_scene_node_set_position(&tl->scene_tree->node, x0, y0);
             wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw, H - 2 * bw);
@@ -133,7 +133,7 @@ arrange_windows(nnwm_server *server)
 
     int i = 0;
     wl_list_for_each(tl, &server->toplevels, link) {
-        if (tl->workspace != server->active_workspace || tl->floating)
+        if (tl->workspace != server->active_workspace || tl->floating || tl->fullscreen)
             continue;
         if (i == 0) {
             wlr_scene_node_set_position(&tl->scene_tree->node, x0, y0);
@@ -228,6 +228,28 @@ keyboard_handle_modifiers(wl_listener *listener, void * /*data*/)
 }
 
 /* ---- Compositor actions (called from Lua keybinding callbacks) ---- */
+
+static void
+do_toggle_fullscreen(nnwm_toplevel *tl)
+{
+    tl->fullscreen = !tl->fullscreen;
+    wlr_xdg_toplevel_set_fullscreen(tl->xdg_toplevel, tl->fullscreen);
+
+    if (tl->fullscreen) {
+        wlr_scene_node_raise_to_top(&tl->scene_tree->node);
+        nnwm_server *server = tl->server;
+        if (!wl_list_empty(&server->outputs)) {
+            nnwm_output *out = wl_container_of(server->outputs.next, out, link);
+            wlr_box area;
+            wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
+            wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
+            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, area.width, area.height);
+            update_borders(tl, area.width, area.height, 0);
+        }
+    }
+
+    arrange_windows(tl->server);
+}
 
 static nnwm_toplevel *
 get_focused_toplevel(nnwm_server *server)
@@ -443,6 +465,14 @@ nnwm_action_toggle_float(nnwm_server *server)
     }
 
     arrange_windows(server);
+}
+
+void
+nnwm_action_toggle_fullscreen(nnwm_server *server)
+{
+    nnwm_toplevel *tl = get_focused_toplevel(server);
+    if (tl)
+        do_toggle_fullscreen(tl);
 }
 
 void
@@ -1028,13 +1058,10 @@ xdg_toplevel_request_maximize(wl_listener *listener, void * /*data*/)
 void
 xdg_toplevel_request_fullscreen(wl_listener *listener, void * /*data*/)
 {
-    /* Just as with request_maximize, we must send a configure here. */
     nnwm_toplevel *toplevel
         = wl_container_of(listener, toplevel, request_fullscreen);
     if (toplevel->xdg_toplevel->base->initialized)
-    {
-        wlr_xdg_surface_schedule_configure(toplevel->xdg_toplevel->base);
-    }
+        do_toggle_fullscreen(toplevel);
 }
 
 void
