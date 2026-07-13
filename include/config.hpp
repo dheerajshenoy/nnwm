@@ -12,6 +12,19 @@ extern "C"
 }
 #endif
 
+struct nnwm_window_rule
+{
+    /* Match fields — NULL = not used for matching */
+    char *app_id; /* fnmatch glob, e.g. "fire*" */
+    char *title;  /* fnmatch glob */
+
+    /* Actions — -1 / NULL = unset (don't apply) */
+    int   floating;   /* -1=unset, 0=false, 1=true */
+    int   fullscreen; /* -1=unset, 0=false, 1=true */
+    int   workspace;  /* -1=unset, 0-8 = workspace index */
+    char *monitor;    /* NULL=unset, output name e.g. "DP-1" */
+};
+
 struct nnwm_monitor_config
 {
     /* Match fields (all optional; NULL = don't match on this field) */
@@ -93,6 +106,10 @@ struct nnwm_config
     /* Monitor configuration */
     struct nnwm_monitor_config *monitor_configs;
     int monitor_config_count;
+
+    /* Window rules */
+    struct nnwm_window_rule *window_rules;
+    int window_rule_count;
 };
 
 #ifdef __cplusplus

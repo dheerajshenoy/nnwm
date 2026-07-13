@@ -2,6 +2,8 @@
 #include "lua/config.hpp"
 #include <cassert>
 #include <cstdio>
+#include <cstring>
+#include <fnmatch.h>
 #include <linux/input-event-codes.h>
 #include <drm_fourcc.h>
 extern "C" {
@@ -1387,6 +1389,45 @@ output_manager_test(wl_listener *listener, void *data)
     output_manager_apply_or_test(server, config, true);
 }
 
+static void
+apply_window_rules(nnwm_server *server, nnwm_toplevel *toplevel)
+{
+    const char *app_id = toplevel->xdg_toplevel->app_id;
+    const char *title  = toplevel->xdg_toplevel->title;
+    auto *cfg = server->config;
+
+    for (int i = 0; i < cfg->window_rule_count; i++) {
+        const auto &r = cfg->window_rules[i];
+
+        bool match = true;
+        if (r.app_id) {
+            if (!app_id || fnmatch(r.app_id, app_id, 0) != 0)
+                match = false;
+        }
+        if (match && r.title) {
+            if (!title || fnmatch(r.title, title, 0) != 0)
+                match = false;
+        }
+        /* Skip rules with no match criteria */
+        if (!r.app_id && !r.title)
+            match = false;
+        if (!match) continue;
+
+        if (r.floating   >= 0) toplevel->floating   = (bool)r.floating;
+        if (r.fullscreen >= 0) toplevel->fullscreen = (bool)r.fullscreen;
+        if (r.workspace  >= 0) toplevel->workspace  = r.workspace;
+        if (r.monitor) {
+            nnwm_output *out;
+            wl_list_for_each(out, &server->outputs, link) {
+                if (strcmp(out->wlr_output->name, r.monitor) == 0) {
+                    toplevel->workspace = out->active_workspace;
+                    break;
+                }
+            }
+        }
+    }
+}
+
 void
 xdg_toplevel_map(wl_listener *listener, void * /*data*/)
 {
@@ -1396,6 +1437,9 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
     nnwm_server *server = toplevel->server;
     nnwm_output *out    = server->focused_output;
     toplevel->workspace = out ? out->active_workspace : 0;
+    apply_window_rules(server, toplevel);
+    out = output_for_workspace(server, toplevel->workspace);
+    if (!out) out = server->focused_output;
     if (server->config->new_window_master)
         wl_list_insert(&server->toplevels, &toplevel->link);
     else

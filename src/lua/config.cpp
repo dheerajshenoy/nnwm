@@ -14,6 +14,7 @@ extern "C"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fnmatch.h>
 #include <unistd.h>
 
 /* ---- helpers ---- */
@@ -453,6 +454,56 @@ l_nnwm_host_name(lua_State *L)
     return 1;
 }
 
+static int
+l_nnwm_rule(lua_State *L)
+{
+    if (!lua_istable(L, 1) || !lua_istable(L, 2))
+        return luaL_error(L, "nnwm.rule: expected two table arguments");
+
+    auto *server = get_server(L);
+    auto *cfg    = server->config;
+
+    cfg->window_rules = static_cast<nnwm_window_rule*>(
+        realloc(cfg->window_rules,
+                (size_t)(cfg->window_rule_count + 1) * sizeof(nnwm_window_rule)));
+    auto &r = cfg->window_rules[cfg->window_rule_count++];
+    memset(&r, 0, sizeof(r));
+    r.floating   = -1;
+    r.fullscreen = -1;
+    r.workspace  = -1;
+
+    /* Match criteria */
+    lua_getfield(L, 1, "app_id");
+    if (lua_isstring(L, -1)) r.app_id = strdup(lua_tostring(L, -1));
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "title");
+    if (lua_isstring(L, -1)) r.title = strdup(lua_tostring(L, -1));
+    lua_pop(L, 1);
+
+    /* Actions */
+    lua_getfield(L, 2, "floating");
+    if (lua_isboolean(L, -1)) r.floating = lua_toboolean(L, -1) ? 1 : 0;
+    lua_pop(L, 1);
+
+    lua_getfield(L, 2, "fullscreen");
+    if (lua_isboolean(L, -1)) r.fullscreen = lua_toboolean(L, -1) ? 1 : 0;
+    lua_pop(L, 1);
+
+    lua_getfield(L, 2, "workspace");
+    if (lua_isinteger(L, -1)) {
+        int ws = (int)lua_tointeger(L, -1) - 1; /* Lua 1-9 → internal 0-8 */
+        if (ws >= 0 && ws < NNWM_NUM_WORKSPACES) r.workspace = ws;
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, 2, "monitor");
+    if (lua_isstring(L, -1)) r.monitor = strdup(lua_tostring(L, -1));
+    lua_pop(L, 1);
+
+    return 0;
+}
+
 static const struct luaL_Reg nnwm_funcs[] = {
     {"key", l_nnwm_key},
     {"quit", l_nnwm_quit},
@@ -480,6 +531,7 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"move_to_monitor_next", l_nnwm_move_to_monitor_next},
     {"move_to_monitor_prev", l_nnwm_move_to_monitor_prev},
     {"host_name", l_nnwm_host_name},
+    {"rule", l_nnwm_rule},
     {nullptr, nullptr},
 };
 
@@ -586,6 +638,20 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "monitors");
 
     lua_pop(L, 1);
+}
+
+static void
+free_window_rules(struct nnwm_config *cfg)
+{
+    for (int i = 0; i < cfg->window_rule_count; i++) {
+        auto &r = cfg->window_rules[i];
+        free(r.app_id);
+        free(r.title);
+        free(r.monitor);
+    }
+    free(cfg->window_rules);
+    cfg->window_rules     = nullptr;
+    cfg->window_rule_count = 0;
 }
 
 /* ---- read monitor configuration from Lua ---- */
@@ -832,6 +898,8 @@ nnwm::lua_load_config(struct nnwm_server *server, struct nnwm_config *cfg,
     if (!server->lua)
         return;
 
+    free_window_rules(cfg);
+
     /* Re-push config defaults into the nnwm table so read_config_table works */
     push_config_defaults(server->lua, cfg);
 
@@ -859,6 +927,9 @@ nnwm::lua_reload(struct nnwm_server *server, struct nnwm_config *cfg)
         luaL_unref(server->lua, LUA_REGISTRYINDEX,
                    server->lua_keybindings[i].func_ref);
     server->lua_keybinding_count = 0;
+
+    /* Clear existing window rules */
+    free_window_rules(cfg);
 
     /* Re-push defaults and re-run config */
     push_config_defaults(server->lua, cfg);
@@ -960,6 +1031,9 @@ nnwm::config_defaults(void)
     cfg->monitor_configs     = nullptr;
     cfg->monitor_config_count = 0;
 
+    cfg->window_rules     = nullptr;
+    cfg->window_rule_count = 0;
+
     return cfg;
 }
 
@@ -981,5 +1055,6 @@ nnwm::config_free(struct nnwm_config *cfg)
         free(mc.serial);
     }
     free(cfg->monitor_configs);
+    free_window_rules(cfg);
     delete cfg;
 }

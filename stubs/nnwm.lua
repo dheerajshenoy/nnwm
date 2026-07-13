@@ -110,6 +110,16 @@ KEY = {}
 ---@field titlebar_text_color        number[]  RGBA color for the title text (default: {1.0, 1.0, 1.0, 1.0})
 
 --- Monitor configuration (array of tables). First match wins.
+---@class nnwm_window_rule_match
+---@field app_id string? fnmatch glob matched against the window's app_id (e.g. `"firefox"`, `"foot*"`)
+---@field title  string? fnmatch glob matched against the window title
+
+---@class nnwm_window_rule_action
+---@field floating   boolean? Make the window floating (true) or tiled (false)
+---@field fullscreen boolean? Make the window fullscreen
+---@field workspace  integer? Assign to workspace 1–9
+---@field monitor    string?  Assign to the output with this name (e.g. `"DP-1"`)
+
 ---@class nnwm_monitor_config
 ---@field name      string   Output name, e.g. "DP-1"
 ---@field make      string   Manufacturer string
@@ -140,6 +150,19 @@ nnwm.monitors = {} ---@type nnwm_monitor_config[]
 ---@param combo    string[]  Array of modifier names and exactly one key name
 ---@param callback fun()     Function to call when the combo is pressed
 function nnwm.key(combo, callback) end
+
+---Register a window rule. When a new window maps, all rules are tested in
+---order; matching rules are applied. All fields in `match` must match (AND
+---logic). Both `app_id` and `title` support fnmatch globs (`*`, `?`, `[…]`).
+---
+---```lua
+---nnwm.rule({ app_id = "firefox" }, { workspace = 2 })
+---nnwm.rule({ title = "*Picture-in-Picture*" }, { floating = true })
+---nnwm.rule({ app_id = "mpv" }, { floating = true, monitor = "DP-1" })
+---```
+---@param match  nnwm_window_rule_match
+---@param action nnwm_window_rule_action
+function nnwm.rule(match, action) end
 
 --- Terminate the compositor.
 function nnwm.quit() end
