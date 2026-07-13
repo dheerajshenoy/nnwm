@@ -44,7 +44,8 @@
 - [X] font configuration for window decoration
 - [X] text alignment for window decoration
 - [X] color for the window decoration
-- [ ] Tilde not rendering in the titlebar
+- [X] Dialog window support wierd invisible window issue
+- [X] Tilde not rendering in the titlebar
 - [X] Titlebar not updating on window resize
 - [ ] Animations with scenefx
 - [ ] Blur
@@ -72,5 +73,4 @@
     - [ ] wlr-export-dmabuf-unstable-v1
     - [ ] wlr-output-configuration-unstable-v1
 - [ ] Show error messages when config fails to load
-- [ ] Dialog window support
 - [ ] XWayland
