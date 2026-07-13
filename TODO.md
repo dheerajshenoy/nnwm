@@ -56,5 +56,5 @@
 - [ ] Scratchpad
 - [ ] Screenshot protocol
 - [ ] Screenrecording protocol
-- [ ] lua helper functions
-    - [ ] device_name
+- lua helper functions
+    - [X] device_name
