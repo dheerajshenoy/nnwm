@@ -40,6 +40,15 @@ extern "C"
 #endif
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
+#include <wlr/types/wlr_xdg_output_v1.h>
+#ifdef __cplusplus
+#  pragma push_macro("namespace")
+#  define namespace namespace_
+#  include <wlr/types/wlr_output_management_v1.h>
+#  pragma pop_macro("namespace")
+#else
+#  include <wlr/types/wlr_output_management_v1.h>
+#endif
 #include <wlr/backend/libinput.h>
 #include <wlr/backend/session.h>
 #include <wlr/util/log.h>
@@ -121,6 +130,12 @@ struct nnwm_server
     struct wlr_output_layout *output_layout;
     struct wl_list outputs;
     struct wl_listener new_output;
+
+    struct wlr_output_manager_v1 *output_manager;
+    struct wl_listener output_manager_apply;
+    struct wl_listener output_manager_test;
+
+    struct wlr_xdg_output_manager_v1 *xdg_output_manager;
 
     /* Focused output — tracks which output keyboard actions operate on */
     struct nnwm_output *focused_output;
@@ -235,6 +250,8 @@ void server_new_xdg_toplevel(struct wl_listener *, void *);
 void server_new_xdg_popup(struct wl_listener *, void *);
 void server_new_layer_surface(struct wl_listener *, void *);
 void server_new_decoration(struct wl_listener *, void *);
+void output_manager_apply(struct wl_listener *, void *);
+void output_manager_test(struct wl_listener *, void *);
 void server_cursor_motion(struct wl_listener *, void *);
 void server_cursor_motion_absolute(struct wl_listener *, void *);
 void server_cursor_button(struct wl_listener *, void *);

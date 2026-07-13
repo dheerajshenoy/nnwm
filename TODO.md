@@ -57,9 +57,10 @@
 - lua helper functions
     - [X] device_name
 - wlr protocols
-    - [ ] Screenshot protocol
-    - [ ] Screenrecording protocol
-    - [X] wlr-output-management-unstable-v1 protocol
-    - [ ] wlr-output-power-management-unstable-v1 protocol
-    - [ ] wlr-output-configuration-unstable-v1 protocol
+    - [ ] Screenshot
+    - [ ] Screenrecording
+    - [X] wlr-output-management-unstable-v1
+    - [ ] wlr-output-power-management-unstable-v1
+    - [ ] wlr-output-configuration-unstable-v1
+    - [X] xdg-output-unstable-v1
 - [ ] Show error messages when config fails to load

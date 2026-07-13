@@ -172,6 +172,19 @@ main(int argc, char *argv[])
     server.new_layer_surface.notify  = server_new_layer_surface;
     wl_signal_add(&server.layer_shell->events.new_surface, &server.new_layer_surface);
 
+    /* Output management (wlr-randr, kanshi, etc.) */
+    server.output_manager              = wlr_output_manager_v1_create(server.wl_display);
+    server.output_manager_apply.notify = output_manager_apply;
+    wl_signal_add(&server.output_manager->events.apply,
+                  &server.output_manager_apply);
+    server.output_manager_test.notify = output_manager_test;
+    wl_signal_add(&server.output_manager->events.test,
+                  &server.output_manager_test);
+
+    /* xdg-output: exposes logical geometry to clients (wlr-randr, etc.) */
+    server.xdg_output_manager = wlr_xdg_output_manager_v1_create(
+        server.wl_display, server.output_layout);
+
     /* XDG decoration: tell clients to use client-side decorations */
     server.decoration_manager       = wlr_xdg_decoration_manager_v1_create(server.wl_display);
     server.new_decoration.notify    = server_new_decoration;
@@ -321,6 +334,8 @@ main(int argc, char *argv[])
 
     wl_list_remove(&server.new_decoration.link);
     wl_list_remove(&server.new_layer_surface.link);
+    wl_list_remove(&server.output_manager_apply.link);
+    wl_list_remove(&server.output_manager_test.link);
     wl_list_remove(&server.new_xdg_toplevel.link);
     wl_list_remove(&server.new_xdg_popup.link);
 

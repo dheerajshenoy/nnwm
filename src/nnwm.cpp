@@ -1248,6 +1248,8 @@ output_request_state(wl_listener *listener, void *data)
     wlr_output_commit_state(output->wlr_output, event->state);
 }
 
+static void output_manager_build_config(nnwm_server *server);
+
 void
 output_destroy(wl_listener *listener, void * /*data*/)
 {
@@ -1266,6 +1268,104 @@ output_destroy(wl_listener *listener, void * /*data*/)
     wl_list_remove(&output->destroy.link);
     wl_list_remove(&output->link);
     delete output;
+
+    output_manager_build_config(server);
+}
+
+/* ---- wlr-output-management ---- */
+
+static void
+output_manager_build_config(nnwm_server *server)
+{
+    wlr_output_configuration_v1 *config =
+        wlr_output_configuration_v1_create();
+
+    nnwm_output *output;
+    wl_list_for_each(output, &server->outputs, link) {
+        wlr_output_configuration_head_v1 *head =
+            wlr_output_configuration_head_v1_create(config,
+                output->wlr_output);
+
+        head->state.enabled = output->wlr_output->enabled;
+        head->state.mode    = output->wlr_output->current_mode;
+
+        struct wlr_output_layout_output *l_output =
+            wlr_output_layout_get(server->output_layout,
+                output->wlr_output);
+        if (l_output) {
+            head->state.x = l_output->x;
+            head->state.y = l_output->y;
+        }
+
+        head->state.transform = output->wlr_output->transform;
+        head->state.scale     = output->wlr_output->scale;
+    }
+
+    wlr_output_manager_v1_set_configuration(server->output_manager, config);
+}
+
+static void
+output_manager_apply_or_test(nnwm_server *server,
+    wlr_output_configuration_v1 *config, bool test)
+{
+    wlr_output_configuration_head_v1 *head;
+    bool ok = true;
+
+    wl_list_for_each(head, &config->heads, link) {
+        wlr_output *wlr_output = head->state.output;
+
+        wlr_output_state state;
+        wlr_output_state_init(&state);
+        wlr_output_head_v1_state_apply(&head->state, &state);
+
+        if (test) {
+            ok = wlr_output_test_state(wlr_output, &state);
+            wlr_output_state_finish(&state);
+            if (!ok)
+                break;
+            continue;
+        }
+
+        /* Reposition in the output layout */
+        wlr_output_layout_add(server->output_layout, wlr_output,
+            head->state.x, head->state.y);
+
+        ok = wlr_output_commit_state(wlr_output, &state);
+        wlr_output_state_finish(&state);
+
+        if (!ok)
+            break;
+    }
+
+    if (test) {
+        wlr_output_configuration_v1_send_succeeded(config);
+    } else if (ok) {
+        wlr_output_configuration_v1_send_succeeded(config);
+        output_manager_build_config(server);
+        arrange_all_outputs(server);
+    } else {
+        wlr_output_configuration_v1_send_failed(config);
+    }
+
+    wlr_output_configuration_v1_destroy(config);
+}
+
+void
+output_manager_apply(wl_listener *listener, void *data)
+{
+    nnwm_server *server
+        = wl_container_of(listener, server, output_manager_apply);
+    auto *config = static_cast<wlr_output_configuration_v1*>(data);
+    output_manager_apply_or_test(server, config, false);
+}
+
+void
+output_manager_test(wl_listener *listener, void *data)
+{
+    nnwm_server *server
+        = wl_container_of(listener, server, output_manager_test);
+    auto *config = static_cast<wlr_output_configuration_v1*>(data);
+    output_manager_apply_or_test(server, config, true);
 }
 
 void
@@ -1981,6 +2081,8 @@ server_new_output(wl_listener *listener, void *data)
         = wlr_scene_output_create(server->scene, wlr_output);
     wlr_scene_output_layout_add_output(server->scene_layout, l_output,
                                        scene_output);
+
+    output_manager_build_config(server);
 }
 
 void
