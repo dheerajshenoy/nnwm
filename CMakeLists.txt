@@ -31,6 +31,10 @@ set(LAYER_SHELL_XML    "${CMAKE_CURRENT_SOURCE_DIR}/protocol/wlr-layer-shell-uns
 set(LAYER_SHELL_HEADER "${CMAKE_CURRENT_BINARY_DIR}/wlr-layer-shell-unstable-v1-protocol.h")
 set(LAYER_SHELL_CODE   "${CMAKE_CURRENT_BINARY_DIR}/wlr-layer-shell-unstable-v1-protocol.c")
 
+set(OUTPUT_POWER_XML    "${CMAKE_CURRENT_SOURCE_DIR}/protocol/wlr-output-power-management-unstable-v1.xml")
+set(OUTPUT_POWER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/wlr-output-power-management-unstable-v1-protocol.h")
+set(OUTPUT_POWER_CODE   "${CMAKE_CURRENT_BINARY_DIR}/wlr-output-power-management-unstable-v1-protocol.c")
+
 set(EXT_IMAGE_COPY_CAPTURE_XML    "${WAYLAND_PROTOCOLS_DIR}/staging/ext-image-copy-capture/ext-image-copy-capture-v1.xml")
 set(EXT_IMAGE_COPY_CAPTURE_HEADER "${CMAKE_CURRENT_BINARY_DIR}/ext-image-copy-capture-v1-protocol.h")
 set(EXT_IMAGE_COPY_CAPTURE_CODE   "${CMAKE_CURRENT_BINARY_DIR}/ext-image-copy-capture-v1-protocol.c")
@@ -63,6 +67,17 @@ add_custom_command(
 )
 
 add_custom_command(
+    OUTPUT "${OUTPUT_POWER_HEADER}"
+    COMMAND "${WAYLAND_SCANNER}" server-header "${OUTPUT_POWER_XML}" "${OUTPUT_POWER_HEADER}"
+    DEPENDS "${OUTPUT_POWER_XML}"
+)
+add_custom_command(
+    OUTPUT "${OUTPUT_POWER_CODE}"
+    COMMAND "${WAYLAND_SCANNER}" private-code "${OUTPUT_POWER_XML}" "${OUTPUT_POWER_CODE}"
+    DEPENDS "${OUTPUT_POWER_XML}"
+)
+
+add_custom_command(
     OUTPUT "${EXT_IMAGE_COPY_CAPTURE_HEADER}"
     COMMAND "${WAYLAND_SCANNER}" server-header "${EXT_IMAGE_COPY_CAPTURE_XML}" "${EXT_IMAGE_COPY_CAPTURE_HEADER}"
     DEPENDS "${EXT_IMAGE_COPY_CAPTURE_XML}"
@@ -92,6 +107,8 @@ add_executable(nnwm
     "${XDG_SHELL_HEADER}"
     "${LAYER_SHELL_CODE}"
     "${LAYER_SHELL_HEADER}"
+    "${OUTPUT_POWER_CODE}"
+    "${OUTPUT_POWER_HEADER}"
     "${EXT_IMAGE_COPY_CAPTURE_CODE}"
     "${EXT_IMAGE_COPY_CAPTURE_HEADER}"
     "${EXT_IMAGE_CAPTURE_SOURCE_CODE}"
