@@ -583,7 +583,6 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"master_ratio_shrink", l_nnwm_master_ratio_shrink},
     {"toggle_float", l_nnwm_toggle_float},
     {"toggle_fullscreen", l_nnwm_toggle_fullscreen},
-    {"toggle_tabbed", l_nnwm_toggle_tabbed},
     {"focus_monitor_next", l_nnwm_focus_monitor_next},
     {"focus_monitor_prev", l_nnwm_focus_monitor_prev},
     {"move_to_monitor_next", l_nnwm_move_to_monitor_next},
@@ -973,6 +972,15 @@ nnwm::lua_init(struct nnwm_server *server)
     /* Register nnwm table with key() and action functions */
     lua_newtable(server->lua);
     luaL_setfuncs(server->lua, nnwm_funcs, 0);
+
+    /* nnwm.layout.<name>.toggle() sub-tables */
+    lua_newtable(server->lua);                      /* nnwm.layout          */
+    lua_newtable(server->lua);                      /* nnwm.layout.tabbed   */
+    lua_pushcfunction(server->lua, l_nnwm_toggle_tabbed);
+    lua_setfield(server->lua, -2, "toggle");
+    lua_setfield(server->lua, -2, "tabbed");
+    lua_setfield(server->lua, -2, "layout");
+
     lua_setglobal(server->lua, "nnwm");
 
     /* Initialize keybinding registry */

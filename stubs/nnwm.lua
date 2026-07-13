@@ -285,7 +285,17 @@ function nnwm.move_to_monitor_next() end
 --- Focus follows the window to the destination monitor.
 function nnwm.move_to_monitor_prev() end
 
+-- ── nnwm.layout ──────────────────────────────────────────────────────────────
+
+---@class nnwm.layout.tabbed
+nnwm.layout = {}
+nnwm.layout.tabbed = {}
+
 --- Toggle the current workspace between tiled (master-stack) and tabbed layout.
---- In tabbed mode all tiled windows share the same content area and a composite
---- tab bar at the top shows each window's title; clicking a tab focuses that window.
-function nnwm.toggle_tabbed() end
+--- In tabbed mode all tiled windows share the same content area; a composite tab
+--- bar at the top shows each window's title and clicking a tab focuses that window.
+---
+--- ```lua
+--- nnwm.key({"Super", "w"}, function() nnwm.layout.tabbed.toggle() end)
+--- ```
+function nnwm.layout.tabbed.toggle() end
