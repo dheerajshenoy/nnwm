@@ -24,8 +24,6 @@
 - Layouts
     - [X] Master Stack
     - [ ] Sway-like tabbed layout
-    - [ ] Horizontal Scrolling
-    - [ ] Vertical Scrolling
     - [ ] Dwindle
 - [X] Gaps
 - [X] Smart border
