@@ -164,8 +164,12 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
     }
 
     /* Use last_focused[ws] so the tab stays highlighted even when a layer-shell
-     * surface (e.g. rofi) temporarily holds keyboard focus. */
+     * surface (e.g. rofi) temporarily holds keyboard focus. Validate it is still
+     * a tiled window (it may have become floating since last focus). */
     nnwm_toplevel *active_tl = out->last_focused[ws];
+    if (active_tl && (active_tl->output != out || active_tl->workspace != ws
+                      || active_tl->floating || active_tl->fullscreen))
+        active_tl = nullptr;
 
     nnwm_tbuf *tb = tbuf_create(width, height);
     cairo_surface_t *surf = cairo_image_surface_create_for_data(
@@ -390,9 +394,12 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         int tab_h = cfg->titlebar_height > 0 ? cfg->titlebar_height : 24;
 
         /* Use last_focused[ws] so the visible window survives layer-shell focus
-         * steals (e.g. rofi). Fall back to first tiled window if none recorded. */
+         * steals (e.g. rofi). Validate it is still a tiled window on this
+         * workspace (it may have become floating/fullscreen since last focus). */
         nnwm_toplevel *active = out->last_focused[ws];
-        if (!active) active = ws_first(server, out);
+        if (!active || active->output != out || active->workspace != ws
+                    || active->floating || active->fullscreen)
+            active = ws_first(server, out);
 
         int cx = area.x + og;
         int cy = area.y + og + tab_h;
