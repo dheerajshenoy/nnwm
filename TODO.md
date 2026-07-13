@@ -79,3 +79,5 @@
 - [X] Fix per-monitor workspaces not working correctly
 - [X] fix focus_follows_mouse not working
 - [X] fix mouse click being forwarded to clients when resizing
+- [ ] Sticky windows
+- [ ] Fake fullscreen mode
