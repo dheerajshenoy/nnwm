@@ -20,7 +20,7 @@ config_file_changed(int /*fd*/, uint32_t /*mask*/, void *data)
         ;
 
     std::fprintf(stderr, "nnwm: reloading config\n");
-    nnwm_lua_reload(server, server->config);
+    nnwm::lua_reload(server, server->config);
     server_apply_config(server);
     return 0;
 }
@@ -59,13 +59,13 @@ main(int argc, char *argv[])
 
     /* Initialize Lua state for config and keybinding callbacks */
     server.config_inotify_fd = -1;
-    nnwm_lua_init(&server);
+    nnwm::lua_init(&server);
 
     /* Load config: explicit -c path, then ~/.config/nnwm/init.lua, then defaults */
-    server.config = nnwm_config_defaults();
+    server.config = nnwm::config_defaults();
     if (config_path)
     {
-        nnwm_lua_load_config(&server, server.config, config_path);
+        nnwm::lua_load_config(&server, server.config, config_path);
         server.config_path = strdup(config_path);
     }
     else
@@ -78,7 +78,7 @@ main(int argc, char *argv[])
             struct stat st;
             if (stat(path, &st) == 0)
             {
-                nnwm_lua_load_config(&server, server.config, path);
+                nnwm::lua_load_config(&server, server.config, path);
                 server.config_path = strdup(path);
             }
         }
@@ -269,7 +269,7 @@ main(int argc, char *argv[])
      * startup command if requested. */
     setenv("WAYLAND_DISPLAY", socket, true);
     server.wayland_started = true;
-    nnwm_flush_autostart(&server);
+    nnwm::flush_autostart(&server);
     /* Unset DISPLAY so clients don't try to connect to a non-existent X server.
      * Without this, toolkits like GLFW/SDL that support both X11 and Wayland
      * will attempt X11 first (because $DISPLAY is set from the parent TTY
@@ -349,7 +349,7 @@ main(int argc, char *argv[])
     if (server.config_inotify_fd >= 0)
         close(server.config_inotify_fd);
     free(server.config_path);
-    nnwm_config_free(server.config);
-    nnwm_lua_fini(&server);
+    nnwm::config_free(server.config);
+    nnwm::lua_fini(&server);
     return 0;
 }

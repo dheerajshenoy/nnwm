@@ -66,13 +66,13 @@ struct nnwm_config
 };
 
 #ifdef __cplusplus
-extern "C"
-{
-#endif
-    struct nnwm_config *nnwm_config_defaults(void);
-    void nnwm_config_free(struct nnwm_config *cfg);
-#ifdef __cplusplus
-}
+namespace nnwm {
+    struct nnwm_config *config_defaults(void);
+    void config_free(struct nnwm_config *cfg);
+} // namespace nnwm
+#else
+struct nnwm_config *nnwm_config_defaults(void);
+void nnwm_config_free(struct nnwm_config *cfg);
 #endif
 
 #endif /* NNWM_CONFIG_HPP */

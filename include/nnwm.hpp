@@ -244,34 +244,37 @@ void server_new_input(struct wl_listener *, void *);
 void seat_request_cursor(struct wl_listener *, void *);
 void seat_pointer_focus_change(struct wl_listener *, void *);
 void seat_request_set_selection(struct wl_listener *, void *);
-
-/* Compositor actions callable from Lua keybinding callbacks */
-void nnwm_action_quit(struct nnwm_server *server);
-void nnwm_action_close(struct nnwm_server *server);
-void nnwm_action_spawn(struct nnwm_server *server, const char *cmd);
-void nnwm_action_spawn_once(struct nnwm_server *server, const char *cmd);
-void nnwm_flush_autostart(struct nnwm_server *server);
-void nnwm_action_focus_left(struct nnwm_server *server);
-void nnwm_action_focus_right(struct nnwm_server *server);
-void nnwm_action_focus_next(struct nnwm_server *server);
-void nnwm_action_focus_prev(struct nnwm_server *server);
-void nnwm_action_swap_left(struct nnwm_server *server);
-void nnwm_action_swap_right(struct nnwm_server *server);
-void nnwm_action_swap_next(struct nnwm_server *server);
-void nnwm_action_swap_prev(struct nnwm_server *server);
-void nnwm_action_swap_master(struct nnwm_server *server);
-void nnwm_action_cycle(struct nnwm_server *server);
-void nnwm_action_switch_workspace(struct nnwm_server *server, int ws);
-void nnwm_action_move_to_workspace(struct nnwm_server *server, int ws);
-void nnwm_action_focus_monitor_next(struct nnwm_server *server);
-void nnwm_action_focus_monitor_prev(struct nnwm_server *server);
-void nnwm_action_move_to_monitor_next(struct nnwm_server *server);
-void nnwm_action_move_to_monitor_prev(struct nnwm_server *server);
-void nnwm_action_master_ratio_grow(struct nnwm_server *server);
-void nnwm_action_master_ratio_shrink(struct nnwm_server *server);
-void nnwm_action_toggle_float(struct nnwm_server *server);
-void nnwm_action_toggle_fullscreen(struct nnwm_server *server);
-
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef __cplusplus
+namespace nnwm {
+/* Compositor actions callable from Lua keybinding callbacks */
+void action_quit(struct nnwm_server *server);
+void action_close(struct nnwm_server *server);
+void action_spawn(struct nnwm_server *server, const char *cmd);
+void action_spawn_once(struct nnwm_server *server, const char *cmd);
+void flush_autostart(struct nnwm_server *server);
+void action_focus_left(struct nnwm_server *server);
+void action_focus_right(struct nnwm_server *server);
+void action_focus_next(struct nnwm_server *server);
+void action_focus_prev(struct nnwm_server *server);
+void action_swap_left(struct nnwm_server *server);
+void action_swap_right(struct nnwm_server *server);
+void action_swap_next(struct nnwm_server *server);
+void action_swap_prev(struct nnwm_server *server);
+void action_swap_master(struct nnwm_server *server);
+void action_cycle(struct nnwm_server *server);
+void action_switch_workspace(struct nnwm_server *server, int ws);
+void action_move_to_workspace(struct nnwm_server *server, int ws);
+void action_focus_monitor_next(struct nnwm_server *server);
+void action_focus_monitor_prev(struct nnwm_server *server);
+void action_move_to_monitor_next(struct nnwm_server *server);
+void action_move_to_monitor_prev(struct nnwm_server *server);
+void action_master_ratio_grow(struct nnwm_server *server);
+void action_master_ratio_shrink(struct nnwm_server *server);
+void action_toggle_float(struct nnwm_server *server);
+void action_toggle_fullscreen(struct nnwm_server *server);
+} // namespace nnwm
 #endif
