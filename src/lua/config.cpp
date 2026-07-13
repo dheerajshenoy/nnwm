@@ -358,6 +358,13 @@ l_nnwm_cycle(lua_State *L)
 }
 
 static int
+l_nnwm_swap_master(lua_State *L)
+{
+    nnwm_action_swap_master(get_server(L));
+    return 0;
+}
+
+static int
 l_nnwm_switch_workspace(lua_State *L)
 {
     int ws = (int)luaL_checkinteger(L, 1);
@@ -447,6 +454,7 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"swap_right", l_nnwm_swap_right},
     {"swap_next", l_nnwm_swap_next},
     {"swap_prev", l_nnwm_swap_prev},
+    {"swap_master", l_nnwm_swap_master},
     {"cycle", l_nnwm_cycle},
     {"switch_workspace", l_nnwm_switch_workspace},
     {"move_to_workspace", l_nnwm_move_to_workspace},

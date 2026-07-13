@@ -635,6 +635,34 @@ nnwm_action_swap_prev(nnwm_server *server)
 }
 
 void
+nnwm_action_swap_master(nnwm_server *server)
+{
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+    nnwm_toplevel *cur    = get_focused_toplevel(server);
+    nnwm_toplevel *master = ws_first(server, out);
+    if (!cur || !master || cur == master) return;
+
+    /* Record the node before cur (master is guaranteed to precede cur). */
+    struct wl_list *before_cur = cur->link.prev;
+    bool adjacent = (before_cur == &master->link);
+
+    /* Move cur to master's slot. */
+    wl_list_remove(&cur->link);
+    wl_list_insert(master->link.prev, &cur->link);
+
+    /* Move master to cur's old slot. */
+    wl_list_remove(&master->link);
+    if (adjacent)
+        wl_list_insert(&cur->link, &master->link);   /* directly after cur */
+    else
+        wl_list_insert(before_cur, &master->link);   /* where cur was */
+
+    focus_toplevel(cur);
+    arrange_windows(server, out);
+}
+
+void
 nnwm_action_cycle(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;

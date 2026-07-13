@@ -259,6 +259,7 @@ void nnwm_action_swap_left(struct nnwm_server *server);
 void nnwm_action_swap_right(struct nnwm_server *server);
 void nnwm_action_swap_next(struct nnwm_server *server);
 void nnwm_action_swap_prev(struct nnwm_server *server);
+void nnwm_action_swap_master(struct nnwm_server *server);
 void nnwm_action_cycle(struct nnwm_server *server);
 void nnwm_action_switch_workspace(struct nnwm_server *server, int ws);
 void nnwm_action_move_to_workspace(struct nnwm_server *server, int ws);

@@ -157,6 +157,10 @@ function nnwm.focus_next() end
 --- Focus the previous window, wrapping around.
 function nnwm.focus_prev() end
 
+--- Swap the focused window with the master window, preserving both positions.
+--- No-op if the focused window is already master.
+function nnwm.swap_master() end
+
 --- Move the focused window to the master position.
 function nnwm.swap_left() end
 
