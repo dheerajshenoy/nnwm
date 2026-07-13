@@ -122,6 +122,12 @@
 
 ### Bug Fixes
 
+- **Floating window invisible borders**: toggling a tiled window to floating no
+  longer leaves oversized border rects extending past the window content.
+  `toggle_float` now sends a `set_size(0, 0)` configure so the client can
+  settle at its preferred dimensions, and the commit handler resizes the border
+  rects to match the geometry the client actually commits.
+
 - **Monitor config hot-reload**: editing `nnwm.monitors` in the config file and
   saving now immediately applies mode, scale, transform, position, and
   enable/disable changes to live outputs. Previously these settings were only
