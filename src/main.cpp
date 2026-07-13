@@ -155,7 +155,7 @@ main(int argc, char *argv[])
         = wlr_scene_attach_output_layout(server.scene, server.output_layout);
 
     /* Create scene sub-trees in Z-order (back to front):
-     *   background → bottom → windows → top → overlay */
+     *   background → bottom → windows → top → overlay → locks */
     server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND]
         = wlr_scene_tree_create(&server.scene->tree);
     server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM]
@@ -165,6 +165,8 @@ main(int argc, char *argv[])
     server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP]
         = wlr_scene_tree_create(&server.scene->tree);
     server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY]
+        = wlr_scene_tree_create(&server.scene->tree);
+    server.scene_locks
         = wlr_scene_tree_create(&server.scene->tree);
 
     /* Layer shell (needed by rofi, waybar, etc.) */
@@ -187,6 +189,21 @@ main(int argc, char *argv[])
 
     /* screencopy: allows clients like grim to capture screen contents */
     server.screencopy_manager = wlr_screencopy_manager_v1_create(server.wl_display);
+
+    /* session-lock: allows screen lockers like swaylock/waylock */
+    server.lock_manager   = wlr_session_lock_manager_v1_create(server.wl_display);
+    server.new_lock.notify = server_new_lock;
+    wl_signal_add(&server.lock_manager->events.new_lock, &server.new_lock);
+
+    /* export-dmabuf: DMA-BUF based capture for wf-recorder and similar tools */
+    server.export_dmabuf_manager = wlr_export_dmabuf_manager_v1_create(server.wl_display);
+
+    /* ext-image-copy-capture + ext-image-capture-source: modern screen capture
+     * protocol used by wl-screenrec, OBS, and future recording tools */
+    server.image_copy_capture_manager =
+        wlr_ext_image_copy_capture_manager_v1_create(server.wl_display, 1);
+    server.output_capture_source_manager =
+        wlr_ext_output_image_capture_source_manager_v1_create(server.wl_display, 1);
 
     /* XDG decoration: tell clients to use client-side decorations */
     server.decoration_manager       = wlr_xdg_decoration_manager_v1_create(server.wl_display);
@@ -335,6 +352,7 @@ main(int argc, char *argv[])
      * server. */
     wl_display_destroy_clients(server.wl_display);
 
+    wl_list_remove(&server.new_lock.link);
     wl_list_remove(&server.new_decoration.link);
     wl_list_remove(&server.new_layer_surface.link);
     wl_list_remove(&server.output_manager_apply.link);

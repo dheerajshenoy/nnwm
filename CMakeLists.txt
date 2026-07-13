@@ -31,6 +31,14 @@ set(LAYER_SHELL_XML    "${CMAKE_CURRENT_SOURCE_DIR}/protocol/wlr-layer-shell-uns
 set(LAYER_SHELL_HEADER "${CMAKE_CURRENT_BINARY_DIR}/wlr-layer-shell-unstable-v1-protocol.h")
 set(LAYER_SHELL_CODE   "${CMAKE_CURRENT_BINARY_DIR}/wlr-layer-shell-unstable-v1-protocol.c")
 
+set(EXT_IMAGE_COPY_CAPTURE_XML    "${WAYLAND_PROTOCOLS_DIR}/staging/ext-image-copy-capture/ext-image-copy-capture-v1.xml")
+set(EXT_IMAGE_COPY_CAPTURE_HEADER "${CMAKE_CURRENT_BINARY_DIR}/ext-image-copy-capture-v1-protocol.h")
+set(EXT_IMAGE_COPY_CAPTURE_CODE   "${CMAKE_CURRENT_BINARY_DIR}/ext-image-copy-capture-v1-protocol.c")
+
+set(EXT_IMAGE_CAPTURE_SOURCE_XML    "${WAYLAND_PROTOCOLS_DIR}/staging/ext-image-capture-source/ext-image-capture-source-v1.xml")
+set(EXT_IMAGE_CAPTURE_SOURCE_HEADER "${CMAKE_CURRENT_BINARY_DIR}/ext-image-capture-source-v1-protocol.h")
+set(EXT_IMAGE_CAPTURE_SOURCE_CODE   "${CMAKE_CURRENT_BINARY_DIR}/ext-image-capture-source-v1-protocol.c")
+
 add_custom_command(
     OUTPUT "${XDG_SHELL_HEADER}"
     COMMAND "${WAYLAND_SCANNER}" client-header "${XDG_SHELL_XML}" "${XDG_SHELL_HEADER}"
@@ -54,6 +62,28 @@ add_custom_command(
     DEPENDS "${LAYER_SHELL_XML}"
 )
 
+add_custom_command(
+    OUTPUT "${EXT_IMAGE_COPY_CAPTURE_HEADER}"
+    COMMAND "${WAYLAND_SCANNER}" server-header "${EXT_IMAGE_COPY_CAPTURE_XML}" "${EXT_IMAGE_COPY_CAPTURE_HEADER}"
+    DEPENDS "${EXT_IMAGE_COPY_CAPTURE_XML}"
+)
+add_custom_command(
+    OUTPUT "${EXT_IMAGE_COPY_CAPTURE_CODE}"
+    COMMAND "${WAYLAND_SCANNER}" private-code "${EXT_IMAGE_COPY_CAPTURE_XML}" "${EXT_IMAGE_COPY_CAPTURE_CODE}"
+    DEPENDS "${EXT_IMAGE_COPY_CAPTURE_XML}"
+)
+
+add_custom_command(
+    OUTPUT "${EXT_IMAGE_CAPTURE_SOURCE_HEADER}"
+    COMMAND "${WAYLAND_SCANNER}" server-header "${EXT_IMAGE_CAPTURE_SOURCE_XML}" "${EXT_IMAGE_CAPTURE_SOURCE_HEADER}"
+    DEPENDS "${EXT_IMAGE_CAPTURE_SOURCE_XML}"
+)
+add_custom_command(
+    OUTPUT "${EXT_IMAGE_CAPTURE_SOURCE_CODE}"
+    COMMAND "${WAYLAND_SCANNER}" private-code "${EXT_IMAGE_CAPTURE_SOURCE_XML}" "${EXT_IMAGE_CAPTURE_SOURCE_CODE}"
+    DEPENDS "${EXT_IMAGE_CAPTURE_SOURCE_XML}"
+)
+
 add_executable(nnwm
     src/main.cpp
     src/nnwm.cpp
@@ -62,6 +92,10 @@ add_executable(nnwm
     "${XDG_SHELL_HEADER}"
     "${LAYER_SHELL_CODE}"
     "${LAYER_SHELL_HEADER}"
+    "${EXT_IMAGE_COPY_CAPTURE_CODE}"
+    "${EXT_IMAGE_COPY_CAPTURE_HEADER}"
+    "${EXT_IMAGE_CAPTURE_SOURCE_CODE}"
+    "${EXT_IMAGE_CAPTURE_SOURCE_HEADER}"
 )
 
 target_include_directories(nnwm PRIVATE

@@ -50,6 +50,10 @@ extern "C"
 #  include <wlr/types/wlr_output_management_v1.h>
 #endif
 #include <wlr/types/wlr_screencopy_v1.h>
+#include <wlr/types/wlr_export_dmabuf_v1.h>
+#include <wlr/types/wlr_session_lock_v1.h>
+#include <wlr/types/wlr_ext_image_copy_capture_v1.h>
+#include <wlr/types/wlr_ext_image_capture_source_v1.h>
 #include <wlr/backend/libinput.h>
 #include <wlr/backend/session.h>
 #include <wlr/util/log.h>
@@ -138,6 +142,13 @@ struct nnwm_server
 
     struct wlr_xdg_output_manager_v1 *xdg_output_manager;
     struct wlr_screencopy_manager_v1 *screencopy_manager;
+    struct wlr_session_lock_manager_v1 *lock_manager;
+    struct wl_listener new_lock;
+    struct nnwm_session_lock *session_lock; /* non-null while screen is locked */
+    struct wlr_scene_tree *scene_locks;     /* above overlay — lock surfaces live here */
+    struct wlr_export_dmabuf_manager_v1 *export_dmabuf_manager;
+    struct wlr_ext_image_copy_capture_manager_v1 *image_copy_capture_manager;
+    struct wlr_ext_output_image_capture_source_manager_v1 *output_capture_source_manager;
 
     /* Focused output — tracks which output keyboard actions operate on */
     struct nnwm_output *focused_output;
@@ -211,6 +222,24 @@ struct nnwm_popup
     struct wl_listener destroy;
 };
 
+struct nnwm_session_lock
+{
+    struct nnwm_server *server;
+    struct wlr_session_lock_v1 *wlr_lock;
+    struct wl_listener new_surface;
+    struct wl_listener unlock;
+    struct wl_listener destroy;
+};
+
+struct nnwm_lock_surface
+{
+    struct nnwm_server *server;
+    struct wlr_session_lock_surface_v1 *wlr_lock_surface;
+    struct wlr_scene_tree *scene_tree;
+    struct wl_listener map;
+    struct wl_listener destroy;
+};
+
 struct nnwm_keyboard
 {
     struct wl_list link;
@@ -252,6 +281,7 @@ void server_new_xdg_toplevel(struct wl_listener *, void *);
 void server_new_xdg_popup(struct wl_listener *, void *);
 void server_new_layer_surface(struct wl_listener *, void *);
 void server_new_decoration(struct wl_listener *, void *);
+void server_new_lock(struct wl_listener *, void *);
 void output_manager_apply(struct wl_listener *, void *);
 void output_manager_test(struct wl_listener *, void *);
 void server_cursor_motion(struct wl_listener *, void *);
