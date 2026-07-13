@@ -73,6 +73,13 @@ render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused)
     if (title && title[0]) {
         PangoLayout *layout = pango_cairo_create_layout(cr);
         PangoFontDescription *fd = pango_font_description_from_string(cfg->titlebar_font);
+        /* Add font fallback to ensure characters like tilde (~) render correctly */
+        const char *existing_family = pango_font_description_get_family(fd);
+        char fallback_family[256];
+        snprintf(fallback_family, sizeof(fallback_family),
+                 "%s,DejaVu Sans,Noto Sans,Liberation Sans,Arial",
+                 existing_family ? existing_family : "Sans");
+        pango_font_description_set_family(fd, fallback_family);
         pango_layout_set_font_description(layout, fd);
         pango_font_description_free(fd);
         pango_layout_set_text(layout, title, -1);
@@ -1137,9 +1144,15 @@ process_cursor_resize(nnwm_server *server)
     int new_width  = new_right - new_left;
     int new_height = new_bottom - new_top;
     int bw = toplevel->server->config->border_width;
+    int th = toplevel->server->config->titlebar_height;
     wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel,
-                               new_width - 2 * bw, new_height - 2 * bw);
+                               new_width - 2 * bw, new_height - 2 * bw - th);
     update_borders(toplevel, new_width, new_height, bw);
+
+    /* Re-render titlebar at the new width */
+    wlr_surface *fs = toplevel->server->seat->keyboard_state.focused_surface;
+    render_titlebar(toplevel, new_width - 2 * bw,
+                    toplevel->xdg_toplevel->base->surface == fs);
 }
 
 void
