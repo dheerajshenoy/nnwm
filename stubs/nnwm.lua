@@ -100,7 +100,14 @@ KEY = {}
 --- Focus
 ---@field focus_follows_mouse  boolean  Automatically focus the window under the cursor (default: false)
 --- Decorations
----@field client_decorations   boolean  Allow clients to draw their own titlebars via CSD. When false the compositor requests server-side decoration so clients strip their titlebar (default: false)
+---@field client_decorations         boolean   Allow clients to draw their own titlebars via CSD. When false the compositor requests server-side decoration so clients strip their titlebar (default: false)
+--- Titlebar (server-side, rendered by the compositor)
+---@field titlebar_height            integer   Titlebar height in pixels; 0 disables the titlebar (default: 0)
+---@field titlebar_font              string    Pango font description for the title text, e.g. `"Sans Bold 10"` (default: "Sans 10")
+---@field titlebar_text_align        integer   Text alignment: 0 = left, 1 = center, 2 = right (default: 1)
+---@field titlebar_bg_color          number[]  RGBA background color for unfocused windows (default: {0.2, 0.2, 0.2, 1.0})
+---@field titlebar_focused_bg_color  number[]  RGBA background color for the focused window (default: {0.25, 0.35, 0.55, 1.0})
+---@field titlebar_text_color        number[]  RGBA color for the title text (default: {1.0, 1.0, 1.0, 1.0})
 nnwm = {}
 
 ---Register a keybinding. `combo` is an array of modifier and key name strings;

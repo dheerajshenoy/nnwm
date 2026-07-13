@@ -174,10 +174,13 @@ struct nnwm_toplevel
     struct wlr_scene_rect *border[4];      /* top, bottom, left, right */
     struct wlr_scene_tree *scene_surface;
     struct nnwm_decoration *decoration; /* pending decoration, applied on initial commit */
+    struct wlr_scene_buffer *titlebar;  /* server-side titlebar, nullptr if disabled */
+    int                      titlebar_width; /* last rendered inner width (for title-change redraws) */
     struct wl_listener map;
     struct wl_listener unmap;
     struct wl_listener commit;
     struct wl_listener destroy;
+    struct wl_listener set_title;
     struct wl_listener request_move;
     struct wl_listener request_resize;
     struct wl_listener request_maximize;

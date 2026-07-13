@@ -55,6 +55,14 @@ struct nnwm_config
 
     /* Decorations */
     bool client_decorations; /* true = CSD (client draws titlebar), false = SSD (no titlebar) */
+
+    /* Titlebar (server-side, drawn by compositor) */
+    int   titlebar_height;             /* pixels; 0 = disabled */
+    char *titlebar_font;               /* pango font description, e.g. "Sans Bold 10" */
+    int   titlebar_text_align;         /* 0 = left, 1 = center, 2 = right */
+    float titlebar_bg_color[4];        /* unfocused background RGBA */
+    float titlebar_focused_bg_color[4];/* focused background RGBA */
+    float titlebar_text_color[4];      /* text RGBA */
 };
 
 #ifdef __cplusplus

@@ -17,6 +17,7 @@ pkg_check_modules(XKBCOMMON REQUIRED xkbcommon)
 pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols)
 pkg_check_modules(LIBINPUT REQUIRED libinput)
 pkg_check_modules(LUA REQUIRED lua5.4)
+pkg_check_modules(PANGOCAIRO REQUIRED pangocairo)
 
 find_program(WAYLAND_SCANNER wayland-scanner REQUIRED)
 
@@ -71,6 +72,7 @@ target_include_directories(nnwm PRIVATE
     ${XKBCOMMON_INCLUDE_DIRS}
     ${LIBINPUT_INCLUDE_DIRS}
     ${LUA_INCLUDE_DIRS}
+    ${PANGOCAIRO_INCLUDE_DIRS}
 )
 
 target_compile_definitions(nnwm PRIVATE WLR_USE_UNSTABLE _DEFAULT_SOURCE)
@@ -81,6 +83,7 @@ target_link_libraries(nnwm PRIVATE
     ${XKBCOMMON_LIBRARIES}
     ${LIBINPUT_LIBRARIES}
     ${LUA_LIBRARIES}
+    ${PANGOCAIRO_LIBRARIES}
 )
 
 target_compile_options(nnwm PRIVATE

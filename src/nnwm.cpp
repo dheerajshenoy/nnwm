@@ -3,12 +3,115 @@
 #include <cassert>
 #include <cstdio>
 #include <linux/input-event-codes.h>
+#include <drm_fourcc.h>
+extern "C" {
+#include <wlr/interfaces/wlr_buffer.h>
+}
+#include <pango/pangocairo.h>
 
 namespace {
+
+/* ---- Custom CPU-side wlr_buffer for titlebar pixels ---- */
+
+struct nnwm_tbuf {
+    struct wlr_buffer base;
+    uint8_t          *data;
+    int               stride;
+};
+
+static void tbuf_destroy(struct wlr_buffer *b) {
+    nnwm_tbuf *tb = wl_container_of(b, tb, base);
+    free(tb->data);
+    free(tb);
+}
+static bool tbuf_begin_data_ptr_access(struct wlr_buffer *b, uint32_t /*flags*/,
+    void **data, uint32_t *format, size_t *stride) {
+    nnwm_tbuf *tb = wl_container_of(b, tb, base);
+    *data   = tb->data;
+    *format = DRM_FORMAT_ARGB8888;
+    *stride = (size_t)tb->stride;
+    return true;
+}
+static void tbuf_end_data_ptr_access(struct wlr_buffer * /*b*/) {}
+
+static const wlr_buffer_impl tbuf_impl = {
+    tbuf_destroy, nullptr, nullptr, tbuf_begin_data_ptr_access, tbuf_end_data_ptr_access,
+};
+
+static nnwm_tbuf *tbuf_create(int w, int h) {
+    auto *tb   = static_cast<nnwm_tbuf*>(calloc(1, sizeof(nnwm_tbuf)));
+    tb->stride = w * 4;
+    tb->data   = static_cast<uint8_t*>(calloc(h, tb->stride));
+    wlr_buffer_init(&tb->base, &tbuf_impl, w, h);
+    return tb;
+}
+
+/* ---- Titlebar rendering ---- */
+
+static void
+render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused)
+{
+    nnwm_config *cfg = tl->server->config;
+    int h = cfg->titlebar_height;
+    if (h <= 0 || !tl->titlebar || inner_width <= 0) return;
+
+    tl->titlebar_width = inner_width;
+
+    nnwm_tbuf *tb = tbuf_create(inner_width, h);
+
+    cairo_surface_t *surf = cairo_image_surface_create_for_data(
+        tb->data, CAIRO_FORMAT_ARGB32, inner_width, h, tb->stride);
+    cairo_t *cr = cairo_create(surf);
+
+    /* Background */
+    const float *bg = focused ? cfg->titlebar_focused_bg_color : cfg->titlebar_bg_color;
+    cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
+    cairo_paint(cr);
+
+    /* Title text */
+    const char *title = tl->xdg_toplevel->title;
+    if (title && title[0]) {
+        PangoLayout *layout = pango_cairo_create_layout(cr);
+        PangoFontDescription *fd = pango_font_description_from_string(cfg->titlebar_font);
+        pango_layout_set_font_description(layout, fd);
+        pango_font_description_free(fd);
+        pango_layout_set_text(layout, title, -1);
+        pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
+
+        int pad = 4;
+        pango_layout_set_width(layout, (inner_width - 2 * pad) * PANGO_SCALE);
+
+        PangoAlignment align = PANGO_ALIGN_CENTER;
+        if (cfg->titlebar_text_align == 0) align = PANGO_ALIGN_LEFT;
+        else if (cfg->titlebar_text_align == 2) align = PANGO_ALIGN_RIGHT;
+        pango_layout_set_alignment(layout, align);
+
+        int pw, ph;
+        pango_layout_get_size(layout, &pw, &ph);
+        double ty = (h - ph / (double)PANGO_SCALE) / 2.0;
+
+        const float *tc = cfg->titlebar_text_color;
+        cairo_set_source_rgba(cr, tc[0], tc[1], tc[2], tc[3]);
+        cairo_move_to(cr, pad, ty);
+        pango_cairo_show_layout(cr, layout);
+        g_object_unref(layout);
+    }
+
+    cairo_destroy(cr);
+    cairo_surface_destroy(surf);
+
+    wlr_scene_buffer_set_buffer(tl->titlebar, &tb->base);
+    wlr_scene_buffer_set_dest_size(tl->titlebar, inner_width, h);
+    wlr_buffer_drop(&tb->base);
+}
+
+/* ---- Borders and surface placement ---- */
 
 void
 update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
 {
+    int th = toplevel->server->config->titlebar_height;
+
     /* border[0]: top */
     wlr_scene_node_set_position(&toplevel->border[0]->node, 0, 0);
     wlr_scene_rect_set_size(toplevel->border[0], width, bw);
@@ -25,8 +128,15 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
     wlr_scene_node_set_position(&toplevel->border[3]->node, width - bw, bw);
     wlr_scene_rect_set_size(toplevel->border[3], bw, height - 2 * bw);
 
-    /* window surface offset inside borders */
-    wlr_scene_node_set_position(&toplevel->scene_surface->node, bw, bw);
+    /* titlebar sits between top border and content */
+    if (toplevel->titlebar) {
+        bool enabled = (th > 0);
+        wlr_scene_node_set_enabled(&toplevel->titlebar->node, enabled);
+        wlr_scene_node_set_position(&toplevel->titlebar->node, bw, bw);
+    }
+
+    /* window surface is pushed down by the titlebar */
+    wlr_scene_node_set_position(&toplevel->scene_surface->node, bw, bw + th);
 }
 
 /* ---- Output / workspace helpers ---- */
@@ -155,11 +265,14 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
     int bw = (solo && server->config->smart_borders) ? 0 : server->config->border_width;
     int ig = (solo && server->config->smart_gaps)    ? 0 : server->config->inner_gap;
     int og = (solo && server->config->smart_gaps)    ? 0 : server->config->outer_gap;
+    int th = server->config->titlebar_height;
 
     int x0 = area.x + og;
     int y0 = area.y + og;
     int W  = area.width  - 2 * og;
     int H  = area.height - 2 * og;
+
+    wlr_surface *focused_surface = server->seat->keyboard_state.focused_surface;
 
     nnwm_toplevel *tl;
     if (n == 1) {
@@ -167,8 +280,10 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
             if (tl->workspace != out->active_workspace || tl->floating || tl->fullscreen)
                 continue;
             wlr_scene_node_set_position(&tl->scene_tree->node, x0, y0);
-            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw, H - 2 * bw);
+            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw, H - 2 * bw - th);
             update_borders(tl, W, H, bw);
+            render_titlebar(tl, W - 2 * bw,
+                tl->xdg_toplevel->base->surface == focused_surface);
             break;
         }
     } else if (n > 1) {
@@ -181,16 +296,19 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         wl_list_for_each(tl, &server->toplevels, link) {
             if (tl->workspace != out->active_workspace || tl->floating || tl->fullscreen)
                 continue;
+            bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
             if (i == 0) {
                 wlr_scene_node_set_position(&tl->scene_tree->node, x0, y0);
-                wlr_xdg_toplevel_set_size(tl->xdg_toplevel, mw - 2 * bw, H - 2 * bw);
+                wlr_xdg_toplevel_set_size(tl->xdg_toplevel, mw - 2 * bw, H - 2 * bw - th);
                 update_borders(tl, mw, H, bw);
+                render_titlebar(tl, mw - 2 * bw, focused);
             } else {
                 int sy = y0 + (i - 1) * (sh + ig);
                 int h  = (i < ns) ? sh : H - (i - 1) * (sh + ig);
                 wlr_scene_node_set_position(&tl->scene_tree->node, x0 + mw + ig, sy);
-                wlr_xdg_toplevel_set_size(tl->xdg_toplevel, sw - 2 * bw, h - 2 * bw);
+                wlr_xdg_toplevel_set_size(tl->xdg_toplevel, sw - 2 * bw, h - 2 * bw - th);
                 update_borders(tl, sw, h, bw);
+                render_titlebar(tl, sw - 2 * bw, focused);
             }
             ++i;
         }
@@ -246,14 +364,15 @@ focus_toplevel(nnwm_toplevel *toplevel)
     /* Activate the new surface */
     wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
 
-    /* Update border colors for all windows */
+    /* Update border colors and titlebar focus state for all windows */
     nnwm_toplevel *tl;
     wl_list_for_each(tl, &server->toplevels, link) {
-        float *color = (tl == toplevel)
-            ? server->config->focused_color
-            : server->config->unfocused_color;
+        bool foc = (tl == toplevel);
+        float *color = foc ? server->config->focused_color
+                           : server->config->unfocused_color;
         for (int i = 0; i < 4; i++)
             wlr_scene_rect_set_color(tl->border[i], color);
+        render_titlebar(tl, tl->titlebar_width, foc);
     }
 
     if (keyboard != nullptr)
@@ -1254,6 +1373,7 @@ handle_xdg_toplevel_destroy(wl_listener *listener, void * /*data*/)
     wl_list_remove(&toplevel->unmap.link);
     wl_list_remove(&toplevel->commit.link);
     wl_list_remove(&toplevel->destroy.link);
+    wl_list_remove(&toplevel->set_title.link);
     wl_list_remove(&toplevel->request_move.link);
     wl_list_remove(&toplevel->request_resize.link);
     wl_list_remove(&toplevel->request_maximize.link);
@@ -1805,6 +1925,10 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
         toplevel->border[i] = wlr_scene_rect_create(
             toplevel->scene_tree, 0, 0, server->config->unfocused_color);
 
+    /* Titlebar scene buffer (null buffer initially; rendered by arrange_windows) */
+    toplevel->titlebar = wlr_scene_buffer_create(toplevel->scene_tree, nullptr);
+    wlr_scene_node_set_enabled(&toplevel->titlebar->node, false);
+
     /* Create xdg surface as child of the wrapper, offset by border width */
     toplevel->scene_surface = wlr_scene_xdg_surface_create(
         toplevel->scene_tree, xdg_toplevel->base);
@@ -1822,6 +1946,16 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
 
     toplevel->destroy.notify = handle_xdg_toplevel_destroy;
     wl_signal_add(&xdg_toplevel->events.destroy, &toplevel->destroy);
+
+    toplevel->set_title.notify = [](wl_listener *listener, void *) {
+        nnwm_toplevel *tl = wl_container_of(listener, tl, set_title);
+        if (tl->server->config->titlebar_height <= 0 || tl->titlebar_width <= 0)
+            return;
+        wlr_surface *fs = tl->server->seat->keyboard_state.focused_surface;
+        render_titlebar(tl, tl->titlebar_width,
+                        tl->xdg_toplevel->base->surface == fs);
+    };
+    wl_signal_add(&xdg_toplevel->events.set_title, &toplevel->set_title);
 
     /* cotd */
     toplevel->request_move.notify = xdg_toplevel_request_move;

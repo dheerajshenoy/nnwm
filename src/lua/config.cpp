@@ -540,6 +540,25 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_pushboolean(L, cfg->client_decorations);
     lua_setfield(L, -2, "client_decorations");
 
+    lua_pushinteger(L, cfg->titlebar_height);
+    lua_setfield(L, -2, "titlebar_height");
+    lua_pushstring(L, cfg->titlebar_font ? cfg->titlebar_font : "Sans 10");
+    lua_setfield(L, -2, "titlebar_font");
+    lua_pushinteger(L, cfg->titlebar_text_align);
+    lua_setfield(L, -2, "titlebar_text_align");
+
+    lua_newtable(L);
+    for (int i = 0; i < 4; i++) { lua_pushnumber(L, cfg->titlebar_bg_color[i]); lua_rawseti(L, -2, i + 1); }
+    lua_setfield(L, -2, "titlebar_bg_color");
+
+    lua_newtable(L);
+    for (int i = 0; i < 4; i++) { lua_pushnumber(L, cfg->titlebar_focused_bg_color[i]); lua_rawseti(L, -2, i + 1); }
+    lua_setfield(L, -2, "titlebar_focused_bg_color");
+
+    lua_newtable(L);
+    for (int i = 0; i < 4; i++) { lua_pushnumber(L, cfg->titlebar_text_color[i]); lua_rawseti(L, -2, i + 1); }
+    lua_setfield(L, -2, "titlebar_text_color");
+
     lua_pop(L, 1);
 }
 
@@ -593,6 +612,24 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                               cfg->new_window_master);
     cfg->client_decorations  = get_bool_field(L, "client_decorations",
                                               cfg->client_decorations);
+
+    cfg->titlebar_height     = get_int_field(L, "titlebar_height", cfg->titlebar_height);
+    cfg->titlebar_text_align = get_int_field(L, "titlebar_text_align", cfg->titlebar_text_align);
+
+    char *tf = get_string_field(L, "titlebar_font", cfg->titlebar_font);
+    free(cfg->titlebar_font); cfg->titlebar_font = tf;
+
+    float dflt_tbg[4]  = {cfg->titlebar_bg_color[0], cfg->titlebar_bg_color[1],
+                           cfg->titlebar_bg_color[2], cfg->titlebar_bg_color[3]};
+    get_color_field(L, "titlebar_bg_color", cfg->titlebar_bg_color, dflt_tbg);
+
+    float dflt_tfbg[4] = {cfg->titlebar_focused_bg_color[0], cfg->titlebar_focused_bg_color[1],
+                           cfg->titlebar_focused_bg_color[2], cfg->titlebar_focused_bg_color[3]};
+    get_color_field(L, "titlebar_focused_bg_color", cfg->titlebar_focused_bg_color, dflt_tfbg);
+
+    float dflt_ttc[4]  = {cfg->titlebar_text_color[0], cfg->titlebar_text_color[1],
+                           cfg->titlebar_text_color[2], cfg->titlebar_text_color[3]};
+    get_color_field(L, "titlebar_text_color", cfg->titlebar_text_color, dflt_ttc);
 
     char *s;
     s = get_string_field(L, "cursor_theme", cfg->cursor_theme);
@@ -784,6 +821,16 @@ nnwm_config_defaults(void)
     cfg->new_window_master   = true;
     cfg->client_decorations  = false;
 
+    cfg->titlebar_height         = 0;
+    cfg->titlebar_font           = strdup("Sans 10");
+    cfg->titlebar_text_align     = 1; /* center */
+    cfg->titlebar_bg_color[0]    = 0.2f; cfg->titlebar_bg_color[1]    = 0.2f;
+    cfg->titlebar_bg_color[2]    = 0.2f; cfg->titlebar_bg_color[3]    = 1.0f;
+    cfg->titlebar_focused_bg_color[0] = 0.25f; cfg->titlebar_focused_bg_color[1] = 0.35f;
+    cfg->titlebar_focused_bg_color[2] = 0.55f; cfg->titlebar_focused_bg_color[3] = 1.0f;
+    cfg->titlebar_text_color[0]  = 1.0f; cfg->titlebar_text_color[1]  = 1.0f;
+    cfg->titlebar_text_color[2]  = 1.0f; cfg->titlebar_text_color[3]  = 1.0f;
+
     return cfg;
 }
 
@@ -795,5 +842,6 @@ nnwm_config_free(struct nnwm_config *cfg)
     free(cfg->cursor_theme);
     free(cfg->seat_name);
     free(cfg->xkb_options);
+    free(cfg->titlebar_font);
     delete cfg;
 }
