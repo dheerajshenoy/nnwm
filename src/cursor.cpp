@@ -272,7 +272,7 @@ server_cursor_button(wl_listener *listener, void *data)
     {
         if (!toplevel->floating) {
             toplevel->floating = true;
-            arrange_windows(server, output_for_workspace(server, toplevel->workspace));
+            arrange_windows(server, toplevel->output);
         }
         focus_toplevel(toplevel);
         if (event->button == BTN_LEFT)

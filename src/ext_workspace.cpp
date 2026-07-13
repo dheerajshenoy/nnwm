@@ -14,6 +14,35 @@ extern "C" {
 
 namespace {
 
+/* ---- helper: find wl_output resource for a client matching a wlr_output ---- */
+
+struct wl_output_find_data {
+    struct wlr_output *target;
+    struct wl_resource *result;
+};
+
+static enum wl_iterator_result
+find_wl_output_iterator(struct wl_resource *resource, void *user_data)
+{
+    auto *data = static_cast<struct wl_output_find_data*>(user_data);
+    if (wl_resource_get_interface(resource) == &wl_output_interface) {
+        struct wlr_output *o = wlr_output_from_resource(resource);
+        if (o == data->target) {
+            data->result = resource;
+            return WL_ITERATOR_STOP;
+        }
+    }
+    return WL_ITERATOR_CONTINUE;
+}
+
+static struct wl_resource *
+find_wl_output_for_client(struct wl_client *client, struct wlr_output *wlr_output)
+{
+    struct wl_output_find_data data = { wlr_output, nullptr };
+    wl_client_for_each_resource(client, find_wl_output_iterator, &data);
+    return data.result;
+}
+
 /* ---- workspace handle request handlers ---- */
 
 static void
@@ -30,6 +59,10 @@ workspace_handle_activate(struct wl_client * /*client*/,
     auto *ws = static_cast<nnwm_ext_workspace*>(wl_resource_get_user_data(resource));
     if (!ws) return;
     nnwm_server *server = ws->group->manager->server;
+    /* Switch workspace on the output that owns this group */
+    nnwm_output *out = ws->group->output;
+    if (out)
+        server->focused_output = out;
     nnwm::action_switch_workspace(server, ws->index);
 }
 
@@ -174,70 +207,66 @@ ext_workspace_manager_bind(struct wl_client *client, void *data,
     wl_resource_set_implementation(mgr_res, &manager_impl, mgr, manager_resource_destroy);
     wl_list_insert(&server->ext_workspace_managers, &mgr->link);
 
-    /* Create the single workspace group (server-allocated ID = 0) */
-    auto *grp = new nnwm_ext_workspace_group{};
-    grp->manager = mgr;
-    wl_list_init(&grp->workspaces);
+    /* Create one workspace group per output */
+    nnwm_output *out;
+    wl_list_for_each(out, &server->outputs, link) {
+        auto *grp = new nnwm_ext_workspace_group{};
+        grp->manager = mgr;
+        grp->output  = out;
+        wl_list_init(&grp->workspaces);
 
-    struct wl_resource *grp_res = wl_resource_create(
-        client, &ext_workspace_group_handle_v1_interface, (int)version, 0);
-    if (!grp_res) {
-        delete grp;
-        wl_client_post_no_memory(client);
-        return;
-    }
-    grp->resource = grp_res;
-    wl_resource_set_implementation(grp_res, &group_impl, grp, group_resource_destroy);
-    wl_list_insert(&mgr->groups, &grp->link);
-
-    /* Announce the group to the client */
-    ext_workspace_manager_v1_send_workspace_group(mgr_res, grp_res);
-    ext_workspace_group_handle_v1_send_capabilities(grp_res, 0 /* no create_workspace */);
-
-    /* Create workspace handles for workspaces 0..8 */
-    for (int i = 0; i < NNWM_NUM_WORKSPACES; i++) {
-        auto *ws = new nnwm_ext_workspace{};
-        ws->index = i;
-        ws->group = grp;
-
-        struct wl_resource *ws_res = wl_resource_create(
-            client, &ext_workspace_handle_v1_interface, (int)version, 0);
-        if (!ws_res) {
-            delete ws;
+        struct wl_resource *grp_res = wl_resource_create(
+            client, &ext_workspace_group_handle_v1_interface, (int)version, 0);
+        if (!grp_res) {
+            delete grp;
             wl_client_post_no_memory(client);
             return;
         }
-        ws->resource = ws_res;
-        wl_resource_set_implementation(ws_res, &workspace_impl, ws, workspace_resource_destroy);
-        wl_list_insert(grp->workspaces.prev, &ws->link); /* append */
+        grp->resource = grp_res;
+        wl_resource_set_implementation(grp_res, &group_impl, grp, group_resource_destroy);
+        wl_list_insert(&mgr->groups, &grp->link);
 
-        /* Announce workspace to the client */
-        ext_workspace_manager_v1_send_workspace(mgr_res, ws_res);
+        /* Announce the group to the client */
+        ext_workspace_manager_v1_send_workspace_group(mgr_res, grp_res);
+        ext_workspace_group_handle_v1_send_capabilities(grp_res, 0);
 
-        /* Name: "1".."9" */
-        char name[4];
-        snprintf(name, sizeof(name), "%d", i + 1);
-        ext_workspace_handle_v1_send_name(ws_res, name);
+        /* Tell the client which output this group belongs to */
+        struct wl_resource *out_res = find_wl_output_for_client(client, out->wlr_output);
+        if (out_res)
+            ext_workspace_group_handle_v1_send_output_enter(grp_res, out_res);
 
-        /* Capabilities */
-        ext_workspace_handle_v1_send_capabilities(
-            ws_res, EXT_WORKSPACE_HANDLE_V1_WORKSPACE_CAPABILITIES_ACTIVATE);
+        /* Create workspace handles for workspaces 0..8 on this output */
+        for (int i = 0; i < NNWM_NUM_WORKSPACES; i++) {
+            auto *ws = new nnwm_ext_workspace{};
+            ws->index = i;
+            ws->group = grp;
 
-        /* State: active if any output is on this workspace */
-        uint32_t state = 0;
-        {
-            nnwm_output *out;
-            wl_list_for_each(out, &server->outputs, link) {
-                if (out->active_workspace == i) {
-                    state = EXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE;
-                    break;
-                }
+            struct wl_resource *ws_res = wl_resource_create(
+                client, &ext_workspace_handle_v1_interface, (int)version, 0);
+            if (!ws_res) {
+                delete ws;
+                wl_client_post_no_memory(client);
+                return;
             }
-        }
-        ext_workspace_handle_v1_send_state(ws_res, state);
+            ws->resource = ws_res;
+            wl_resource_set_implementation(ws_res, &workspace_impl, ws, workspace_resource_destroy);
+            wl_list_insert(grp->workspaces.prev, &ws->link);
 
-        /* Tell group the workspace belongs here */
-        ext_workspace_group_handle_v1_send_workspace_enter(grp_res, ws_res);
+            ext_workspace_manager_v1_send_workspace(mgr_res, ws_res);
+
+            char name[4];
+            snprintf(name, sizeof(name), "%d", i + 1);
+            ext_workspace_handle_v1_send_name(ws_res, name);
+
+            ext_workspace_handle_v1_send_capabilities(
+                ws_res, EXT_WORKSPACE_HANDLE_V1_WORKSPACE_CAPABILITIES_ACTIVATE);
+
+            uint32_t state = (out->active_workspace == i)
+                ? EXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE : 0;
+            ext_workspace_handle_v1_send_state(ws_res, state);
+
+            ext_workspace_group_handle_v1_send_workspace_enter(grp_res, ws_res);
+        }
     }
 
     ext_workspace_manager_v1_send_done(mgr_res);
@@ -268,16 +297,11 @@ nnwm::ext_workspace_notify(struct nnwm_server *server)
 
         nnwm_ext_workspace_group *grp;
         wl_list_for_each(grp, &mgr->groups, link) {
+            nnwm_output *out = grp->output;
             nnwm_ext_workspace *ws;
             wl_list_for_each(ws, &grp->workspaces, link) {
-                uint32_t state = 0;
-                nnwm_output *out;
-                wl_list_for_each(out, &server->outputs, link) {
-                    if (out->active_workspace == ws->index) {
-                        state = EXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE;
-                        break;
-                    }
-                }
+                uint32_t state = (out && out->active_workspace == ws->index)
+                    ? EXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE : 0;
                 ext_workspace_handle_v1_send_state(ws->resource, state);
             }
         }

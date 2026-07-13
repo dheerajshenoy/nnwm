@@ -39,6 +39,7 @@ apply_window_rules(nnwm_server *server, nnwm_toplevel *toplevel)
             nnwm_output *out;
             wl_list_for_each(out, &server->outputs, link) {
                 if (strcmp(out->wlr_output->name, r.monitor) == 0) {
+                    toplevel->output    = out;
                     toplevel->workspace = out->active_workspace;
                     break;
                 }
@@ -56,10 +57,13 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
 
     nnwm_server *server = toplevel->server;
     nnwm_output *out    = server->focused_output;
+    toplevel->output    = out;
     toplevel->workspace = out ? out->active_workspace : 0;
     apply_window_rules(server, toplevel);
-    out = output_for_workspace(server, toplevel->workspace);
-    if (!out) out = server->focused_output;
+    /* After rules, ensure output pointer is still valid */
+    if (!toplevel->output)
+        toplevel->output = server->focused_output;
+    out = toplevel->output;
     if (server->config->new_window_master)
         wl_list_insert(&server->toplevels, &toplevel->link);
     else
@@ -81,7 +85,7 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
 
     nnwm_server *server = toplevel->server;
     int          ws     = toplevel->workspace;
-    nnwm_output *out    = output_for_workspace(server, ws);
+    nnwm_output *out    = toplevel->output;
 
     bool was_focused = out && out->last_focused[ws] == toplevel;
     if (out && out->last_focused[ws] == toplevel)

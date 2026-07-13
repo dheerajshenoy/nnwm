@@ -203,7 +203,8 @@ struct nnwm_toplevel
 {
     struct wl_list link;
     struct nnwm_server *server;
-    int workspace;
+    struct nnwm_output *output;   /* owning output — which monitor this window lives on */
+    int workspace;                /* workspace index within output (0..8) */
     bool floating;
     bool fullscreen;
     struct wlr_xdg_toplevel *xdg_toplevel;
@@ -297,6 +298,7 @@ struct nnwm_ext_workspace_group {
     struct wl_resource *resource;
     struct wl_list workspaces;                /* nnwm_ext_workspace::link */
     struct nnwm_ext_workspace_manager *manager;
+    struct nnwm_output *output;               /* which output this group represents */
 };
 
 struct nnwm_ext_workspace_manager {

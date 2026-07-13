@@ -33,7 +33,7 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
     wlr_xdg_toplevel_set_fullscreen(tl->xdg_toplevel, tl->fullscreen);
 
     nnwm_server *server = tl->server;
-    nnwm_output *out    = output_for_workspace(server, tl->workspace);
+    nnwm_output *out    = tl->output;
 
     if (tl->fullscreen && out) {
         wlr_scene_node_raise_to_top(&tl->scene_tree->node);
@@ -289,21 +289,13 @@ nnwm::action_switch_workspace(nnwm_server *server, int ws)
     if (!out || ws < 0 || ws >= NNWM_NUM_WORKSPACES || ws == out->active_workspace)
         return;
 
-    nnwm_output *other = nullptr;
-    {
-        nnwm_output *o;
-        wl_list_for_each(o, &server->outputs, link)
-            if (o != out && o->active_workspace == ws) { other = o; break; }
-    }
-    if (other)
-        other->active_workspace = out->active_workspace;
     out->active_workspace = ws;
 
-    /* Sync scene visibility */
+    /* Sync scene visibility for all toplevels on this output */
     nnwm_toplevel *tl;
     wl_list_for_each(tl, &server->toplevels, link)
         wlr_scene_node_set_enabled(&tl->scene_tree->node,
-                                   workspace_is_visible(server, tl->workspace));
+                                   tl->output && tl->output->active_workspace == tl->workspace);
 
     nnwm_toplevel *next = out->last_focused[ws];
     if (!next)
@@ -313,7 +305,7 @@ nnwm::action_switch_workspace(nnwm_server *server, int ws)
     else
         wlr_seat_keyboard_clear_focus(server->seat);
 
-    arrange_all_outputs(server);
+    arrange_windows(server, out);
     ext_workspace_notify(server);
 }
 
@@ -350,7 +342,7 @@ move_to_monitor(nnwm_server *server, int dir)
 {
     nnwm_toplevel *tl = get_focused_toplevel(server);
     if (!tl) return;
-    nnwm_output *src = output_for_workspace(server, tl->workspace);
+    nnwm_output *src = tl->output;
     if (!src) return;
     nnwm_output *dst = output_cycle(server, src, dir);
     if (!dst) return;
@@ -362,9 +354,10 @@ move_to_monitor(nnwm_server *server, int dir)
     if (src->last_focused[old_ws] == tl) src->last_focused[old_ws] = nullptr;
     if (src->prev_focused[old_ws] == tl) src->prev_focused[old_ws] = nullptr;
 
+    tl->output   = dst;
     tl->workspace = new_ws;
     wlr_scene_node_set_enabled(&tl->scene_tree->node,
-                               workspace_is_visible(server, new_ws));
+                               tl->output->active_workspace == tl->workspace);
 
     nnwm_toplevel *next = src->prev_focused[old_ws];
     if (!next) next = src->last_focused[old_ws];
@@ -419,7 +412,7 @@ nnwm::action_toggle_float(nnwm_server *server)
         return;
 
     tl->floating = !tl->floating;
-    nnwm_output *out = output_for_workspace(server, tl->workspace);
+    nnwm_output *out = tl->output;
 
     if (tl->floating && out) {
         wlr_scene_node_raise_to_top(&tl->scene_tree->node);
@@ -451,26 +444,23 @@ nnwm::action_move_to_workspace(nnwm_server *server, int ws)
     if (!tl || tl->workspace == ws)
         return;
 
-    nnwm_output *src = output_for_workspace(server, tl->workspace);
+    nnwm_output *out = tl->output;
 
-    if (src && src->last_focused[tl->workspace] == tl)
-        src->last_focused[tl->workspace] = nullptr;
+    if (out && out->last_focused[tl->workspace] == tl)
+        out->last_focused[tl->workspace] = nullptr;
 
     tl->workspace = ws;
-    wlr_scene_node_set_enabled(&tl->scene_tree->node,
-                               workspace_is_visible(server, ws));
+    if (out)
+        wlr_scene_node_set_enabled(&tl->scene_tree->node,
+                                   out->active_workspace == ws);
 
-    if (src) {
-        nnwm_toplevel *next = src->last_focused[src->active_workspace];
-        if (!next) next = ws_first(server, src);
+    if (out) {
+        nnwm_toplevel *next = out->last_focused[out->active_workspace];
+        if (!next) next = ws_first(server, out);
         if (next) focus_toplevel(next);
         else      wlr_seat_keyboard_clear_focus(server->seat);
-        arrange_windows(server, src);
+        arrange_windows(server, out);
     }
-
-    nnwm_output *dst = output_for_workspace(server, ws);
-    if (dst && dst != src)
-        arrange_windows(server, dst);
 }
 
 /* ---- Keybinding dispatch (delegates to Lua) ---- */

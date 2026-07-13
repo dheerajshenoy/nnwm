@@ -378,12 +378,7 @@ server_new_output(wl_listener *listener, void *data)
     wlr_output_layout_get_box(server->output_layout, wlr_output,
                               &output->usable_area);
 
-    {
-        int ws = 0;
-        while (ws < NNWM_NUM_WORKSPACES && workspace_is_visible(server, ws))
-            ws++;
-        output->active_workspace = ws < NNWM_NUM_WORKSPACES ? ws : 0;
-    }
+    output->active_workspace = 0;
     memset(output->last_focused, 0, sizeof(output->last_focused));
     memset(output->prev_focused, 0, sizeof(output->prev_focused));
     if (!server->focused_output)

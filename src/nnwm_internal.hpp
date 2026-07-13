@@ -9,8 +9,6 @@ void render_titlebar(struct nnwm_toplevel *tl, int inner_width, bool focused);
 void update_borders(struct nnwm_toplevel *toplevel, int width, int height, int bw);
 
 /* ---- Output / workspace helpers ---- */
-bool workspace_is_visible(struct nnwm_server *server, int ws);
-struct nnwm_output *output_for_workspace(struct nnwm_server *server, int ws);
 struct nnwm_output *output_cycle(struct nnwm_server *server,
                                  struct nnwm_output *cur, int dir);
 struct nnwm_output *output_at_cursor(struct nnwm_server *server);
