@@ -4,6 +4,26 @@
 
 ### Features
 
+- **ext-session-lock-v1**: screen locking support. Clients such as `swaylock`
+  and `waylock` can acquire a session lock, covering every output with a lock
+  surface that receives all input. Compositor keybindings, window focus, and
+  Super+drag are suppressed while locked. The compositor sends `locked` once
+  every output has a mapped lock surface. If the lock client crashes the screen
+  remains locked rather than silently unlocking. VT switching still works while
+  locked.
+- **wlr-output-power-management-unstable-v1**: DPMS control for tools such as
+  `swayidle` and `wlopm`. Clients can turn individual outputs off or on; the
+  compositor applies the change immediately via an output state commit and
+  updates the output manager state so `wlr-randr` reflects the new enabled
+  status.
+- **wlr-screencopy-unstable-v1**: frame capture protocol used by `grim` and
+  similar screenshot tools. Backed entirely by wlroots — no custom frame
+  handling required.
+- **wlr-export-dmabuf-unstable-v1**: DMA-BUF based output capture for
+  hardware-accelerated screen recording tools such as `wf-recorder`.
+- **ext-image-copy-capture-v1** and **ext-image-capture-source-v1**: modern
+  replacements for screencopy, used by `wl-screenrec` and future recording
+  clients. Generated from wayland-protocols staging XMLs.
 - **wlr-output-management-unstable-v1**: runtime output configuration via
   `wlr-randr`, `kanshi`, and similar tools. Clients can query available outputs,
   test configurations, and apply changes (mode, scale, transform, position,
