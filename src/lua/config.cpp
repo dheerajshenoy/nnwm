@@ -549,6 +549,10 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         lua_setglobal(L, "nnwm");
     }
 
+    /* layout sub-table */
+    lua_newtable(L);
+    lua_pushboolean(L, cfg->new_window_master);
+    lua_setfield(L, -2, "new_window_master");
     lua_pushnumber(L, cfg->master_ratio);
     lua_setfield(L, -2, "master_ratio");
     lua_pushnumber(L, cfg->master_ratio_step);
@@ -557,41 +561,41 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "master_ratio_min");
     lua_pushnumber(L, cfg->master_ratio_max);
     lua_setfield(L, -2, "master_ratio_max");
+    lua_setfield(L, -2, "layout");
 
+    /* gaps sub-table */
+    lua_newtable(L);
     lua_pushinteger(L, cfg->inner_gap);
-    lua_setfield(L, -2, "inner_gap");
+    lua_setfield(L, -2, "inner");
     lua_pushinteger(L, cfg->outer_gap);
-    lua_setfield(L, -2, "outer_gap");
+    lua_setfield(L, -2, "outer");
     lua_pushboolean(L, cfg->smart_gaps);
-    lua_setfield(L, -2, "smart_gaps");
+    lua_setfield(L, -2, "smart");
     lua_pushboolean(L, cfg->smart_borders);
     lua_setfield(L, -2, "smart_borders");
+    lua_setfield(L, -2, "gaps");
 
+    /* border sub-table */
+    lua_newtable(L);
     lua_pushinteger(L, cfg->border_width);
-    lua_setfield(L, -2, "border_width");
-
+    lua_setfield(L, -2, "width");
     lua_newtable(L);
-    for (int i = 0; i < 4; i++)
-    {
-        lua_pushnumber(L, cfg->focused_color[i]);
-        lua_rawseti(L, -2, i + 1);
-    }
+    for (int i = 0; i < 4; i++) { lua_pushnumber(L, cfg->focused_color[i]); lua_rawseti(L, -2, i + 1); }
     lua_setfield(L, -2, "focused_color");
-
     lua_newtable(L);
-    for (int i = 0; i < 4; i++)
-    {
-        lua_pushnumber(L, cfg->unfocused_color[i]);
-        lua_rawseti(L, -2, i + 1);
-    }
+    for (int i = 0; i < 4; i++) { lua_pushnumber(L, cfg->unfocused_color[i]); lua_rawseti(L, -2, i + 1); }
     lua_setfield(L, -2, "unfocused_color");
+    lua_setfield(L, -2, "border");
 
+    /* keyboard sub-table */
+    lua_newtable(L);
     lua_pushinteger(L, cfg->keyboard_repeat_rate);
-    lua_setfield(L, -2, "keyboard_repeat_rate");
+    lua_setfield(L, -2, "repeat_rate");
     lua_pushinteger(L, cfg->keyboard_repeat_delay);
-    lua_setfield(L, -2, "keyboard_repeat_delay");
+    lua_setfield(L, -2, "repeat_delay");
     lua_pushstring(L, cfg->xkb_options ? cfg->xkb_options : "");
     lua_setfield(L, -2, "xkb_options");
+    lua_setfield(L, -2, "keyboard");
 
     lua_pushstring(L, cfg->seat_name);
     lua_setfield(L, -2, "seat_name");
@@ -615,29 +619,30 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_pushinteger(L, cfg->cursor_size);
     lua_setfield(L, -2, "cursor_size");
     lua_setfield(L, -2, "mouse");
-    lua_pushboolean(L, cfg->new_window_master);
-    lua_setfield(L, -2, "new_window_master");
+
     lua_pushboolean(L, cfg->client_decorations);
     lua_setfield(L, -2, "client_decorations");
 
-    lua_pushinteger(L, cfg->titlebar_height);
-    lua_setfield(L, -2, "titlebar_height");
+    /* titlebar sub-table */
+    lua_newtable(L);
+    lua_pushboolean(L, cfg->titlebar_height > 0);
+    lua_setfield(L, -2, "enabled");
+    lua_pushinteger(L, cfg->titlebar_height > 0 ? cfg->titlebar_height : 20);
+    lua_setfield(L, -2, "height");
     lua_pushstring(L, cfg->titlebar_font ? cfg->titlebar_font : "Sans 10");
-    lua_setfield(L, -2, "titlebar_font");
+    lua_setfield(L, -2, "font");
     lua_pushinteger(L, cfg->titlebar_text_align);
-    lua_setfield(L, -2, "titlebar_text_align");
-
+    lua_setfield(L, -2, "text_align");
     lua_newtable(L);
     for (int i = 0; i < 4; i++) { lua_pushnumber(L, cfg->titlebar_bg_color[i]); lua_rawseti(L, -2, i + 1); }
-    lua_setfield(L, -2, "titlebar_bg_color");
-
+    lua_setfield(L, -2, "bg_color");
     lua_newtable(L);
     for (int i = 0; i < 4; i++) { lua_pushnumber(L, cfg->titlebar_focused_bg_color[i]); lua_rawseti(L, -2, i + 1); }
-    lua_setfield(L, -2, "titlebar_focused_bg_color");
-
+    lua_setfield(L, -2, "focused_bg_color");
     lua_newtable(L);
     for (int i = 0; i < 4; i++) { lua_pushnumber(L, cfg->titlebar_text_color[i]); lua_rawseti(L, -2, i + 1); }
-    lua_setfield(L, -2, "titlebar_text_color");
+    lua_setfield(L, -2, "text_color");
+    lua_setfield(L, -2, "titlebar");
 
     /* monitors: empty table (user populates in config file) */
     lua_newtable(L);
@@ -770,31 +775,46 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         return;
     }
 
-    cfg->master_ratio = get_float_field(L, "master_ratio", cfg->master_ratio);
-    cfg->master_ratio_step
-        = get_float_field(L, "master_ratio_step", cfg->master_ratio_step);
-    cfg->master_ratio_min
-        = get_float_field(L, "master_ratio_min", cfg->master_ratio_min);
-    cfg->master_ratio_max
-        = get_float_field(L, "master_ratio_max", cfg->master_ratio_max);
-    cfg->inner_gap     = get_int_field(L, "inner_gap", cfg->inner_gap);
-    cfg->outer_gap     = get_int_field(L, "outer_gap", cfg->outer_gap);
-    cfg->smart_gaps    = get_bool_field(L, "smart_gaps", cfg->smart_gaps);
-    cfg->smart_borders = get_bool_field(L, "smart_borders", cfg->smart_borders);
-    cfg->border_width  = get_int_field(L, "border_width", cfg->border_width);
+    lua_getfield(L, -1, "layout");
+    if (lua_istable(L, -1)) {
+        cfg->new_window_master  = get_bool_field(L, "new_window_master", cfg->new_window_master);
+        cfg->master_ratio       = get_float_field(L, "master_ratio", cfg->master_ratio);
+        cfg->master_ratio_step  = get_float_field(L, "master_ratio_step", cfg->master_ratio_step);
+        cfg->master_ratio_min   = get_float_field(L, "master_ratio_min", cfg->master_ratio_min);
+        cfg->master_ratio_max   = get_float_field(L, "master_ratio_max", cfg->master_ratio_max);
+    }
+    lua_pop(L, 1);
 
-    float dflt_foc[4] = {cfg->focused_color[0], cfg->focused_color[1],
-                         cfg->focused_color[2], cfg->focused_color[3]};
-    get_color_field(L, "focused_color", cfg->focused_color, dflt_foc);
+    lua_getfield(L, -1, "gaps");
+    if (lua_istable(L, -1)) {
+        cfg->inner_gap     = get_int_field(L, "inner", cfg->inner_gap);
+        cfg->outer_gap     = get_int_field(L, "outer", cfg->outer_gap);
+        cfg->smart_gaps    = get_bool_field(L, "smart", cfg->smart_gaps);
+        cfg->smart_borders = get_bool_field(L, "smart_borders", cfg->smart_borders);
+    }
+    lua_pop(L, 1);
 
-    float dflt_unf[4] = {cfg->unfocused_color[0], cfg->unfocused_color[1],
-                         cfg->unfocused_color[2], cfg->unfocused_color[3]};
-    get_color_field(L, "unfocused_color", cfg->unfocused_color, dflt_unf);
+    lua_getfield(L, -1, "border");
+    if (lua_istable(L, -1)) {
+        cfg->border_width = get_int_field(L, "width", cfg->border_width);
+        float dflt_foc[4] = {cfg->focused_color[0], cfg->focused_color[1],
+                             cfg->focused_color[2], cfg->focused_color[3]};
+        get_color_field(L, "focused_color", cfg->focused_color, dflt_foc);
+        float dflt_unf[4] = {cfg->unfocused_color[0], cfg->unfocused_color[1],
+                             cfg->unfocused_color[2], cfg->unfocused_color[3]};
+        get_color_field(L, "unfocused_color", cfg->unfocused_color, dflt_unf);
+    }
+    lua_pop(L, 1);
 
-    cfg->keyboard_repeat_rate
-        = get_int_field(L, "keyboard_repeat_rate", cfg->keyboard_repeat_rate);
-    cfg->keyboard_repeat_delay
-        = get_int_field(L, "keyboard_repeat_delay", cfg->keyboard_repeat_delay);
+    lua_getfield(L, -1, "keyboard");
+    if (lua_istable(L, -1)) {
+        cfg->keyboard_repeat_rate  = get_int_field(L, "repeat_rate", cfg->keyboard_repeat_rate);
+        cfg->keyboard_repeat_delay = get_int_field(L, "repeat_delay", cfg->keyboard_repeat_delay);
+        char *s = get_string_field(L, "xkb_options", cfg->xkb_options);
+        free(cfg->xkb_options); cfg->xkb_options = s;
+    }
+    lua_pop(L, 1);
+
     lua_getfield(L, -1, "touchpad");
     if (lua_istable(L, -1)) {
         cfg->touchpad_tap_to_click = get_bool_field(L, "tap_to_click",
@@ -815,37 +835,36 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         cfg->cursor_size = get_int_field(L, "cursor_size", cfg->cursor_size);
     }
     lua_pop(L, 1);
-    cfg->new_window_master   = get_bool_field(L, "new_window_master",
-                                              cfg->new_window_master);
-    cfg->client_decorations  = get_bool_field(L, "client_decorations",
-                                              cfg->client_decorations);
 
-    cfg->titlebar_height     = get_int_field(L, "titlebar_height", cfg->titlebar_height);
-    cfg->titlebar_text_align = get_int_field(L, "titlebar_text_align", cfg->titlebar_text_align);
+    cfg->client_decorations = get_bool_field(L, "client_decorations", cfg->client_decorations);
 
-    char *tf = get_string_field(L, "titlebar_font", cfg->titlebar_font);
-    free(cfg->titlebar_font); cfg->titlebar_font = tf;
+    lua_getfield(L, -1, "titlebar");
+    if (lua_istable(L, -1)) {
+        bool tb_enabled = get_bool_field(L, "enabled", cfg->titlebar_height > 0);
+        if (!tb_enabled) {
+            cfg->titlebar_height = 0;
+        } else {
+            int h = get_int_field(L, "height", cfg->titlebar_height > 0 ? cfg->titlebar_height : 20);
+            cfg->titlebar_height = h > 0 ? h : 20;
+        }
+        cfg->titlebar_text_align = get_int_field(L, "text_align", cfg->titlebar_text_align);
+        char *tf = get_string_field(L, "font", cfg->titlebar_font);
+        free(cfg->titlebar_font); cfg->titlebar_font = tf;
+        float dflt_tbg[4]  = {cfg->titlebar_bg_color[0], cfg->titlebar_bg_color[1],
+                               cfg->titlebar_bg_color[2], cfg->titlebar_bg_color[3]};
+        get_color_field(L, "bg_color", cfg->titlebar_bg_color, dflt_tbg);
+        float dflt_tfbg[4] = {cfg->titlebar_focused_bg_color[0], cfg->titlebar_focused_bg_color[1],
+                               cfg->titlebar_focused_bg_color[2], cfg->titlebar_focused_bg_color[3]};
+        get_color_field(L, "focused_bg_color", cfg->titlebar_focused_bg_color, dflt_tfbg);
+        float dflt_ttc[4]  = {cfg->titlebar_text_color[0], cfg->titlebar_text_color[1],
+                               cfg->titlebar_text_color[2], cfg->titlebar_text_color[3]};
+        get_color_field(L, "text_color", cfg->titlebar_text_color, dflt_ttc);
+    }
+    lua_pop(L, 1);
 
-    float dflt_tbg[4]  = {cfg->titlebar_bg_color[0], cfg->titlebar_bg_color[1],
-                           cfg->titlebar_bg_color[2], cfg->titlebar_bg_color[3]};
-    get_color_field(L, "titlebar_bg_color", cfg->titlebar_bg_color, dflt_tbg);
-
-    float dflt_tfbg[4] = {cfg->titlebar_focused_bg_color[0], cfg->titlebar_focused_bg_color[1],
-                           cfg->titlebar_focused_bg_color[2], cfg->titlebar_focused_bg_color[3]};
-    get_color_field(L, "titlebar_focused_bg_color", cfg->titlebar_focused_bg_color, dflt_tfbg);
-
-    float dflt_ttc[4]  = {cfg->titlebar_text_color[0], cfg->titlebar_text_color[1],
-                           cfg->titlebar_text_color[2], cfg->titlebar_text_color[3]};
-    get_color_field(L, "titlebar_text_color", cfg->titlebar_text_color, dflt_ttc);
-
-    char *s;
-    s = get_string_field(L, "seat_name", cfg->seat_name);
+    char *s = get_string_field(L, "seat_name", cfg->seat_name);
     free(cfg->seat_name);
     cfg->seat_name = s;
-
-    s = get_string_field(L, "xkb_options", cfg->xkb_options);
-    free(cfg->xkb_options);
-    cfg->xkb_options = s;
 
     lua_pop(L, 1);
 
