@@ -567,7 +567,109 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     for (int i = 0; i < 4; i++) { lua_pushnumber(L, cfg->titlebar_text_color[i]); lua_rawseti(L, -2, i + 1); }
     lua_setfield(L, -2, "titlebar_text_color");
 
+    /* monitors: empty table (user populates in config file) */
+    lua_newtable(L);
+    lua_setfield(L, -2, "monitors");
+
     lua_pop(L, 1);
+}
+
+/* ---- read monitor configuration from Lua ---- */
+
+static void
+free_monitor_configs(struct nnwm_config *cfg)
+{
+    for (int i = 0; i < cfg->monitor_config_count; i++)
+    {
+        auto &mc = cfg->monitor_configs[i];
+        free(mc.name);
+        free(mc.make);
+        free(mc.model);
+        free(mc.serial);
+    }
+    free(cfg->monitor_configs);
+    cfg->monitor_configs     = nullptr;
+    cfg->monitor_config_count = 0;
+}
+
+static void
+read_monitor_configs(lua_State *L, struct nnwm_config *cfg)
+{
+    free_monitor_configs(cfg);
+
+    lua_getglobal(L, "nnwm");
+    if (!lua_istable(L, -1)) { lua_pop(L, 1); return; }
+
+    lua_getfield(L, -1, "monitors");
+    if (!lua_istable(L, -1)) { lua_pop(L, 2); return; }
+
+    /* Count entries */
+    int count = 0;
+    lua_pushnil(L);
+    while (lua_next(L, -2) != 0) { count++; lua_pop(L, 1); }
+    if (count == 0) { lua_pop(L, 2); return; }
+
+    cfg->monitor_configs = static_cast<nnwm_monitor_config*>(
+        calloc(count, sizeof(nnwm_monitor_config)));
+    cfg->monitor_config_count = count;
+
+    int idx = 0;
+    lua_pushnil(L);
+    while (lua_next(L, -2) != 0 && idx < count)
+    {
+        if (!lua_istable(L, -1)) { lua_pop(L, 1); continue; }
+
+        auto &mc = cfg->monitor_configs[idx];
+        memset(&mc, 0, sizeof(mc));
+        mc.x = INT_MAX;
+        mc.y = INT_MAX;
+        mc.transform = -1;
+
+        mc.name   = get_string_field(L, "name", nullptr);
+        mc.make   = get_string_field(L, "make", nullptr);
+        mc.model  = get_string_field(L, "model", nullptr);
+        mc.serial = get_string_field(L, "serial", nullptr);
+
+        mc.width   = get_int_field(L, "width", 0);
+        mc.height  = get_int_field(L, "height", 0);
+        mc.refresh = get_int_field(L, "refresh", 0);
+
+        lua_getfield(L, -1, "x");
+        if (lua_isinteger(L, -1)) mc.x = (int)lua_tointeger(L, -1);
+        lua_pop(L, 1);
+
+        lua_getfield(L, -1, "y");
+        if (lua_isinteger(L, -1)) mc.y = (int)lua_tointeger(L, -1);
+        lua_pop(L, 1);
+
+        mc.scale = get_float_field(L, "scale", 0.0f);
+
+        /* transform: string name -> wl_output_transform int */
+        {
+            char *ts = get_string_field(L, "transform", nullptr);
+            if (ts)
+            {
+                if      (strcmp(ts, "none") == 0)          mc.transform = 0; /* WL_OUTPUT_TRANSFORM_NORMAL */
+                else if (strcmp(ts, "90") == 0)            mc.transform = 1;
+                else if (strcmp(ts, "180") == 0)           mc.transform = 2;
+                else if (strcmp(ts, "270") == 0)           mc.transform = 3;
+                else if (strcmp(ts, "flipped") == 0)       mc.transform = 4;
+                else if (strcmp(ts, "flipped-90") == 0)    mc.transform = 5;
+                else if (strcmp(ts, "flipped-180") == 0)   mc.transform = 6;
+                else if (strcmp(ts, "flipped-270") == 0)   mc.transform = 7;
+                else mc.transform = -1;
+                free(ts);
+            }
+        }
+
+        mc.hdr      = get_bool_field(L, "hdr", false);
+        mc.disabled = get_bool_field(L, "disabled", false);
+
+        lua_pop(L, 1);
+        idx++;
+    }
+
+    lua_pop(L, 2); /* pop monitors table and nnwm table */
 }
 
 /* ---- read back non-keybinding settings from Lua ---- */
@@ -653,6 +755,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     cfg->xkb_options = s;
 
     lua_pop(L, 1);
+
+    read_monitor_configs(L, cfg);
 }
 
 /* ---- public API ---- */
@@ -839,6 +943,9 @@ nnwm::config_defaults(void)
     cfg->titlebar_text_color[0]  = 1.0f; cfg->titlebar_text_color[1]  = 1.0f;
     cfg->titlebar_text_color[2]  = 1.0f; cfg->titlebar_text_color[3]  = 1.0f;
 
+    cfg->monitor_configs     = nullptr;
+    cfg->monitor_config_count = 0;
+
     return cfg;
 }
 
@@ -851,5 +958,14 @@ nnwm::config_free(struct nnwm_config *cfg)
     free(cfg->seat_name);
     free(cfg->xkb_options);
     free(cfg->titlebar_font);
+    for (int i = 0; i < cfg->monitor_config_count; i++)
+    {
+        auto &mc = cfg->monitor_configs[i];
+        free(mc.name);
+        free(mc.make);
+        free(mc.model);
+        free(mc.serial);
+    }
+    free(cfg->monitor_configs);
     delete cfg;
 }

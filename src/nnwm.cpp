@@ -1865,43 +1865,88 @@ server_cursor_frame(wl_listener *listener, void * /*data*/)
 void
 server_new_output(wl_listener *listener, void *data)
 {
-    /* This event is raised by the backend when a new output (aka a display or
-     * monitor) becomes available. */
     nnwm_server *server
         = wl_container_of(listener, server, new_output);
     wlr_output *wlr_output = static_cast<struct wlr_output*>(data);
 
-    /* Configures the output created by the backend to use our allocator
-     * and our renderer. Must be done once, before committing the output */
     wlr_output_init_render(wlr_output, server->allocator, server->renderer);
 
-    /* The output may be disabled, switch it on. */
-    wlr_output_state state;
-    wlr_output_state_init(&state);
-    wlr_output_state_set_enabled(&state, true);
-
-    /* Some backends don't have modes. DRM+KMS does, and we need to set a mode
-     * before we can use the output. The mode is a tuple of (width, height,
-     * refresh rate), and each monitor supports only a specific set of modes. We
-     * just pick the monitor's preferred mode, a more sophisticated compositor
-     * would let the user configure it. */
-    wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
-    if (mode != nullptr)
+    /* Find matching monitor config (first match wins) */
+    nnwm_monitor_config *mc = nullptr;
     {
-        wlr_output_state_set_mode(&state, mode);
+        auto *cfg = server->config;
+        for (int i = 0; i < cfg->monitor_config_count; i++)
+        {
+            auto &c = cfg->monitor_configs[i];
+            bool match = true;
+            if (c.name   && (!wlr_output->name   || strcmp(c.name,   wlr_output->name)   != 0)) match = false;
+            if (c.make   && (!wlr_output->make   || strcmp(c.make,   wlr_output->make)   != 0)) match = false;
+            if (c.model  && (!wlr_output->model  || strcmp(c.model,  wlr_output->model)  != 0)) match = false;
+            if (c.serial && (!wlr_output->serial || strcmp(c.serial, wlr_output->serial) != 0)) match = false;
+            if (match) { mc = &c; break; }
+        }
     }
 
-    /* Atomically applies the new output state. */
+    wlr_output_state state;
+    wlr_output_state_init(&state);
+
+    if (mc && mc->disabled)
+    {
+        wlr_output_state_set_enabled(&state, false);
+        wlr_output_commit_state(wlr_output, &state);
+        wlr_output_state_finish(&state);
+        return;
+    }
+
+    wlr_output_state_set_enabled(&state, true);
+
+    /* Apply scale if configured */
+    if (mc && mc->scale > 0.0f)
+        wlr_output_state_set_scale(&state, mc->scale);
+
+    /* Apply transform if configured */
+    if (mc && mc->transform >= 0)
+        wlr_output_state_set_transform(&state,
+            static_cast<wl_output_transform>(mc->transform));
+
+    /* Pick a mode: match by size/refresh if configured, else preferred */
+    wlr_output_mode *mode = nullptr;
+    if (mc && mc->width > 0 && mc->height > 0)
+    {
+        int target_w   = mc->width;
+        int target_h   = mc->height;
+        int target_mhz = mc->refresh * 1000; /* user passes Hz; wlroots uses mHz */
+
+        wlr_output_mode *m;
+        wl_list_for_each(m, &wlr_output->modes, link)
+        {
+            if (m->width == target_w && m->height == target_h)
+            {
+                if (target_mhz == 0 || m->refresh == target_mhz)
+                { mode = m; break; }
+                if (!mode) mode = m; /* fallback: closest match on size */
+            }
+        }
+        if (!mode)
+            std::fprintf(stderr, "nnwm: monitor '%s' has no mode %dx%d, "
+                         "falling back to preferred\n",
+                         wlr_output->name ? wlr_output->name : "?",
+                         target_w, target_h);
+    }
+    if (!mode)
+        mode = wlr_output_preferred_mode(wlr_output);
+    if (mode)
+        wlr_output_state_set_mode(&state, mode);
+
     wlr_output_commit_state(wlr_output, &state);
     wlr_output_state_finish(&state);
 
-    /* Allocates and configures our state for this output */
     nnwm_output *output = new nnwm_output{};
     output->wlr_output    = wlr_output;
     output->server        = server;
-    wlr_output_layout_get_box(server->output_layout, wlr_output, &output->usable_area);
+    wlr_output_layout_get_box(server->output_layout, wlr_output,
+                              &output->usable_area);
 
-    /* Assign a workspace not already claimed by another output */
     {
         int ws = 0;
         while (ws < NNWM_NUM_WORKSPACES && workspace_is_visible(server, ws))
@@ -1913,31 +1958,25 @@ server_new_output(wl_listener *listener, void *data)
     if (!server->focused_output)
         server->focused_output = output;
 
-    /* Sets up a listener for the frame event. */
     output->frame.notify = output_frame;
     wl_signal_add(&wlr_output->events.frame, &output->frame);
 
-    /* Sets up a listener for the state request event. */
     output->request_state.notify = output_request_state;
     wl_signal_add(&wlr_output->events.request_state, &output->request_state);
 
-    /* Sets up a listener for the destroy event. */
     output->destroy.notify = output_destroy;
     wl_signal_add(&wlr_output->events.destroy, &output->destroy);
 
     wl_list_insert(&server->outputs, &output->link);
 
-    /* Adds this to the output layout. The add_auto function arranges outputs
-     * from left-to-right in the order they appear. A more sophisticated
-     * compositor would let the user configure the arrangement of outputs in the
-     * layout.
-     *
-     * The output layout utility automatically adds a wl_output global to the
-     * display, which Wayland clients can see to find out information about the
-     * output (such as DPI, scale factor, manufacturer, etc).
-     */
-    wlr_output_layout_output *l_output
-        = wlr_output_layout_add_auto(server->output_layout, wlr_output);
+    /* Place at configured position, or auto-arrange */
+    wlr_output_layout_output *l_output;
+    if (mc && mc->x != INT_MAX && mc->y != INT_MAX)
+        l_output = wlr_output_layout_add(server->output_layout, wlr_output,
+                                         mc->x, mc->y);
+    else
+        l_output = wlr_output_layout_add_auto(server->output_layout, wlr_output);
+
     wlr_scene_output *scene_output
         = wlr_scene_output_create(server->scene, wlr_output);
     wlr_scene_output_layout_add_output(server->scene_layout, l_output,

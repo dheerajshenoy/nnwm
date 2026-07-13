@@ -108,7 +108,24 @@ KEY = {}
 ---@field titlebar_bg_color          number[]  RGBA background color for unfocused windows (default: {0.2, 0.2, 0.2, 1.0})
 ---@field titlebar_focused_bg_color  number[]  RGBA background color for the focused window (default: {0.25, 0.35, 0.55, 1.0})
 ---@field titlebar_text_color        number[]  RGBA color for the title text (default: {1.0, 1.0, 1.0, 1.0})
+
+--- Monitor configuration (array of tables). First match wins.
+---@class nnwm_monitor_config
+---@field name      string   Output name, e.g. "DP-1"
+---@field make      string   Manufacturer string
+---@field model     string   Model string
+---@field serial    string   Serial number string
+---@field width     integer  Mode width in pixels
+---@field height    integer  Mode height in pixels
+---@field refresh   integer  Refresh rate in Hz
+---@field x         integer  Layout X position (unset = auto)
+---@field y         integer  Layout Y position (unset = auto)
+---@field scale     number   Output scale factor (e.g. 2.0)
+---@field transform string   Rotation: "none", "90", "180", "270", "flipped", "flipped-90", "flipped-180", "flipped-270"
+---@field hdr       boolean  Enable HDR (wlroots 0.20+)
+---@field disabled  boolean  Disable this output
 nnwm = {}
+nnwm.monitors = {} ---@type nnwm_monitor_config[]
 
 ---Register a keybinding. `combo` is an array of modifier and key name strings;
 ---`callback` is called when the combo is pressed.

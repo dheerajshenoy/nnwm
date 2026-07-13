@@ -6,10 +6,36 @@
 extern "C"
 {
 #endif
+#include <climits>
 #include <cstdint>
 #ifdef __cplusplus
 }
 #endif
+
+struct nnwm_monitor_config
+{
+    /* Match fields (all optional; NULL = don't match on this field) */
+    char *name;       /* output name, e.g. "DP-1" */
+    char *make;       /* EDID manufacturer */
+    char *model;      /* EDID model name */
+    char *serial;     /* EDID serial number */
+
+    /* Mode */
+    int width, height;/* pixels; 0 = use preferred mode */
+    int refresh;      /* Hz; 0 = use preferred mode */
+
+    /* Position */
+    int x, y;         /* INT_MAX = unset (auto-position) */
+
+    /* Scale */
+    float scale;      /* <= 0 = default (1.0) */
+
+    /* Transform: -1 = default, otherwise wl_output_transform enum value */
+    int transform;
+
+    bool hdr;         /* enable HDR (BT.2020 + ST.2084 PQ); wlroots 0.20+ */
+    bool disabled;    /* disable this output entirely */
+};
 
 struct nnwm_config
 {
@@ -63,6 +89,10 @@ struct nnwm_config
     float titlebar_bg_color[4];        /* unfocused background RGBA */
     float titlebar_focused_bg_color[4];/* focused background RGBA */
     float titlebar_text_color[4];      /* text RGBA */
+
+    /* Monitor configuration */
+    struct nnwm_monitor_config *monitor_configs;
+    int monitor_config_count;
 };
 
 #ifdef __cplusplus
