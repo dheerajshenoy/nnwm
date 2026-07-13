@@ -106,6 +106,9 @@
   saving now immediately applies mode, scale, transform, position, and
   enable/disable changes to live outputs. Previously these settings were only
   applied at output detection during startup.
+- **Scale change rendering**: changing output scale on the fly now correctly
+  recomputes the usable area and re-tiles windows. Previously the stale logical
+  resolution left empty space after a scale change.
 - **Focus on window close**: when the focused window is closed, focus transfers
   to the previously focused window (the one focused before it). Falls back to
   the current workspace master if no history is available.
