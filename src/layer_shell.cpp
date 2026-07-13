@@ -64,7 +64,18 @@ void
 layer_surface_unmap(wl_listener *listener, void * /*data*/)
 {
     nnwm_layer_surface *ls = wl_container_of(listener, ls, unmap);
-    arrange_layers(ls->server, ls->wlr_layer_surface->output);
+    nnwm_server *server = ls->server;
+    arrange_layers(server, ls->wlr_layer_surface->output);
+
+    /* Restore keyboard focus to the last focused toplevel when a
+     * keyboard-interactive layer surface (e.g. rofi) unmaps. */
+    nnwm_output *out = server->focused_output;
+    if (out) {
+        int ws = out->active_workspace;
+        nnwm_toplevel *next = out->last_focused[ws];
+        if (!next) next = ws_first(server, out);
+        if (next) focus_toplevel(next);
+    }
 
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
