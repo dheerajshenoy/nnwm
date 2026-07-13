@@ -54,7 +54,12 @@
 - [ ] Transparency
 - [ ] Hardware-acceleration
 - [ ] Scratchpad
-- [ ] Screenshot protocol
-- [ ] Screenrecording protocol
 - lua helper functions
     - [X] device_name
+- wlr protocols
+    - [ ] Screenshot protocol
+    - [ ] Screenrecording protocol
+    - [X] wlr-output-management-unstable-v1 protocol
+    - [ ] wlr-output-power-management-unstable-v1 protocol
+    - [ ] wlr-output-configuration-unstable-v1 protocol
+- [ ] Show error messages when config fails to load
