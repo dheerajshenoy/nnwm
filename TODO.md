@@ -3,10 +3,11 @@
 - Lua Config Support
     - [X] Keybindings
     - [ ] Layouts
-    - [ ] Rules
-        - [ ] Floating
-        - [ ] Fullscreen
-        - [ ] Monitor
+    - [X] Rules
+        - [X] Floating
+        - [X] Fullscreen
+        - [X] Monitor
+        - [X] Workspace
     - [ ] Hooks
         - [ ] Window
             - [ ] New
