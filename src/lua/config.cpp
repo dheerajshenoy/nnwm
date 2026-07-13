@@ -11,6 +11,7 @@ extern "C"
 #include <xkbcommon/xkbcommon.h>
 }
 
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -65,11 +66,36 @@ get_string_field(lua_State *L, const char *name, const char *dflt)
     return r;
 }
 
+static bool
+parse_hex_color(const char *s, float out[4])
+{
+    /* Accept optional '#' prefix, then RRGGBB or RRGGBBAA. */
+    if (!s) return false;
+    if (*s == '#') s++;
+    size_t len = strlen(s);
+    if (len != 6 && len != 8) return false;
+    for (size_t i = 0; i < len; i++)
+        if (!isxdigit((unsigned char)s[i])) return false;
+    unsigned int r, g, b, a = 255;
+    sscanf(s, "%2x%2x%2x", &r, &g, &b);
+    if (len == 8) sscanf(s + 6, "%2x", &a);
+    out[0] = r / 255.0f;
+    out[1] = g / 255.0f;
+    out[2] = b / 255.0f;
+    out[3] = a / 255.0f;
+    return true;
+}
+
 static void
 get_color_field(lua_State *L, const char *name, float out[4], float dflt[4])
 {
     lua_getfield(L, -1, name);
-    if (lua_istable(L, -1))
+    if (lua_isstring(L, -1) && !lua_isnumber(L, -1))
+    {
+        if (!parse_hex_color(lua_tostring(L, -1), out))
+            for (int i = 0; i < 4; i++) out[i] = dflt[i];
+    }
+    else if (lua_istable(L, -1))
     {
         for (int i = 0; i < 4; i++)
         {
@@ -653,6 +679,9 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_newtable(L);
     for (int i = 0; i < 4; i++) { lua_pushnumber(L, cfg->titlebar_text_color[i]); lua_rawseti(L, -2, i + 1); }
     lua_setfield(L, -2, "text_color");
+    lua_newtable(L);
+    for (int i = 0; i < 4; i++) { lua_pushnumber(L, cfg->titlebar_focused_text_color[i]); lua_rawseti(L, -2, i + 1); }
+    lua_setfield(L, -2, "focused_text_color");
     lua_setfield(L, -2, "titlebar");
 
     /* monitors: empty table (user populates in config file) */
@@ -872,6 +901,9 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         float dflt_ttc[4]  = {cfg->titlebar_text_color[0], cfg->titlebar_text_color[1],
                                cfg->titlebar_text_color[2], cfg->titlebar_text_color[3]};
         get_color_field(L, "text_color", cfg->titlebar_text_color, dflt_ttc);
+        float dflt_tftc[4] = {cfg->titlebar_focused_text_color[0], cfg->titlebar_focused_text_color[1],
+                               cfg->titlebar_focused_text_color[2], cfg->titlebar_focused_text_color[3]};
+        get_color_field(L, "focused_text_color", cfg->titlebar_focused_text_color, dflt_tftc);
     }
     lua_pop(L, 1);
 
@@ -1072,6 +1104,8 @@ nnwm::config_defaults(void)
     cfg->titlebar_focused_bg_color[2] = 0.55f; cfg->titlebar_focused_bg_color[3] = 1.0f;
     cfg->titlebar_text_color[0]  = 1.0f; cfg->titlebar_text_color[1]  = 1.0f;
     cfg->titlebar_text_color[2]  = 1.0f; cfg->titlebar_text_color[3]  = 1.0f;
+    cfg->titlebar_focused_text_color[0] = 1.0f; cfg->titlebar_focused_text_color[1] = 1.0f;
+    cfg->titlebar_focused_text_color[2] = 1.0f; cfg->titlebar_focused_text_color[3] = 1.0f;
 
     cfg->monitor_configs     = nullptr;
     cfg->monitor_config_count = 0;

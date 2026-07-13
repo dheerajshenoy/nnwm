@@ -80,11 +80,13 @@ KEY = {}
 ---@field outer?  integer  Gap in pixels between windows and the screen edge (default: 0)
 ---@field smart?  boolean  Disable gaps when only one window is on screen (default: false)
 
+---@alias nnwm.color number[]|string  RGBA as `{r, g, b, a}` floats 0–1, or a hex string: `"RRGGBB"`, `"RRGGBBAA"`, `"#RRGGBB"`, `"#RRGGBBAA"`
+
 ---@class nnwm.border
----@field width?           integer   Border thickness in pixels (default: 2)
----@field smart?           boolean   Disable borders when only one window is on screen (default: false)
----@field focused_color?   number[]  RGBA color for the focused window border (default: {0.3, 0.5, 0.8, 1.0})
----@field unfocused_color? number[]  RGBA color for unfocused window borders (default: {0.15, 0.15, 0.15, 1.0})
+---@field width?           integer     Border thickness in pixels (default: 2)
+---@field smart?           boolean     Disable borders when only one window is on screen (default: false)
+---@field focused_color?   nnwm.color  RGBA color for the focused window border (default: {0.3, 0.5, 0.8, 1.0})
+---@field unfocused_color? nnwm.color  RGBA color for unfocused window borders (default: {0.15, 0.15, 0.15, 1.0})
 
 ---@class nnwm.keyboard
 ---@field repeat_rate?   integer  Key repeat rate in keys/sec (default: 25)
@@ -102,13 +104,14 @@ KEY = {}
 ---@field cursor_size?          integer  Cursor size in pixels (default: 24)
 
 ---@class nnwm.titlebar
----@field enabled?          boolean   Enable the server-side titlebar (default: false)
----@field height?           integer   Titlebar height in pixels, used when enabled (default: 20)
----@field font?             string    Pango font description for the title text, e.g. `"Sans Bold 10"` (default: "Sans 10")
----@field text_align?       integer   Text alignment: 0 = left, 1 = center, 2 = right (default: 1)
----@field bg_color?         number[]  RGBA background color for unfocused windows (default: {0.2, 0.2, 0.2, 1.0})
----@field focused_bg_color? number[]  RGBA background color for the focused window (default: {0.25, 0.35, 0.55, 1.0})
----@field text_color?       number[]  RGBA color for the title text (default: {1.0, 1.0, 1.0, 1.0})
+---@field enabled?             boolean     Enable the server-side titlebar (default: false)
+---@field height?              integer     Titlebar height in pixels, used when enabled (default: 20)
+---@field font?                string      Pango font description for the title text, e.g. `"Sans Bold 10"` (default: "Sans 10")
+---@field text_align?          integer     Text alignment: 0 = left, 1 = center, 2 = right (default: 1)
+---@field bg_color?            nnwm.color  Background color for unfocused windows (default: {0.2, 0.2, 0.2, 1.0})
+---@field focused_bg_color?    nnwm.color  Background color for the focused window (default: {0.25, 0.35, 0.55, 1.0})
+---@field text_color?          nnwm.color  Title text color for unfocused windows (default: {1.0, 1.0, 1.0, 1.0})
+---@field focused_text_color?  nnwm.color  Title text color for the focused window (default: {1.0, 1.0, 1.0, 1.0})
 
 ---@class nnwm_opts
 ---@field layout?             nnwm.layout

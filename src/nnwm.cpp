@@ -98,7 +98,7 @@ render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused)
         pango_layout_get_size(layout, &pw, &ph);
         double ty = (h - ph / (double)PANGO_SCALE) / 2.0;
 
-        const float *tc = cfg->titlebar_text_color;
+        const float *tc = focused ? cfg->titlebar_focused_text_color : cfg->titlebar_text_color;
         cairo_set_source_rgba(cr, tc[0], tc[1], tc[2], tc[3]);
         cairo_move_to(cr, pad, ty);
         pango_cairo_show_layout(cr, layout);
