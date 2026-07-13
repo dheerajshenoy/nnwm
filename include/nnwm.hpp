@@ -49,6 +49,7 @@ extern "C"
 #else
 #  include <wlr/types/wlr_output_management_v1.h>
 #endif
+#include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/backend/libinput.h>
 #include <wlr/backend/session.h>
 #include <wlr/util/log.h>
@@ -136,6 +137,7 @@ struct nnwm_server
     struct wl_listener output_manager_test;
 
     struct wlr_xdg_output_manager_v1 *xdg_output_manager;
+    struct wlr_screencopy_manager_v1 *screencopy_manager;
 
     /* Focused output — tracks which output keyboard actions operate on */
     struct nnwm_output *focused_output;

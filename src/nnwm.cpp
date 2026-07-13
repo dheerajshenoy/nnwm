@@ -1249,6 +1249,7 @@ output_request_state(wl_listener *listener, void *data)
 }
 
 static void output_manager_build_config(nnwm_server *server);
+static void arrange_layers(nnwm_server *server, wlr_output *output);
 
 void
 output_destroy(wl_listener *listener, void * /*data*/)
@@ -1335,6 +1336,9 @@ output_manager_apply_or_test(nnwm_server *server,
 
         if (!ok)
             break;
+
+        /* Recompute usable area with the new logical resolution */
+        arrange_layers(server, wlr_output);
     }
 
     if (test) {
@@ -1813,6 +1817,11 @@ server_apply_config(nnwm_server *server)
             if (mc->x != INT_MAX && mc->y != INT_MAX)
                 wlr_output_layout_add(server->output_layout, wlr_output,
                                       mc->x, mc->y);
+
+            /* Recompute usable area with the new logical resolution and
+             * re-tile; arrange_layers reads wlr_output_layout_get_box which
+             * now reflects the updated scale/mode. */
+            arrange_layers(server, wlr_output);
         }
 
         /* Update the output manager so wlr-randr / kanshi see the changes */

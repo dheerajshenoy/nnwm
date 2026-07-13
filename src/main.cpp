@@ -185,6 +185,9 @@ main(int argc, char *argv[])
     server.xdg_output_manager = wlr_xdg_output_manager_v1_create(
         server.wl_display, server.output_layout);
 
+    /* screencopy: allows clients like grim to capture screen contents */
+    server.screencopy_manager = wlr_screencopy_manager_v1_create(server.wl_display);
+
     /* XDG decoration: tell clients to use client-side decorations */
     server.decoration_manager       = wlr_xdg_decoration_manager_v1_create(server.wl_display);
     server.new_decoration.notify    = server_new_decoration;
