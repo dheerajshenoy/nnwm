@@ -132,6 +132,40 @@ All fields are set directly on the `nnwm` table.
 | `touchpad_natural_scroll`    | bool | `true`  | Natural (reverse) scroll       |
 | `touchpad_disable_while_typing`| bool | `true`| Disable touchpad while typing  |
 
+### Titlebar
+
+| Field                        | Type           | Default                     | Description                                |
+|------------------------------|----------------|-----------------------------|--------------------------------------------|
+| `titlebar_height`            | integer        | `0`                         | Titlebar height in pixels; 0 = disabled    |
+| `titlebar_font`              | string         | `"Sans 10"`                 | Pango font description                     |
+| `titlebar_text_align`        | integer        | `1`                         | 0 = left, 1 = center, 2 = right           |
+| `titlebar_bg_color`          | {r,g,b,a}     | `{0.2, 0.2, 0.2, 1.0}`     | Background color (unfocused windows)       |
+| `titlebar_focused_bg_color`  | {r,g,b,a}     | `{0.25, 0.35, 0.55, 1.0}`  | Background color (focused window)          |
+| `titlebar_text_color`        | {r,g,b,a}     | `{1.0, 1.0, 1.0, 1.0}`     | Text color                                 |
+
+### Monitors
+
+Array of tables to configure outputs. Each entry is a table; all fields are
+optional. Entries are matched against connected outputs by name, make, model,
+and/or serial (AND logic). The first matching entry is applied; unmatched
+outputs use their preferred mode and auto-layout position.
+
+| Field        | Type              | Description                                           |
+|--------------|-------------------|-------------------------------------------------------|
+| `name`       | string            | Output name, e.g. `"DP-1"`                           |
+| `make`       | string            | Manufacturer string                                   |
+| `model`      | string            | Model string                                          |
+| `serial`     | string            | Serial number string                                  |
+| `width`      | integer           | Mode width in pixels                                  |
+| `height`     | integer           | Mode height in pixels                                 |
+| `refresh`    | integer           | Refresh rate in Hz                                    |
+| `x`          | integer           | Layout X position (if unset, auto-arranged)           |
+| `y`          | integer           | Layout Y position (if unset, auto-arranged)           |
+| `scale`      | number            | Output scale factor (e.g. `2.0` for HiDPI)           |
+| `transform`  | string            | Rotation: `"none"`, `"90"`, `"180"`, `"270"`, `"flipped"`, `"flipped-90"`, `"flipped-180"`, `"flipped-270"` |
+| `hdr`        | bool              | Enable HDR (wlroots 0.20+)                            |
+| `disabled`   | bool              | Disable this output                                   |
+
 ## Example Config
 
 ```lua
