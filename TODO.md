@@ -24,7 +24,8 @@
 - Layouts
     - [X] Master Stack
     - [ ] Sway-like tabbed layout
-    - [ ] Scrolling
+    - [ ] Horizontal Scrolling
+    - [ ] Vertical Scrolling
     - [ ] Dwindle
 - [X] Gaps
 - [X] Smart border
@@ -47,13 +48,14 @@
 - [X] color for the window decoration
 - [ ] Tilde not rendering in the titlebar
 - [X] Titlebar not updating on window resize
-- [ ] Animations
+- [ ] Animations with scenefx
 - [ ] Blur
 - [ ] Shadows
 - [ ] Corner radius
 - [ ] Transparency
 - [ ] Hardware-acceleration
 - [ ] Scratchpad
+- [ ] Multi workspace viewing at once (like dwm)
 - lua helper functions
     - [X] device_name
 - wlr protocols
