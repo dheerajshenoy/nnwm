@@ -77,4 +77,4 @@
 - [ ] XWayland
 - [ ] Moving window to other monitor should make it associated with that monitor
 - [X] Fix per-monitor workspaces not working correctly
-- [ ] fix focus_follows_mouse not working
+- [X] fix focus_follows_mouse not working
