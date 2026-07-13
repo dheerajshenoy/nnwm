@@ -15,7 +15,7 @@
             - [ ] Focus Change
         - [ ] Startup
         - [ ] Shutdown
-- [ ] Monitor configuration
+- [X] Monitor configuration
 - [X] Move to workspace
 - [X] Switch workspace
 - [X] Handle window close
@@ -24,6 +24,8 @@
 - Layouts
     - [X] Master Stack
     - [ ] Sway-like tabbed layout
+    - [ ] Scrolling
+    - [ ] Dwindle
 - [X] Gaps
 - [X] Smart border
 - [X] Smart gaps
@@ -43,8 +45,16 @@
 - [X] font configuration for window decoration
 - [X] text alignment for window decoration
 - [X] color for the window decoration
-- [X] Tilde not rendering in the titlebar
+- [ ] Tilde not rendering in the titlebar
 - [X] Titlebar not updating on window resize
 - [ ] Animations
 - [ ] Blur
+- [ ] Shadows
+- [ ] Corner radius
+- [ ] Transparency
 - [ ] Hardware-acceleration
+- [ ] Scratchpad
+- [ ] Screenshot protocol
+- [ ] Screenrecording protocol
+- [ ] lua helper functions
+    - [ ] device_name
