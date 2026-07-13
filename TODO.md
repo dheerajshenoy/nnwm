@@ -2,7 +2,6 @@
 
 - Lua Config Support
     - [X] Keybindings
-    - [ ] Layouts
     - [X] Rules
         - [X] Floating
         - [X] Fullscreen
