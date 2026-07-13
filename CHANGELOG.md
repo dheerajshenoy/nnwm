@@ -4,6 +4,14 @@
 
 ### Features
 
+- **wlr-output-management-unstable-v1**: runtime output configuration via
+  `wlr-randr`, `kanshi`, and similar tools. Clients can query available outputs,
+  test configurations, and apply changes (mode, scale, transform, position,
+  enable/disable). The compositor advertises the current state and updates it on
+  config hot-reload.
+- **xdg-output-unstable-v1**: exposes logical output geometry (position, size)
+  to clients. Required by many Wayland-native tools to correctly interpret
+  output layouts.
 - **Floating windows**: `nnwm.toggle_float()` toggles the focused window
   between floating and tiled mode. When made floating the window is centered on
   screen and raised above all tiled windows. Super+left-click drags a floating
@@ -94,6 +102,10 @@
 
 ### Bug Fixes
 
+- **Monitor config hot-reload**: editing `nnwm.monitors` in the config file and
+  saving now immediately applies mode, scale, transform, position, and
+  enable/disable changes to live outputs. Previously these settings were only
+  applied at output detection during startup.
 - **Focus on window close**: when the focused window is closed, focus transfers
   to the previously focused window (the one focused before it). Falls back to
   the current workspace master if no history is available.
