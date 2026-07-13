@@ -57,10 +57,18 @@
 - lua helper functions
     - [X] device_name
 - wlr protocols
-    - [ ] Screenshot
-    - [ ] Screenrecording
+    - [X] wlr-layer-shell-unstable-v1
     - [X] wlr-output-management-unstable-v1
+    - [X] xdg-output-unstable-v1
+    - [X] wlr-screencopy-unstable-v1
+    - [ ] ext-session-lock-v1
+    - [ ] wlr-data-control-unstable-v1
+    - [ ] wlr-virtual-pointer-unstable-v1
+    - [ ] wlr-virtual-keyboard-unstable-v1
+    - [ ] wlr-gamma-control-unstable-v1
+    - [ ] wlr-export-dmabuf-unstable-v1
+    - [ ] Screenrecording
     - [ ] wlr-output-power-management-unstable-v1
     - [ ] wlr-output-configuration-unstable-v1
-    - [X] xdg-output-unstable-v1
 - [ ] Show error messages when config fails to load
+- [ ] Dialog window support
