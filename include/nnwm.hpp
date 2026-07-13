@@ -214,6 +214,7 @@ struct nnwm_toplevel
     int workspace;                /* workspace index within output (0..8) */
     bool floating;
     bool fullscreen;
+    bool sticky;
     struct wlr_xdg_toplevel *xdg_toplevel;
     struct wlr_scene_tree *scene_tree;
     struct wlr_scene_rect *border[4];      /* top, bottom, left, right */
@@ -374,6 +375,7 @@ void action_master_ratio_grow(struct nnwm_server *server);
 void action_master_ratio_shrink(struct nnwm_server *server);
 void action_toggle_float(struct nnwm_server *server);
 void action_toggle_fullscreen(struct nnwm_server *server);
+void action_toggle_sticky(struct nnwm_server *server);
 void action_toggle_tabbed(struct nnwm_server *server);
 void ext_workspace_init(struct nnwm_server *server);
 void ext_workspace_notify(struct nnwm_server *server);

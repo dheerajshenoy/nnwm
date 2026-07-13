@@ -34,6 +34,7 @@ apply_window_rules(nnwm_server *server, nnwm_toplevel *toplevel)
 
         if (r.floating   >= 0) toplevel->floating   = (bool)r.floating;
         if (r.fullscreen >= 0) toplevel->fullscreen = (bool)r.fullscreen;
+        if (r.sticky     >= 0) toplevel->sticky = (bool)r.sticky;
         if (r.workspace  >= 0) toplevel->workspace  = r.workspace;
         if (r.monitor) {
             nnwm_output *out;

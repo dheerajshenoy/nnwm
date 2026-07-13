@@ -469,6 +469,13 @@ l_nnwm_toggle_tabbed(lua_State *L)
 }
 
 static int
+l_nnwm_toggle_sticky(lua_State *L)
+{
+    nnwm::action_toggle_sticky(get_server(L));
+    return 0;
+}
+
+static int
 l_nnwm_focus_monitor_next(lua_State *L)
 {
     nnwm::action_focus_monitor_next(get_server(L));
@@ -524,6 +531,7 @@ l_nnwm_rule(lua_State *L)
     memset(&r, 0, sizeof(r));
     r.floating   = -1;
     r.fullscreen = -1;
+    r.sticky     = -1;
     r.workspace  = -1;
 
     /* Match criteria */
@@ -542,6 +550,10 @@ l_nnwm_rule(lua_State *L)
 
     lua_getfield(L, 2, "fullscreen");
     if (lua_isboolean(L, -1)) r.fullscreen = lua_toboolean(L, -1) ? 1 : 0;
+    lua_pop(L, 1);
+
+    lua_getfield(L, 2, "sticky");
+    if (lua_isboolean(L, -1)) r.sticky = lua_toboolean(L, -1) ? 1 : 0;
     lua_pop(L, 1);
 
     lua_getfield(L, 2, "workspace");
@@ -583,6 +595,7 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"master_ratio_shrink", l_nnwm_master_ratio_shrink},
     {"toggle_float", l_nnwm_toggle_float},
     {"toggle_fullscreen", l_nnwm_toggle_fullscreen},
+    {"toggle_sticky", l_nnwm_toggle_sticky},
     {"focus_monitor_next", l_nnwm_focus_monitor_next},
     {"focus_monitor_prev", l_nnwm_focus_monitor_prev},
     {"move_to_monitor_next", l_nnwm_move_to_monitor_next},

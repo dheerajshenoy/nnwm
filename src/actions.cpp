@@ -332,11 +332,12 @@ nnwm::action_switch_workspace(nnwm_server *server, int ws)
 
     out->active_workspace = ws;
 
-    /* Sync scene visibility for all toplevels on this output */
+    /* Sync scene visibility: sticky windows always remain visible */
     nnwm_toplevel *tl;
     wl_list_for_each(tl, &server->toplevels, link)
         wlr_scene_node_set_enabled(&tl->scene_tree->node,
-                                   tl->output && tl->output->active_workspace == tl->workspace);
+            tl->sticky ||
+            (tl->output && tl->output->active_workspace == tl->workspace));
 
     nnwm_toplevel *next = out->last_focused[ws];
     if (!next)
@@ -474,6 +475,15 @@ nnwm::action_toggle_fullscreen(nnwm_server *server)
     nnwm_toplevel *tl = get_focused_toplevel(server);
     if (tl)
         do_toggle_fullscreen(tl);
+}
+
+void
+nnwm::action_toggle_sticky(nnwm_server *server)
+{
+    nnwm_toplevel *tl = get_focused_toplevel(server);
+    if (!tl) return;
+    tl->sticky = !tl->sticky;
+    arrange_windows(server, tl->output);
 }
 
 void

@@ -136,6 +136,7 @@ KEY = {}
 ---@class nnwm_window_rule_action
 ---@field floating   boolean? Make the window floating (true) or tiled (false)
 ---@field fullscreen boolean? Make the window fullscreen
+---@field sticky     boolean? Make the window sticky (appears on all workspaces; tiles or floats as normal)
 ---@field workspace  integer? Assign to workspace 1–9
 ---@field monitor    string?  Assign to the output with this name (e.g. `"DP-1"`)
 
@@ -258,6 +259,11 @@ function nnwm.switch_workspace(n) end
 --- immediately and focus transfers to the next available window.
 ---@param n integer  Workspace index (1-indexed)
 function nnwm.move_to_workspace(n) end
+
+--- Toggle the focused window between sticky and normal.
+--- A sticky window appears on every workspace: if tiled it participates in the
+--- active workspace's layout; if floating it stays above all workspaces.
+function nnwm.toggle_sticky() end
 
 --- Toggle the focused window between floating and tiled mode.
 --- When made floating the window is centered on screen; when returned to tiled

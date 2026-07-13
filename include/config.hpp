@@ -21,6 +21,7 @@ struct nnwm_window_rule
     /* Actions — -1 / NULL = unset (don't apply) */
     int   floating;   /* -1=unset, 0=false, 1=true */
     int   fullscreen; /* -1=unset, 0=false, 1=true */
+    int   sticky;     /* -1=unset, 0=false, 1=true */
     int   workspace;  /* -1=unset, 0-8 = workspace index */
     char *monitor;    /* NULL=unset, output name e.g. "DP-1" */
 };
