@@ -1,4 +1,4 @@
----@meta "nnwm"
+---@meta
 
 -- ── MOD ──────────────────────────────────────────────────────────────────────
 
@@ -69,57 +69,61 @@ KEY = {}
 -- ── nnwm ─────────────────────────────────────────────────────────────────────
 
 ---@class nnwm.layout
----@field new_window_master  boolean  When true new windows become master; when false they append to the stack (default: true)
----@field master_ratio       number   Fraction of screen width for the master column (default: 0.55)
----@field master_ratio_step  number   Step size for master ratio adjustments (default: 0.05)
----@field master_ratio_min   number   Minimum master ratio (default: 0.1)
----@field master_ratio_max   number   Maximum master ratio (default: 0.9)
+---@field new_window_master?  boolean  When true new windows become master; when false they append to the stack (default: true)
+---@field master_ratio?       number   Fraction of screen width for the master column (default: 0.55)
+---@field master_ratio_step?  number   Step size for master ratio adjustments (default: 0.05)
+---@field master_ratio_min?   number   Minimum master ratio (default: 0.1)
+---@field master_ratio_max?   number   Maximum master ratio (default: 0.9)
 
 ---@class nnwm.gaps
----@field inner         integer  Gap in pixels between adjacent windows (default: 0)
----@field outer         integer  Gap in pixels between windows and the screen edge (default: 0)
----@field smart         boolean  Disable gaps when only one window is on screen (default: false)
----@field smart_borders boolean  Disable borders when only one window is on screen (default: false)
+---@field inner?  integer  Gap in pixels between adjacent windows (default: 0)
+---@field outer?  integer  Gap in pixels between windows and the screen edge (default: 0)
+---@field smart?  boolean  Disable gaps when only one window is on screen (default: false)
 
 ---@class nnwm.border
----@field width          integer   Border thickness in pixels (default: 2)
----@field focused_color  number[]  RGBA color for the focused window border (default: {0.3, 0.5, 0.8, 1.0})
----@field unfocused_color number[] RGBA color for unfocused window borders (default: {0.15, 0.15, 0.15, 1.0})
+---@field width?           integer   Border thickness in pixels (default: 2)
+---@field smart?           boolean   Disable borders when only one window is on screen (default: false)
+---@field focused_color?   number[]  RGBA color for the focused window border (default: {0.3, 0.5, 0.8, 1.0})
+---@field unfocused_color? number[]  RGBA color for unfocused window borders (default: {0.15, 0.15, 0.15, 1.0})
 
 ---@class nnwm.keyboard
----@field repeat_rate   integer  Key repeat rate in keys/sec (default: 25)
----@field repeat_delay  integer  Delay before repeat starts in ms (default: 600)
----@field xkb_options   string   Comma-separated XKB options, e.g. `"caps:escape,compose:ralt"` (default: "")
+---@field repeat_rate?   integer  Key repeat rate in keys/sec (default: 25)
+---@field repeat_delay?  integer  Delay before repeat starts in ms (default: 600)
+---@field xkb_options?   string   Comma-separated XKB options, e.g. `"caps:escape,compose:ralt"` (default: "")
 
 ---@class nnwm.touchpad
----@field tap_to_click         boolean  Enable tap-to-click (default: true)
----@field natural_scroll       boolean  Natural/reverse scroll direction (default: true)
----@field disable_while_typing boolean  Disable touchpad while typing (default: true)
+---@field tap_to_click?         boolean  Enable tap-to-click (default: true)
+---@field natural_scroll?       boolean  Natural/reverse scroll direction (default: true)
+---@field disable_while_typing? boolean  Disable touchpad while typing (default: true)
 
 ---@class nnwm.mouse
----@field focus_follows_mouse  boolean  Automatically focus the window under the cursor (default: false)
----@field cursor_theme         string   Xcursor theme name (default: "default")
----@field cursor_size          integer  Cursor size in pixels (default: 24)
+---@field focus_follows_mouse?  boolean  Automatically focus the window under the cursor (default: false)
+---@field cursor_theme?         string   Xcursor theme name (default: "default")
+---@field cursor_size?          integer  Cursor size in pixels (default: 24)
 
 ---@class nnwm.titlebar
----@field enabled         boolean   Enable the server-side titlebar (default: false)
----@field height          integer   Titlebar height in pixels, used when enabled (default: 20)
----@field font            string    Pango font description for the title text, e.g. `"Sans Bold 10"` (default: "Sans 10")
----@field text_align      integer   Text alignment: 0 = left, 1 = center, 2 = right (default: 1)
----@field bg_color        number[]  RGBA background color for unfocused windows (default: {0.2, 0.2, 0.2, 1.0})
----@field focused_bg_color number[] RGBA background color for the focused window (default: {0.25, 0.35, 0.55, 1.0})
----@field text_color      number[]  RGBA color for the title text (default: {1.0, 1.0, 1.0, 1.0})
+---@field enabled?          boolean   Enable the server-side titlebar (default: false)
+---@field height?           integer   Titlebar height in pixels, used when enabled (default: 20)
+---@field font?             string    Pango font description for the title text, e.g. `"Sans Bold 10"` (default: "Sans 10")
+---@field text_align?       integer   Text alignment: 0 = left, 1 = center, 2 = right (default: 1)
+---@field bg_color?         number[]  RGBA background color for unfocused windows (default: {0.2, 0.2, 0.2, 1.0})
+---@field focused_bg_color? number[]  RGBA background color for the focused window (default: {0.25, 0.35, 0.55, 1.0})
+---@field text_color?       number[]  RGBA color for the title text (default: {1.0, 1.0, 1.0, 1.0})
+
+---@class nnwm_opts
+---@field layout?             nnwm.layout
+---@field gaps?               nnwm.gaps
+---@field border?             nnwm.border
+---@field keyboard?           nnwm.keyboard
+---@field touchpad?           nnwm.touchpad
+---@field mouse?              nnwm.mouse
+---@field titlebar?           nnwm.titlebar
+---@field client_decorations? boolean
+---@field seat_name?          string
+---@field monitors?           nnwm_monitor_config[]
 
 ---@class nnwm
----@field layout    nnwm.layout    Layout behaviour
----@field gaps      nnwm.gaps      Gap settings
----@field border    nnwm.border    Border appearance
----@field keyboard  nnwm.keyboard  Keyboard settings
----@field touchpad  nnwm.touchpad  Touchpad settings (libinput)
----@field mouse     nnwm.mouse     Mouse and cursor settings
----@field titlebar  nnwm.titlebar  Server-side titlebar
----@field client_decorations boolean  Allow CSD; when false compositor requests SSD (default: false)
----@field seat_name          string   Wayland seat name (default: "seat0")
+---@field opt nnwm_opts
 
 --- Monitor configuration (array of tables). First match wins.
 ---@class nnwm_window_rule_match
@@ -147,7 +151,7 @@ KEY = {}
 ---@field hdr       boolean  Enable HDR (wlroots 0.20+)
 ---@field disabled  boolean  Disable this output
 nnwm = {}
-nnwm.monitors = {} ---@type nnwm_monitor_config[]
+nnwm.opt = {} ---@type nnwm_opts
 
 ---Register a keybinding. `combo` is an array of modifier and key name strings;
 ---`callback` is called when the combo is pressed.

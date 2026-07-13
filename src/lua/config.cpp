@@ -549,6 +549,17 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         lua_setglobal(L, "nnwm");
     }
 
+    /* get or create nnwm.opt */
+    lua_getfield(L, -1, "opt");
+    if (!lua_istable(L, -1))
+    {
+        lua_pop(L, 1);
+        lua_newtable(L);
+        lua_pushvalue(L, -1);
+        lua_setfield(L, -3, "opt");
+    }
+    /* stack: nnwm (-2), nnwm.opt (-1) */
+
     /* layout sub-table */
     lua_newtable(L);
     lua_pushboolean(L, cfg->new_window_master);
@@ -571,14 +582,14 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "outer");
     lua_pushboolean(L, cfg->smart_gaps);
     lua_setfield(L, -2, "smart");
-    lua_pushboolean(L, cfg->smart_borders);
-    lua_setfield(L, -2, "smart_borders");
     lua_setfield(L, -2, "gaps");
 
     /* border sub-table */
     lua_newtable(L);
     lua_pushinteger(L, cfg->border_width);
     lua_setfield(L, -2, "width");
+    lua_pushboolean(L, cfg->smart_borders);
+    lua_setfield(L, -2, "smart");
     lua_newtable(L);
     for (int i = 0; i < 4; i++) { lua_pushnumber(L, cfg->focused_color[i]); lua_rawseti(L, -2, i + 1); }
     lua_setfield(L, -2, "focused_color");
@@ -648,7 +659,7 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_newtable(L);
     lua_setfield(L, -2, "monitors");
 
-    lua_pop(L, 1);
+    lua_pop(L, 2); /* pop opt and nnwm */
 }
 
 static void
@@ -690,9 +701,11 @@ read_monitor_configs(lua_State *L, struct nnwm_config *cfg)
 
     lua_getglobal(L, "nnwm");
     if (!lua_istable(L, -1)) { lua_pop(L, 1); return; }
+    lua_getfield(L, -1, "opt");
+    if (!lua_istable(L, -1)) { lua_pop(L, 2); return; }
 
     lua_getfield(L, -1, "monitors");
-    if (!lua_istable(L, -1)) { lua_pop(L, 2); return; }
+    if (!lua_istable(L, -1)) { lua_pop(L, 3); return; }
 
     /* Count entries */
     int count = 0;
@@ -760,7 +773,7 @@ read_monitor_configs(lua_State *L, struct nnwm_config *cfg)
         idx++;
     }
 
-    lua_pop(L, 2); /* pop monitors table and nnwm table */
+    lua_pop(L, 3); /* pop monitors, opt, nnwm */
 }
 
 /* ---- read back non-keybinding settings from Lua ---- */
@@ -769,11 +782,11 @@ static void
 read_config_table(lua_State *L, struct nnwm_config *cfg)
 {
     lua_getglobal(L, "nnwm");
-    if (!lua_istable(L, -1))
-    {
-        lua_pop(L, 1);
-        return;
-    }
+    if (!lua_istable(L, -1)) { lua_pop(L, 1); return; }
+
+    lua_getfield(L, -1, "opt");
+    if (!lua_istable(L, -1)) { lua_pop(L, 2); return; }
+    /* stack: nnwm (-2), nnwm.opt (-1) */
 
     lua_getfield(L, -1, "layout");
     if (lua_istable(L, -1)) {
@@ -790,13 +803,13 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         cfg->inner_gap     = get_int_field(L, "inner", cfg->inner_gap);
         cfg->outer_gap     = get_int_field(L, "outer", cfg->outer_gap);
         cfg->smart_gaps    = get_bool_field(L, "smart", cfg->smart_gaps);
-        cfg->smart_borders = get_bool_field(L, "smart_borders", cfg->smart_borders);
     }
     lua_pop(L, 1);
 
     lua_getfield(L, -1, "border");
     if (lua_istable(L, -1)) {
-        cfg->border_width = get_int_field(L, "width", cfg->border_width);
+        cfg->border_width  = get_int_field(L, "width", cfg->border_width);
+        cfg->smart_borders = get_bool_field(L, "smart", cfg->smart_borders);
         float dflt_foc[4] = {cfg->focused_color[0], cfg->focused_color[1],
                              cfg->focused_color[2], cfg->focused_color[3]};
         get_color_field(L, "focused_color", cfg->focused_color, dflt_foc);
@@ -866,7 +879,7 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     free(cfg->seat_name);
     cfg->seat_name = s;
 
-    lua_pop(L, 1);
+    lua_pop(L, 2); /* pop opt and nnwm */
 
     read_monitor_configs(L, cfg);
 }
