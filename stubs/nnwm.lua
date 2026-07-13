@@ -68,6 +68,16 @@ KEY = {}
 
 -- ── nnwm ─────────────────────────────────────────────────────────────────────
 
+---@class nnwm.touchpad
+---@field tap_to_click         boolean  Enable tap-to-click (default: true)
+---@field natural_scroll       boolean  Natural/reverse scroll direction (default: true)
+---@field disable_while_typing boolean  Disable touchpad while typing (default: true)
+
+---@class nnwm.mouse
+---@field focus_follows_mouse  boolean  Automatically focus the window under the cursor (default: false)
+---@field cursor_theme         string   Xcursor theme name (default: "default")
+---@field cursor_size          integer  Cursor size in pixels (default: 24)
+
 ---@class nnwm
 --- Layout
 ---@field new_window_master  boolean  When true new windows become master; when false they append to the stack (default: true)
@@ -88,17 +98,12 @@ KEY = {}
 ---@field keyboard_repeat_rate  integer  Key repeat rate in keys/sec (default: 25)
 ---@field keyboard_repeat_delay integer  Delay before repeat starts in ms (default: 600)
 ---@field xkb_options  string  Comma-separated XKB options, e.g. `"caps:escape,compose:ralt"` (default: "")
---- Cursor
----@field cursor_theme  string   Xcursor theme name (default: "default")
----@field cursor_size   integer  Cursor size in pixels (default: 24)
 --- Seat
 ---@field seat_name  string  Wayland seat name (default: "seat0")
 --- Touchpad (libinput)
----@field touchpad_tap_to_click         boolean  Enable tap-to-click (default: true)
----@field touchpad_natural_scroll       boolean  Natural/reverse scroll direction (default: true)
----@field touchpad_disable_while_typing boolean  Disable touchpad while typing (default: true)
---- Focus
----@field focus_follows_mouse  boolean  Automatically focus the window under the cursor (default: false)
+---@field touchpad  nnwm.touchpad  Touchpad settings
+--- Mouse / pointer
+---@field mouse  nnwm.mouse  Mouse and cursor settings
 --- Decorations
 ---@field client_decorations         boolean   Allow clients to draw their own titlebars via CSD. When false the compositor requests server-side decoration so clients strip their titlebar (default: false)
 --- Titlebar (server-side, rendered by the compositor)

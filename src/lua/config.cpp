@@ -593,22 +593,28 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_pushstring(L, cfg->xkb_options ? cfg->xkb_options : "");
     lua_setfield(L, -2, "xkb_options");
 
+    lua_pushstring(L, cfg->seat_name);
+    lua_setfield(L, -2, "seat_name");
+
+    /* touchpad sub-table */
+    lua_newtable(L);
+    lua_pushboolean(L, cfg->touchpad_tap_to_click);
+    lua_setfield(L, -2, "tap_to_click");
+    lua_pushboolean(L, cfg->touchpad_natural_scroll);
+    lua_setfield(L, -2, "natural_scroll");
+    lua_pushboolean(L, cfg->touchpad_disable_while_typing);
+    lua_setfield(L, -2, "disable_while_typing");
+    lua_setfield(L, -2, "touchpad");
+
+    /* mouse sub-table */
+    lua_newtable(L);
+    lua_pushboolean(L, cfg->focus_follows_mouse);
+    lua_setfield(L, -2, "focus_follows_mouse");
     lua_pushstring(L, cfg->cursor_theme);
     lua_setfield(L, -2, "cursor_theme");
     lua_pushinteger(L, cfg->cursor_size);
     lua_setfield(L, -2, "cursor_size");
-    lua_pushstring(L, cfg->seat_name);
-    lua_setfield(L, -2, "seat_name");
-
-    lua_pushboolean(L, cfg->touchpad_tap_to_click);
-    lua_setfield(L, -2, "touchpad_tap_to_click");
-    lua_pushboolean(L, cfg->touchpad_natural_scroll);
-    lua_setfield(L, -2, "touchpad_natural_scroll");
-    lua_pushboolean(L, cfg->touchpad_disable_while_typing);
-    lua_setfield(L, -2, "touchpad_disable_while_typing");
-
-    lua_pushboolean(L, cfg->focus_follows_mouse);
-    lua_setfield(L, -2, "focus_follows_mouse");
+    lua_setfield(L, -2, "mouse");
     lua_pushboolean(L, cfg->new_window_master);
     lua_setfield(L, -2, "new_window_master");
     lua_pushboolean(L, cfg->client_decorations);
@@ -789,15 +795,26 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         = get_int_field(L, "keyboard_repeat_rate", cfg->keyboard_repeat_rate);
     cfg->keyboard_repeat_delay
         = get_int_field(L, "keyboard_repeat_delay", cfg->keyboard_repeat_delay);
-    cfg->cursor_size = get_int_field(L, "cursor_size", cfg->cursor_size);
-    cfg->touchpad_tap_to_click   = get_bool_field(L, "touchpad_tap_to_click",
-                                                  cfg->touchpad_tap_to_click);
-    cfg->touchpad_natural_scroll = get_bool_field(L, "touchpad_natural_scroll",
-                                                  cfg->touchpad_natural_scroll);
-    cfg->touchpad_disable_while_typing = get_bool_field(
-        L, "touchpad_disable_while_typing", cfg->touchpad_disable_while_typing);
-    cfg->focus_follows_mouse = get_bool_field(L, "focus_follows_mouse",
-                                              cfg->focus_follows_mouse);
+    lua_getfield(L, -1, "touchpad");
+    if (lua_istable(L, -1)) {
+        cfg->touchpad_tap_to_click = get_bool_field(L, "tap_to_click",
+                                                    cfg->touchpad_tap_to_click);
+        cfg->touchpad_natural_scroll = get_bool_field(L, "natural_scroll",
+                                                      cfg->touchpad_natural_scroll);
+        cfg->touchpad_disable_while_typing = get_bool_field(L, "disable_while_typing",
+                                                            cfg->touchpad_disable_while_typing);
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "mouse");
+    if (lua_istable(L, -1)) {
+        cfg->focus_follows_mouse = get_bool_field(L, "focus_follows_mouse",
+                                                  cfg->focus_follows_mouse);
+        char *ct = get_string_field(L, "cursor_theme", cfg->cursor_theme);
+        free(cfg->cursor_theme); cfg->cursor_theme = ct;
+        cfg->cursor_size = get_int_field(L, "cursor_size", cfg->cursor_size);
+    }
+    lua_pop(L, 1);
     cfg->new_window_master   = get_bool_field(L, "new_window_master",
                                               cfg->new_window_master);
     cfg->client_decorations  = get_bool_field(L, "client_decorations",
@@ -822,10 +839,6 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     get_color_field(L, "titlebar_text_color", cfg->titlebar_text_color, dflt_ttc);
 
     char *s;
-    s = get_string_field(L, "cursor_theme", cfg->cursor_theme);
-    free(cfg->cursor_theme);
-    cfg->cursor_theme = s;
-
     s = get_string_field(L, "seat_name", cfg->seat_name);
     free(cfg->seat_name);
     cfg->seat_name = s;
