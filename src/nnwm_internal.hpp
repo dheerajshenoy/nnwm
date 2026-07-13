@@ -54,7 +54,8 @@ struct nnwm_toplevel *desktop_toplevel_at(struct nnwm_server *server,
 void reset_cursor_mode(struct nnwm_server *server);
 void begin_interactive(struct nnwm_toplevel *toplevel,
                        enum nnwm_cursor_mode mode, uint32_t edges);
-void process_cursor_motion(struct nnwm_server *server, uint32_t time);
+void process_cursor_motion(struct nnwm_server *server, uint32_t time,
+                           bool real_motion = false);
 
 /* ---- Layer shell ---- */
 void arrange_layers(struct nnwm_server *server, struct wlr_output *output);

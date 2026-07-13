@@ -93,16 +93,24 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
     if (out && out->prev_focused[ws] == toplevel)
         out->prev_focused[ws] = nullptr;
 
+    /* For tiled windows, find the adjacent stack neighbor before removal. */
+    nnwm_toplevel *stack_next = nullptr;
+    if (was_focused && out && !toplevel->floating) {
+        stack_next = ws_next(server, out, toplevel);
+        if (!stack_next)
+            stack_next = ws_prev(server, out, toplevel);
+    }
+
     wl_list_remove(&toplevel->link);
 
     if (out) {
         nnwm_toplevel *next = nullptr;
-        if (was_focused)
-            next = out->prev_focused[ws];
-        if (!next)
-            next = out->last_focused[ws];
-        if (!next)
-            next = ws_first(server, out);
+        if (was_focused) {
+            next = stack_next;
+            if (!next) next = out->prev_focused[ws];
+            if (!next) next = out->last_focused[ws];
+            if (!next) next = ws_first_float(server, out);
+        }
         if (next) focus_toplevel(next);
         else      wlr_seat_keyboard_clear_focus(server->seat);
         arrange_windows(server, out);

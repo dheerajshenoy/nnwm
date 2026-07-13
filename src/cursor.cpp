@@ -117,7 +117,7 @@ process_cursor_resize(nnwm_server *server)
 }
 
 void
-process_cursor_motion(nnwm_server *server, uint32_t time)
+process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
 {
     if (server->cursor_mode == NNWM_CURSOR_MOVE)
     {
@@ -150,7 +150,7 @@ process_cursor_motion(nnwm_server *server, uint32_t time)
     {
         wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
         wlr_seat_pointer_notify_motion(seat, time, sx, sy);
-        if (toplevel && server->config->focus_follows_mouse)
+        if (real_motion && toplevel && server->config->focus_follows_mouse)
             focus_toplevel(toplevel);
     }
     else
@@ -234,7 +234,7 @@ server_cursor_motion(wl_listener *listener, void *data)
     auto *event = static_cast<wlr_pointer_motion_event*>(data);
     wlr_cursor_move(server->cursor, &event->pointer->base, event->delta_x,
                     event->delta_y);
-    process_cursor_motion(server, event->time_msec);
+    process_cursor_motion(server, event->time_msec, true);
 }
 
 void
@@ -245,7 +245,7 @@ server_cursor_motion_absolute(wl_listener *listener, void *data)
     auto *event = static_cast<wlr_pointer_motion_absolute_event*>(data);
     wlr_cursor_warp_absolute(server->cursor, &event->pointer->base, event->x,
                              event->y);
-    process_cursor_motion(server, event->time_msec);
+    process_cursor_motion(server, event->time_msec, true);
 }
 
 void
