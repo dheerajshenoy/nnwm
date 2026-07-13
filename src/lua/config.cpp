@@ -14,6 +14,7 @@ extern "C"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <unistd.h>
 
 /* ---- helpers ---- */
 
@@ -440,6 +441,18 @@ l_nnwm_move_to_monitor_prev(lua_State *L)
     return 0;
 }
 
+static int
+l_nnwm_host_name(lua_State *L)
+{
+    char buf[256];
+    if (gethostname(buf, sizeof(buf)) == 0)
+        buf[sizeof(buf) - 1] = '\0';
+    else
+        buf[0] = '\0';
+    lua_pushstring(L, buf);
+    return 1;
+}
+
 static const struct luaL_Reg nnwm_funcs[] = {
     {"key", l_nnwm_key},
     {"quit", l_nnwm_quit},
@@ -466,6 +479,7 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"focus_monitor_prev", l_nnwm_focus_monitor_prev},
     {"move_to_monitor_next", l_nnwm_move_to_monitor_next},
     {"move_to_monitor_prev", l_nnwm_move_to_monitor_prev},
+    {"host_name", l_nnwm_host_name},
     {nullptr, nullptr},
 };
 

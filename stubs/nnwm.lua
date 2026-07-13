@@ -144,6 +144,10 @@ function nnwm.key(combo, callback) end
 --- Terminate the compositor.
 function nnwm.quit() end
 
+--- Return the hostname of the machine.
+---@return string
+function nnwm.host_name() end
+
 --- Close the focused window.
 function nnwm.close() end
 
