@@ -6,6 +6,10 @@ Latest Version: 0.1.0
 
 # Features
 
+- Tiling window management
+- Configuration through Lua
+- Based on `wlroots` (similar to SwayWM/RiverWM)
+
 # TODO
 
 Check out the [TODO](./TODO.md) file.
