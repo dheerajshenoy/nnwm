@@ -70,6 +70,11 @@ extern "C"
 
 #define NNWM_NUM_WORKSPACES 9
 
+enum nnwm_layout_mode {
+    NNWM_LAYOUT_TILE,
+    NNWM_LAYOUT_TABBED,
+};
+
 struct lua_State;
 
 struct nnwm_lua_keybinding
@@ -192,6 +197,8 @@ struct nnwm_output
     struct wlr_output *wlr_output;
     struct wlr_box usable_area; /* output area minus exclusive-zone struts */
     int active_workspace;
+    enum nnwm_layout_mode layout_mode[NNWM_NUM_WORKSPACES];
+    struct wlr_scene_buffer *tab_bar;
     struct nnwm_toplevel *last_focused[NNWM_NUM_WORKSPACES];
     struct nnwm_toplevel *prev_focused[NNWM_NUM_WORKSPACES]; /* focused before last_focused */
     struct wl_listener frame;
@@ -367,6 +374,7 @@ void action_master_ratio_grow(struct nnwm_server *server);
 void action_master_ratio_shrink(struct nnwm_server *server);
 void action_toggle_float(struct nnwm_server *server);
 void action_toggle_fullscreen(struct nnwm_server *server);
+void action_toggle_tabbed(struct nnwm_server *server);
 void ext_workspace_init(struct nnwm_server *server);
 void ext_workspace_notify(struct nnwm_server *server);
 } // namespace nnwm

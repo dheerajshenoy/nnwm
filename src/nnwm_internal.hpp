@@ -6,6 +6,8 @@
 
 /* ---- Rendering ---- */
 void render_titlebar(struct nnwm_toplevel *tl, int inner_width, bool focused);
+void render_tab_bar(struct nnwm_server *server, struct nnwm_output *out,
+                    int width, int height);
 void update_borders(struct nnwm_toplevel *toplevel, int width, int height, int bw);
 
 /* ---- Output / workspace helpers ---- */
@@ -47,6 +49,8 @@ void arrange_windows(struct nnwm_server *server, struct nnwm_output *out);
 void arrange_all_outputs(struct nnwm_server *server);
 
 /* ---- Cursor / pointer ---- */
+struct nnwm_toplevel *tab_toplevel_at(struct nnwm_server *server,
+                                      double lx, double ly);
 struct nnwm_toplevel *desktop_toplevel_at(struct nnwm_server *server,
                                           double lx, double ly,
                                           struct wlr_surface **surface,

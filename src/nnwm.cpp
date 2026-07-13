@@ -147,6 +147,100 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
     wlr_scene_node_set_position(&toplevel->scene_surface->node, bw, bw + th);
 }
 
+/* ---- Tabbed layout tab bar rendering ---- */
+
+void
+render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
+{
+    if (!out->tab_bar || width <= 0 || height <= 0) return;
+
+    nnwm_config *cfg = server->config;
+    int ws = out->active_workspace;
+
+    int n = ws_count(server, out);
+    if (n == 0) {
+        wlr_scene_node_set_enabled(&out->tab_bar->node, false);
+        return;
+    }
+
+    /* Use last_focused[ws] so the tab stays highlighted even when a layer-shell
+     * surface (e.g. rofi) temporarily holds keyboard focus. */
+    nnwm_toplevel *active_tl = out->last_focused[ws];
+
+    nnwm_tbuf *tb = tbuf_create(width, height);
+    cairo_surface_t *surf = cairo_image_surface_create_for_data(
+        tb->data, CAIRO_FORMAT_ARGB32, width, height, tb->stride);
+    cairo_t *cr = cairo_create(surf);
+
+    const float *dflt_bg = cfg->titlebar_bg_color;
+    cairo_set_source_rgba(cr, dflt_bg[0], dflt_bg[1], dflt_bg[2], dflt_bg[3]);
+    cairo_paint(cr);
+
+    int i = 0;
+    nnwm_toplevel *tl;
+    wl_list_for_each(tl, &server->toplevels, link) {
+        if (tl->output != out || tl->workspace != ws || tl->floating || tl->fullscreen)
+            continue;
+
+        bool focused = (tl == active_tl);
+        int x = (int)((long)i * width / n);
+        int w = (int)((long)(i + 1) * width / n) - x;
+
+        const float *bg = focused ? cfg->titlebar_focused_bg_color : cfg->titlebar_bg_color;
+        cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
+        cairo_rectangle(cr, x, 0, w, height);
+        cairo_fill(cr);
+
+        /* Tab separator */
+        if (i < n - 1) {
+            cairo_set_source_rgba(cr, 0, 0, 0, 0.4);
+            cairo_rectangle(cr, x + w - 1, 0, 1, height);
+            cairo_fill(cr);
+        }
+
+        const char *title = tl->xdg_toplevel->title;
+        if (title && title[0]) {
+            PangoLayout *layout = pango_cairo_create_layout(cr);
+            PangoFontDescription *fd = pango_font_description_from_string(
+                cfg->titlebar_font ? cfg->titlebar_font : "Sans 10");
+            const char *fam = pango_font_description_get_family(fd);
+            char fallback[256];
+            std::snprintf(fallback, sizeof(fallback),
+                          "%s,DejaVu Sans,Noto Sans,Liberation Sans,Arial",
+                          fam ? fam : "Sans");
+            pango_font_description_set_family(fd, fallback);
+            pango_layout_set_font_description(layout, fd);
+            pango_font_description_free(fd);
+            pango_layout_set_text(layout, title, -1);
+            pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
+
+            int pad = 4;
+            pango_layout_set_width(layout, (w - 2 * pad) * PANGO_SCALE);
+            pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
+
+            int pw, ph;
+            pango_layout_get_size(layout, &pw, &ph);
+            double ty = (height - ph / (double)PANGO_SCALE) / 2.0;
+
+            const float *tc = focused ? cfg->titlebar_focused_text_color : cfg->titlebar_text_color;
+            cairo_set_source_rgba(cr, tc[0], tc[1], tc[2], tc[3]);
+            cairo_move_to(cr, x + pad, ty);
+            pango_cairo_show_layout(cr, layout);
+            g_object_unref(layout);
+        }
+        i++;
+    }
+
+    cairo_destroy(cr);
+    cairo_surface_destroy(surf);
+
+    wlr_scene_buffer_set_buffer(out->tab_bar, &tb->base);
+    wlr_scene_buffer_set_dest_size(out->tab_bar, width, height);
+    wlr_buffer_drop(&tb->base);
+    wlr_scene_node_set_enabled(&out->tab_bar->node, true);
+    wlr_scene_node_raise_to_top(&out->tab_bar->node);
+}
+
 /* ---- Output / workspace helpers ---- */
 
 nnwm_output *
@@ -282,15 +376,75 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
     if (!out)
         return;
 
+    int ws = out->active_workspace;
+    const wlr_box &area = out->usable_area;
+    nnwm_config *cfg = server->config;
+    nnwm_toplevel *tl;
+
+    /* ── Tabbed layout ─────────────────────────────────────────────────────── */
+    if (out->layout_mode[ws] == NNWM_LAYOUT_TABBED) {
+        int n     = ws_count(server, out);
+        bool solo = (n == 1);
+        int bw    = (solo && cfg->smart_borders) ? 0 : cfg->border_width;
+        int og    = (solo && cfg->smart_gaps)    ? 0 : cfg->outer_gap;
+        int tab_h = cfg->titlebar_height > 0 ? cfg->titlebar_height : 24;
+
+        /* Use last_focused[ws] so the visible window survives layer-shell focus
+         * steals (e.g. rofi). Fall back to first tiled window if none recorded. */
+        nnwm_toplevel *active = out->last_focused[ws];
+        if (!active) active = ws_first(server, out);
+
+        int cx = area.x + og;
+        int cy = area.y + og + tab_h;
+        int cw = area.width  - 2 * og;
+        int ch = area.height - 2 * og - tab_h;
+
+        wl_list_for_each(tl, &server->toplevels, link) {
+            if (tl->output != out || tl->workspace != ws || tl->floating || tl->fullscreen)
+                continue;
+            wlr_scene_node_set_enabled(&tl->scene_tree->node, tl == active);
+            if (tl->titlebar)
+                wlr_scene_node_set_enabled(&tl->titlebar->node, false);
+            wlr_scene_node_set_position(&tl->scene_tree->node, cx, cy);
+            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, cw - 2 * bw, ch - 2 * bw);
+            update_borders(tl, cw, ch, bw);
+            /* Override scene_surface position: no per-window titlebar offset */
+            wlr_scene_node_set_position(&tl->scene_surface->node, bw, bw);
+        }
+
+        if (n > 0) {
+            render_tab_bar(server, out, cw, tab_h);
+            wlr_scene_node_set_position(&out->tab_bar->node, cx, area.y + og);
+            wlr_scene_node_raise_to_top(&out->tab_bar->node);
+        } else if (out->tab_bar) {
+            wlr_scene_node_set_enabled(&out->tab_bar->node, false);
+        }
+
+        /* Floating and fullscreen above everything */
+        wl_list_for_each(tl, &server->toplevels, link) {
+            if (tl->output == out && tl->workspace == ws && (tl->floating || tl->fullscreen))
+                wlr_scene_node_raise_to_top(&tl->scene_tree->node);
+        }
+        return;
+    }
+
+    /* ── Tile layout (master-stack) ────────────────────────────────────────── */
+
+    /* Disable tab bar and re-enable tiled scene trees (from possible tabbed state) */
+    if (out->tab_bar)
+        wlr_scene_node_set_enabled(&out->tab_bar->node, false);
+    wl_list_for_each(tl, &server->toplevels, link) {
+        if (tl->output == out && tl->workspace == ws && !tl->floating && !tl->fullscreen)
+            wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
+    }
+
     int n = ws_count(server, out);
 
-    const wlr_box &area = out->usable_area;
-
     bool solo = (n == 1);
-    int bw = (solo && server->config->smart_borders) ? 0 : server->config->border_width;
-    int ig = (solo && server->config->smart_gaps)    ? 0 : server->config->inner_gap;
-    int og = (solo && server->config->smart_gaps)    ? 0 : server->config->outer_gap;
-    int th = server->config->titlebar_height;
+    int bw = (solo && cfg->smart_borders) ? 0 : cfg->border_width;
+    int ig = (solo && cfg->smart_gaps)    ? 0 : cfg->inner_gap;
+    int og = (solo && cfg->smart_gaps)    ? 0 : cfg->outer_gap;
+    int th = cfg->titlebar_height;
 
     int x0 = area.x + og;
     int y0 = area.y + og;
@@ -299,10 +453,9 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
 
     wlr_surface *focused_surface = server->seat->keyboard_state.focused_surface;
 
-    nnwm_toplevel *tl;
     if (n == 1) {
         wl_list_for_each(tl, &server->toplevels, link) {
-            if (tl->output != out || tl->workspace != out->active_workspace || tl->floating || tl->fullscreen)
+            if (tl->output != out || tl->workspace != ws || tl->floating || tl->fullscreen)
                 continue;
             wlr_scene_node_set_position(&tl->scene_tree->node, x0, y0);
             wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw, H - 2 * bw - th);
@@ -312,14 +465,14 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
             break;
         }
     } else if (n > 1) {
-        int mw = (int)(W * server->config->master_ratio);
+        int mw = (int)(W * cfg->master_ratio);
         int sw = W - mw - ig;
         int ns = n - 1;
         int sh = (H - (ns - 1) * ig) / ns;
 
         int i = 0;
         wl_list_for_each(tl, &server->toplevels, link) {
-            if (tl->output != out || tl->workspace != out->active_workspace || tl->floating || tl->fullscreen)
+            if (tl->output != out || tl->workspace != ws || tl->floating || tl->fullscreen)
                 continue;
             bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
             if (i == 0) {
@@ -341,7 +494,7 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
 
     /* Floating and fullscreen windows must always sit above tiled ones. */
     wl_list_for_each(tl, &server->toplevels, link) {
-        if (tl->output == out && tl->workspace == out->active_workspace && (tl->floating || tl->fullscreen))
+        if (tl->output == out && tl->workspace == ws && (tl->floating || tl->fullscreen))
             wlr_scene_node_raise_to_top(&tl->scene_tree->node);
     }
 }
@@ -410,5 +563,8 @@ focus_toplevel(nnwm_toplevel *toplevel)
         if (out->last_focused[ws] != toplevel)
             out->prev_focused[ws] = out->last_focused[ws];
         out->last_focused[ws] = toplevel;
+
+        if (out->layout_mode[ws] == NNWM_LAYOUT_TABBED)
+            arrange_windows(server, out);
     }
 }

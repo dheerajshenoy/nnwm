@@ -51,6 +51,8 @@ output_destroy(wl_listener *listener, void * /*data*/)
     wl_list_remove(&output->request_state.link);
     wl_list_remove(&output->destroy.link);
     wl_list_remove(&output->link);
+    if (output->tab_bar)
+        wlr_scene_node_destroy(&output->tab_bar->node);
     delete output;
 
     output_manager_build_config(server);
@@ -381,6 +383,10 @@ server_new_output(wl_listener *listener, void *data)
     output->active_workspace = 0;
     memset(output->last_focused, 0, sizeof(output->last_focused));
     memset(output->prev_focused, 0, sizeof(output->prev_focused));
+    for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
+        output->layout_mode[i] = NNWM_LAYOUT_TILE;
+    output->tab_bar = wlr_scene_buffer_create(server->scene_windows, nullptr);
+    wlr_scene_node_set_enabled(&output->tab_bar->node, false);
     if (!server->focused_output)
         server->focused_output = output;
 

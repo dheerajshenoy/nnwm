@@ -34,6 +34,46 @@ desktop_toplevel_at(nnwm_server *server, double lx, double ly,
     return static_cast<nnwm_toplevel*>(tree->node.data);
 }
 
+/* ---- Tab bar hit-testing ---- */
+
+nnwm_toplevel *
+tab_toplevel_at(nnwm_server *server, double lx, double ly)
+{
+    nnwm_output *hit = nullptr;
+    nnwm_output *o;
+    wl_list_for_each(o, &server->outputs, link) {
+        if (!o->tab_bar || !o->tab_bar->node.enabled) continue;
+        int ws = o->active_workspace;
+        if (o->layout_mode[ws] != NNWM_LAYOUT_TABBED) continue;
+        int tab_h = o->server->config->titlebar_height > 0
+                  ? o->server->config->titlebar_height : 24;
+        const wlr_box &area = o->usable_area;
+        if (lx >= area.x && lx < area.x + area.width &&
+            ly >= area.y && ly < area.y + tab_h) {
+            hit = o; break;
+        }
+    }
+    if (!hit) return nullptr;
+
+    int ws = hit->active_workspace;
+    int n  = ws_count(server, hit);
+    if (n == 0) return nullptr;
+
+    int rel_x  = (int)(lx - hit->usable_area.x);
+    int tab_idx = (int)((long)rel_x * n / hit->usable_area.width);
+    if (tab_idx < 0)   tab_idx = 0;
+    if (tab_idx >= n)  tab_idx = n - 1;
+
+    int i = 0;
+    nnwm_toplevel *tl;
+    wl_list_for_each(tl, &server->toplevels, link) {
+        if (tl->output != hit || tl->workspace != ws || tl->floating || tl->fullscreen)
+            continue;
+        if (i++ == tab_idx) return tl;
+    }
+    return nullptr;
+}
+
 /* ---- Cursor mode management ---- */
 
 void
@@ -269,6 +309,18 @@ server_cursor_button(wl_listener *listener, void *data)
                                            event->button, event->state);
         }
         return;
+    }
+
+    /* Tab bar click: focus the clicked window */
+    if (!server->session_lock) {
+        nnwm_toplevel *tab_tl = tab_toplevel_at(
+            server, server->cursor->x, server->cursor->y);
+        if (tab_tl) {
+            focus_toplevel(tab_tl);
+            wlr_seat_pointer_notify_button(server->seat, event->time_msec,
+                                           event->button, event->state);
+            return;
+        }
     }
 
     double sx, sy;

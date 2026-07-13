@@ -462,6 +462,13 @@ l_nnwm_toggle_fullscreen(lua_State *L)
 }
 
 static int
+l_nnwm_toggle_tabbed(lua_State *L)
+{
+    nnwm::action_toggle_tabbed(get_server(L));
+    return 0;
+}
+
+static int
 l_nnwm_focus_monitor_next(lua_State *L)
 {
     nnwm::action_focus_monitor_next(get_server(L));
@@ -576,6 +583,7 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"master_ratio_shrink", l_nnwm_master_ratio_shrink},
     {"toggle_float", l_nnwm_toggle_float},
     {"toggle_fullscreen", l_nnwm_toggle_fullscreen},
+    {"toggle_tabbed", l_nnwm_toggle_tabbed},
     {"focus_monitor_next", l_nnwm_focus_monitor_next},
     {"focus_monitor_prev", l_nnwm_focus_monitor_prev},
     {"move_to_monitor_next", l_nnwm_move_to_monitor_next},

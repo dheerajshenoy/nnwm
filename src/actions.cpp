@@ -477,6 +477,18 @@ nnwm::action_toggle_fullscreen(nnwm_server *server)
 }
 
 void
+nnwm::action_toggle_tabbed(nnwm_server *server)
+{
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+    int ws = out->active_workspace;
+    out->layout_mode[ws] = (out->layout_mode[ws] == NNWM_LAYOUT_TABBED)
+        ? NNWM_LAYOUT_TILE
+        : NNWM_LAYOUT_TABBED;
+    arrange_windows(server, out);
+}
+
+void
 nnwm::action_move_to_workspace(nnwm_server *server, int ws)
 {
     if (ws < 0 || ws >= NNWM_NUM_WORKSPACES)
