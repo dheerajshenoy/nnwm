@@ -153,6 +153,9 @@ struct nnwm_server
     struct wlr_ext_image_copy_capture_manager_v1 *image_copy_capture_manager;
     struct wlr_ext_output_image_capture_source_manager_v1 *output_capture_source_manager;
 
+    struct wl_global *ext_workspace_global;
+    struct wl_list ext_workspace_managers; /* nnwm_ext_workspace_manager::link */
+
     /* Focused output — tracks which output keyboard actions operate on */
     struct nnwm_output *focused_output;
 
@@ -274,6 +277,33 @@ struct nnwm_layer_surface
     struct wl_listener destroy;
 };
 
+/* ext-workspace-v1 protocol structures */
+struct nnwm_ext_workspace_manager; /* forward */
+
+struct nnwm_ext_workspace_group; /* forward */
+
+struct nnwm_ext_workspace {
+    struct wl_list link;                      /* in nnwm_ext_workspace_group::workspaces */
+    struct wl_resource *resource;
+    int index;                                /* 0-based */
+    struct nnwm_ext_workspace_group *group;
+};
+
+struct nnwm_ext_workspace_group {
+    struct wl_list link;                      /* in nnwm_ext_workspace_manager::groups */
+    struct wl_resource *resource;
+    struct wl_list workspaces;                /* nnwm_ext_workspace::link */
+    struct nnwm_ext_workspace_manager *manager;
+};
+
+struct nnwm_ext_workspace_manager {
+    struct wl_list link;                      /* in nnwm_server::ext_workspace_managers */
+    struct wl_resource *resource;
+    struct wl_list groups;                    /* nnwm_ext_workspace_group::link */
+    struct nnwm_server *server;
+    bool stopped;
+};
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -329,5 +359,7 @@ void action_master_ratio_grow(struct nnwm_server *server);
 void action_master_ratio_shrink(struct nnwm_server *server);
 void action_toggle_float(struct nnwm_server *server);
 void action_toggle_fullscreen(struct nnwm_server *server);
+void ext_workspace_init(struct nnwm_server *server);
+void ext_workspace_notify(struct nnwm_server *server);
 } // namespace nnwm
 #endif

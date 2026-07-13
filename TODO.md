@@ -66,6 +66,7 @@
     - [X] ext-image-copy-capture-v1
     - [X] ext-session-lock-v1
     - [X] wlr-output-power-management-unstable-v1
+    - [X] ext-workspace-v1
     - [ ] wlr-data-control-unstable-v1
     - [ ] wlr-virtual-pointer-unstable-v1
     - [ ] wlr-virtual-keyboard-unstable-v1

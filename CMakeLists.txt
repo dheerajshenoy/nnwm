@@ -43,6 +43,10 @@ set(EXT_IMAGE_CAPTURE_SOURCE_XML    "${WAYLAND_PROTOCOLS_DIR}/staging/ext-image-
 set(EXT_IMAGE_CAPTURE_SOURCE_HEADER "${CMAKE_CURRENT_BINARY_DIR}/ext-image-capture-source-v1-protocol.h")
 set(EXT_IMAGE_CAPTURE_SOURCE_CODE   "${CMAKE_CURRENT_BINARY_DIR}/ext-image-capture-source-v1-protocol.c")
 
+set(EXT_WORKSPACE_XML    "${WAYLAND_PROTOCOLS_DIR}/staging/ext-workspace/ext-workspace-v1.xml")
+set(EXT_WORKSPACE_HEADER "${CMAKE_CURRENT_BINARY_DIR}/ext-workspace-v1-protocol.h")
+set(EXT_WORKSPACE_CODE   "${CMAKE_CURRENT_BINARY_DIR}/ext-workspace-v1-protocol.c")
+
 add_custom_command(
     OUTPUT "${XDG_SHELL_HEADER}"
     COMMAND "${WAYLAND_SCANNER}" client-header "${XDG_SHELL_XML}" "${XDG_SHELL_HEADER}"
@@ -99,21 +103,34 @@ add_custom_command(
     DEPENDS "${EXT_IMAGE_CAPTURE_SOURCE_XML}"
 )
 
+add_custom_command(
+    OUTPUT "${EXT_WORKSPACE_HEADER}"
+    COMMAND "${WAYLAND_SCANNER}" server-header "${EXT_WORKSPACE_XML}" "${EXT_WORKSPACE_HEADER}"
+    DEPENDS "${EXT_WORKSPACE_XML}"
+)
+add_custom_command(
+    OUTPUT "${EXT_WORKSPACE_CODE}"
+    COMMAND "${WAYLAND_SCANNER}" private-code "${EXT_WORKSPACE_XML}" "${EXT_WORKSPACE_CODE}"
+    DEPENDS "${EXT_WORKSPACE_XML}"
+)
+
+add_custom_target(protocol_headers ALL
+    DEPENDS
+        "${XDG_SHELL_HEADER}"
+        "${LAYER_SHELL_HEADER}"
+        "${OUTPUT_POWER_HEADER}"
+        "${EXT_IMAGE_COPY_CAPTURE_HEADER}"
+        "${EXT_IMAGE_CAPTURE_SOURCE_HEADER}"
+        "${EXT_WORKSPACE_HEADER}"
+        "${EXT_WORKSPACE_CODE}"
+)
+
 add_executable(nnwm
     src/main.cpp
     src/nnwm.cpp
     src/lua/config.cpp
-    "${XDG_SHELL_CODE}"
-    "${XDG_SHELL_HEADER}"
-    "${LAYER_SHELL_CODE}"
-    "${LAYER_SHELL_HEADER}"
-    "${OUTPUT_POWER_CODE}"
-    "${OUTPUT_POWER_HEADER}"
-    "${EXT_IMAGE_COPY_CAPTURE_CODE}"
-    "${EXT_IMAGE_COPY_CAPTURE_HEADER}"
-    "${EXT_IMAGE_CAPTURE_SOURCE_CODE}"
-    "${EXT_IMAGE_CAPTURE_SOURCE_HEADER}"
 )
+add_dependencies(nnwm protocol_headers)
 
 target_include_directories(nnwm PRIVATE
     include

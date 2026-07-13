@@ -211,6 +211,9 @@ main(int argc, char *argv[])
     server.output_capture_source_manager =
         wlr_ext_output_image_capture_source_manager_v1_create(server.wl_display, 1);
 
+    /* ext-workspace-v1: workspace protocol used by waybar's ext/workspaces module */
+    nnwm::ext_workspace_init(&server);
+
     /* XDG decoration: tell clients to use client-side decorations */
     server.decoration_manager       = wlr_xdg_decoration_manager_v1_create(server.wl_display);
     server.new_decoration.notify    = server_new_decoration;
@@ -380,6 +383,7 @@ main(int argc, char *argv[])
 
     wl_list_remove(&server.new_output.link);
 
+    wl_global_destroy(server.ext_workspace_global);
     wlr_scene_node_destroy(&server.scene->tree.node);
     wlr_xcursor_manager_destroy(server.cursor_mgr);
     wlr_cursor_destroy(server.cursor);
