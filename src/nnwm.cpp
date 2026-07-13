@@ -1742,6 +1742,83 @@ layer_surface_destroy(wl_listener *listener, void * /*data*/)
 void
 server_apply_config(nnwm_server *server)
 {
+    /* Re-apply monitor configuration (mode, scale, transform, position,
+     * enabled/disabled) to all existing outputs.  This mirrors the logic in
+     * server_new_output but runs on already-created outputs. */
+    {
+        nnwm_output *output, *tmp;
+        wl_list_for_each_safe(output, tmp, &server->outputs, link) {
+            wlr_output *wlr_output = output->wlr_output;
+
+            /* Find matching monitor config (first match wins) */
+            nnwm_monitor_config *mc = nullptr;
+            {
+                auto *cfg = server->config;
+                for (int i = 0; i < cfg->monitor_config_count; i++) {
+                    auto &c = cfg->monitor_configs[i];
+                    bool match = true;
+                    if (c.name   && (!wlr_output->name   || strcmp(c.name,   wlr_output->name)   != 0)) match = false;
+                    if (c.make   && (!wlr_output->make   || strcmp(c.make,   wlr_output->make)   != 0)) match = false;
+                    if (c.model  && (!wlr_output->model  || strcmp(c.model,  wlr_output->model)  != 0)) match = false;
+                    if (c.serial && (!wlr_output->serial || strcmp(c.serial, wlr_output->serial) != 0)) match = false;
+                    if (match) { mc = &c; break; }
+                }
+            }
+
+            if (!mc)
+                continue;  /* no config for this output — keep current state */
+
+            wlr_output_state state;
+            wlr_output_state_init(&state);
+
+            if (mc->disabled) {
+                wlr_output_state_set_enabled(&state, false);
+                wlr_output_commit_state(wlr_output, &state);
+                wlr_output_state_finish(&state);
+                continue;
+            }
+
+            /* Apply scale */
+            if (mc->scale > 0.0f)
+                wlr_output_state_set_scale(&state, mc->scale);
+
+            /* Apply transform */
+            if (mc->transform >= 0)
+                wlr_output_state_set_transform(&state,
+                    static_cast<wl_output_transform>(mc->transform));
+
+            /* Pick a mode: match by size/refresh if configured */
+            if (mc->width > 0 && mc->height > 0) {
+                int target_w   = mc->width;
+                int target_h   = mc->height;
+                int target_mhz = mc->refresh * 1000;
+
+                wlr_output_mode *mode = nullptr;
+                wlr_output_mode *m;
+                wl_list_for_each(m, &wlr_output->modes, link) {
+                    if (m->width == target_w && m->height == target_h) {
+                        if (target_mhz == 0 || m->refresh == target_mhz)
+                        { mode = m; break; }
+                        if (!mode) mode = m;
+                    }
+                }
+                if (mode)
+                    wlr_output_state_set_mode(&state, mode);
+            }
+
+            wlr_output_commit_state(wlr_output, &state);
+            wlr_output_state_finish(&state);
+
+            /* Reposition in the output layout */
+            if (mc->x != INT_MAX && mc->y != INT_MAX)
+                wlr_output_layout_add(server->output_layout, wlr_output,
+                                      mc->x, mc->y);
+        }
+
+        /* Update the output manager so wlr-randr / kanshi see the changes */
+        output_manager_build_config(server);
+    }
+
     /* Update border colors using actual keyboard focus */
     wlr_surface *focused_surface = server->seat->keyboard_state.focused_surface;
     nnwm_toplevel *tl;
