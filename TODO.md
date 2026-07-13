@@ -76,5 +76,5 @@
 - [ ] Show error messages when config fails to load
 - [ ] XWayland
 - [ ] Moving window to other monitor should make it associated with that monitor
-- [ ] Fix per-monitor workspaces not working correctly
+- [X] Fix per-monitor workspaces not working correctly
 - [ ] fix focus_follows_mouse not working
