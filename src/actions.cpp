@@ -667,6 +667,7 @@ server_new_pointer(nnwm_server *server, wlr_input_device *device)
             libinput_device_config_tap_set_enabled(li, LIBINPUT_CONFIG_TAP_ENABLED);
 
         if (server->config->touchpad_natural_scroll
+            && libinput_device_config_tap_get_finger_count(li) > 0
             && libinput_device_config_scroll_has_natural_scroll(li))
             libinput_device_config_scroll_set_natural_scroll_enabled(li, true);
 
