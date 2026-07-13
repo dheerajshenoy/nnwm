@@ -1,4 +1,7 @@
 
+#ifndef NNWM_HPP
+#define NNWM_HPP
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -363,3 +366,5 @@ void ext_workspace_init(struct nnwm_server *server);
 void ext_workspace_notify(struct nnwm_server *server);
 } // namespace nnwm
 #endif
+
+#endif /* NNWM_HPP */

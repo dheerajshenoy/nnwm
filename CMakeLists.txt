@@ -128,6 +128,13 @@ add_custom_target(protocol_headers ALL
 add_executable(nnwm
     src/main.cpp
     src/nnwm.cpp
+    src/actions.cpp
+    src/cursor.cpp
+    src/xdg_shell.cpp
+    src/layer_shell.cpp
+    src/output.cpp
+    src/session_lock.cpp
+    src/ext_workspace.cpp
     src/lua/config.cpp
 )
 add_dependencies(nnwm protocol_headers)
