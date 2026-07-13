@@ -941,6 +941,17 @@ keyboard_handle_key(wl_listener *listener, void *data)
             handled = handle_keybinding(server, modifiers, base_syms[i]) || handled;
     }
 
+    if (!handled && !server->session_lock
+        && !(modifiers & (WLR_MODIFIER_ALT | WLR_MODIFIER_LOGO))
+        && event->state == WL_KEYBOARD_KEY_STATE_PRESSED)
+    {
+        /* Modifier-free and Ctrl-only bindings use the state-resolved keysym
+         * directly — this covers media keys (XF86AudioMute etc.) and any
+         * Ctrl+key combos the user registers without Super/Alt. */
+        for (int i = 0; i < nsyms; i++)
+            handled = handle_keybinding(server, modifiers, syms[i]) || handled;
+    }
+
     if (!handled)
     {
         /* Otherwise, we pass it along to the client. */
