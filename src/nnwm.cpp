@@ -2050,6 +2050,25 @@ server_cursor_frame(wl_listener *listener, void * /*data*/)
     wlr_seat_pointer_notify_frame(server->seat);
 }
 
+/* ---- output power management ---- */
+
+void
+output_power_set_mode(wl_listener *listener, void *data)
+{
+    nnwm_server *server = wl_container_of(listener, server, output_power_set_mode);
+    auto *event = static_cast<wlr_output_power_v1_set_mode_event*>(data);
+
+    wlr_output_state state;
+    wlr_output_state_init(&state);
+    wlr_output_state_set_enabled(&state,
+        event->mode == ZWLR_OUTPUT_POWER_V1_MODE_ON);
+    wlr_output_commit_state(event->output, &state);
+    wlr_output_state_finish(&state);
+
+    /* Rebuild output manager config so wlr-randr etc. see the new enabled state */
+    output_manager_build_config(server);
+}
+
 /* ---- session lock ---- */
 
 namespace {

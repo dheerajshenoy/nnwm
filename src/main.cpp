@@ -190,6 +190,12 @@ main(int argc, char *argv[])
     /* screencopy: allows clients like grim to capture screen contents */
     server.screencopy_manager = wlr_screencopy_manager_v1_create(server.wl_display);
 
+    /* output power management: allows clients to DPMS-blank outputs */
+    server.output_power_manager = wlr_output_power_manager_v1_create(server.wl_display);
+    server.output_power_set_mode.notify = output_power_set_mode;
+    wl_signal_add(&server.output_power_manager->events.set_mode,
+                  &server.output_power_set_mode);
+
     /* session-lock: allows screen lockers like swaylock/waylock */
     server.lock_manager   = wlr_session_lock_manager_v1_create(server.wl_display);
     server.new_lock.notify = server_new_lock;
@@ -352,6 +358,7 @@ main(int argc, char *argv[])
      * server. */
     wl_display_destroy_clients(server.wl_display);
 
+    wl_list_remove(&server.output_power_set_mode.link);
     wl_list_remove(&server.new_lock.link);
     wl_list_remove(&server.new_decoration.link);
     wl_list_remove(&server.new_layer_surface.link);

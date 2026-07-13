@@ -52,6 +52,7 @@ extern "C"
 #include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/types/wlr_export_dmabuf_v1.h>
 #include <wlr/types/wlr_session_lock_v1.h>
+#include <wlr/types/wlr_output_power_management_v1.h>
 #include <wlr/types/wlr_ext_image_copy_capture_v1.h>
 #include <wlr/types/wlr_ext_image_capture_source_v1.h>
 #include <wlr/backend/libinput.h>
@@ -142,6 +143,8 @@ struct nnwm_server
 
     struct wlr_xdg_output_manager_v1 *xdg_output_manager;
     struct wlr_screencopy_manager_v1 *screencopy_manager;
+    struct wlr_output_power_manager_v1 *output_power_manager;
+    struct wl_listener output_power_set_mode;
     struct wlr_session_lock_manager_v1 *lock_manager;
     struct wl_listener new_lock;
     struct nnwm_session_lock *session_lock; /* non-null while screen is locked */
@@ -282,6 +285,7 @@ void server_new_xdg_popup(struct wl_listener *, void *);
 void server_new_layer_surface(struct wl_listener *, void *);
 void server_new_decoration(struct wl_listener *, void *);
 void server_new_lock(struct wl_listener *, void *);
+void output_power_set_mode(struct wl_listener *, void *);
 void output_manager_apply(struct wl_listener *, void *);
 void output_manager_test(struct wl_listener *, void *);
 void server_cursor_motion(struct wl_listener *, void *);
