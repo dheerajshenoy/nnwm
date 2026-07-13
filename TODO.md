@@ -43,3 +43,8 @@
 - [X] font configuration for window decoration
 - [X] text alignment for window decoration
 - [X] color for the window decoration
+- [ ] Tilde not rendering in the titlebar
+- [ ] Titlebar not updating on window resize
+- [ ] Animations
+- [ ] Blur
+- [ ] Hardware-acceleration
