@@ -175,6 +175,47 @@ nnwm::action_focus_prev(nnwm_server *server)
 }
 
 void
+nnwm::action_focus_mode_toggle(nnwm_server *server)
+{
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+    nnwm_toplevel *cur = get_focused_toplevel(server);
+    if (cur && cur->floating) {
+        nnwm_toplevel *next = ws_first(server, out);
+        if (next) focus_toplevel(next);
+    } else {
+        nnwm_toplevel *next = ws_first_float(server, out);
+        if (next) focus_toplevel(next);
+    }
+}
+
+void
+nnwm::action_focus_next_float(nnwm_server *server)
+{
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+    nnwm_toplevel *cur = get_focused_toplevel(server);
+    nnwm_toplevel *next = cur ? ws_next_float(server, out, cur) : nullptr;
+    if (!next)
+        next = ws_first_float(server, out);
+    if (next)
+        focus_toplevel(next);
+}
+
+void
+nnwm::action_focus_prev_float(nnwm_server *server)
+{
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+    nnwm_toplevel *cur = get_focused_toplevel(server);
+    nnwm_toplevel *prev = cur ? ws_prev_float(server, out, cur) : nullptr;
+    if (!prev)
+        prev = ws_last_float(server, out);
+    if (prev)
+        focus_toplevel(prev);
+}
+
+void
 nnwm::action_swap_left(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;

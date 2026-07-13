@@ -254,11 +254,20 @@ server_cursor_button(wl_listener *listener, void *data)
     nnwm_server *server
         = wl_container_of(listener, server, cursor_button);
     auto *event = static_cast<wlr_pointer_button_event*>(data);
-    wlr_seat_pointer_notify_button(server->seat, event->time_msec,
-                                   event->button, event->state);
+
     if (event->state == WL_POINTER_BUTTON_STATE_RELEASED)
     {
-        reset_cursor_mode(server);
+        if (server->cursor_mode != NNWM_CURSOR_PASSTHROUGH)
+        {
+            /* Ending a compositor move/resize — don't forward to the window;
+             * it never received the matching press either. */
+            reset_cursor_mode(server);
+        }
+        else
+        {
+            wlr_seat_pointer_notify_button(server->seat, event->time_msec,
+                                           event->button, event->state);
+        }
         return;
     }
 
@@ -282,10 +291,12 @@ server_cursor_button(wl_listener *listener, void *data)
         else if (event->button == BTN_RIGHT)
             begin_interactive(toplevel, NNWM_CURSOR_RESIZE,
                               WLR_EDGE_BOTTOM | WLR_EDGE_RIGHT);
-        return;
+        return; /* press not forwarded to the window */
     }
 
-    /* Normal click: focus the window under the cursor (not while locked) */
+    /* Normal click: forward to window and focus it (not while locked) */
+    wlr_seat_pointer_notify_button(server->seat, event->time_msec,
+                                   event->button, event->state);
     if (!server->session_lock)
         focus_toplevel(toplevel);
 }

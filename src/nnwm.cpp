@@ -212,6 +212,48 @@ ws_prev(nnwm_server *server, nnwm_output *out, nnwm_toplevel *cur)
 }
 
 nnwm_toplevel *
+ws_first_float(nnwm_server *server, nnwm_output *out)
+{
+    nnwm_toplevel *t;
+    wl_list_for_each(t, &server->toplevels, link)
+        if (t->output == out && t->workspace == out->active_workspace && t->floating)
+            return t;
+    return nullptr;
+}
+
+nnwm_toplevel *
+ws_last_float(nnwm_server *server, nnwm_output *out)
+{
+    nnwm_toplevel *t, *last = nullptr;
+    wl_list_for_each(t, &server->toplevels, link)
+        if (t->output == out && t->workspace == out->active_workspace && t->floating)
+            last = t;
+    return last;
+}
+
+nnwm_toplevel *
+ws_next_float(nnwm_server *server, nnwm_output *out, nnwm_toplevel *cur)
+{
+    for (wl_list *it = cur->link.next; it != &server->toplevels; it = it->next) {
+        nnwm_toplevel *t = wl_container_of(it, t, link);
+        if (t->output == out && t->workspace == out->active_workspace && t->floating)
+            return t;
+    }
+    return nullptr;
+}
+
+nnwm_toplevel *
+ws_prev_float(nnwm_server *server, nnwm_output *out, nnwm_toplevel *cur)
+{
+    for (wl_list *it = cur->link.prev; it != &server->toplevels; it = it->prev) {
+        nnwm_toplevel *t = wl_container_of(it, t, link);
+        if (t->output == out && t->workspace == out->active_workspace && t->floating)
+            return t;
+    }
+    return nullptr;
+}
+
+nnwm_toplevel *
 ws_last(nnwm_server *server, nnwm_output *out)
 {
     nnwm_toplevel *t, *last = nullptr;

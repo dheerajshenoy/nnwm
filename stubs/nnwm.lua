@@ -214,11 +214,21 @@ function nnwm.focus_left() end
 --- Focus the first stack window (second in the tiling list).
 function nnwm.focus_right() end
 
---- Focus the next window, wrapping around.
+--- Focus the next tiled window, wrapping around.
 function nnwm.focus_next() end
 
---- Focus the previous window, wrapping around.
+--- Focus the previous tiled window, wrapping around.
 function nnwm.focus_prev() end
+
+--- Focus the next floating window, wrapping around.
+function nnwm.focus_next_float() end
+
+--- Focus the previous floating window, wrapping around.
+function nnwm.focus_prev_float() end
+
+--- Toggle focus between the tiling and floating layers.
+--- If a tiled window is focused, jumps to the first floating window, and vice versa.
+function nnwm.focus_mode_toggle() end
 
 --- Swap the focused window with the master window, preserving both positions.
 --- No-op if the focused window is already master.

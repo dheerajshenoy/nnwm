@@ -351,6 +351,27 @@ l_nnwm_focus_prev(lua_State *L)
 }
 
 static int
+l_nnwm_focus_mode_toggle(lua_State *L)
+{
+    nnwm::action_focus_mode_toggle(get_server(L));
+    return 0;
+}
+
+static int
+l_nnwm_focus_next_float(lua_State *L)
+{
+    nnwm::action_focus_next_float(get_server(L));
+    return 0;
+}
+
+static int
+l_nnwm_focus_prev_float(lua_State *L)
+{
+    nnwm::action_focus_prev_float(get_server(L));
+    return 0;
+}
+
+static int
 l_nnwm_swap_left(lua_State *L)
 {
     nnwm::action_swap_left(get_server(L));
@@ -538,8 +559,11 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"spawn_once", l_nnwm_spawn_once},
     {"focus_left", l_nnwm_focus_left},
     {"focus_right", l_nnwm_focus_right},
-    {"focus_next", l_nnwm_focus_next},
-    {"focus_prev", l_nnwm_focus_prev},
+    {"focus_next",        l_nnwm_focus_next},
+    {"focus_prev",        l_nnwm_focus_prev},
+    {"focus_next_float",  l_nnwm_focus_next_float},
+    {"focus_prev_float",  l_nnwm_focus_prev_float},
+    {"focus_mode_toggle", l_nnwm_focus_mode_toggle},
     {"swap_left", l_nnwm_swap_left},
     {"swap_right", l_nnwm_swap_right},
     {"swap_next", l_nnwm_swap_next},

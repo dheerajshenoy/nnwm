@@ -26,6 +26,18 @@ struct nnwm_toplevel *ws_last(struct nnwm_server *server,
                               struct nnwm_output *out);
 int ws_count(struct nnwm_server *server, struct nnwm_output *out);
 
+/* ---- Floating-window navigation helpers ---- */
+struct nnwm_toplevel *ws_first_float(struct nnwm_server *server,
+                                     struct nnwm_output *out);
+struct nnwm_toplevel *ws_last_float(struct nnwm_server *server,
+                                    struct nnwm_output *out);
+struct nnwm_toplevel *ws_next_float(struct nnwm_server *server,
+                                    struct nnwm_output *out,
+                                    struct nnwm_toplevel *cur);
+struct nnwm_toplevel *ws_prev_float(struct nnwm_server *server,
+                                    struct nnwm_output *out,
+                                    struct nnwm_toplevel *cur);
+
 /* ---- Focus ---- */
 void focus_toplevel(struct nnwm_toplevel *toplevel);
 struct nnwm_toplevel *get_focused_toplevel(struct nnwm_server *server);
