@@ -56,6 +56,8 @@
   position), `scale`, `transform` (rotation string), `hdr` (wlroots 0.20+),
   and `disabled`. Unmatched outputs fall back to their preferred mode and
   auto-layout.
+- **`nnwm.host_name()`**: returns the machine hostname as a string. Useful for
+  per-host config in a shared init file.
 
 - **Gaps support**: `nnwm.outer_gap` (space between windows and screen edge)
   and `nnwm.inner_gap` (space between adjacent windows) config fields. Both

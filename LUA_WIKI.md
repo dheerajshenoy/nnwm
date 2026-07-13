@@ -73,6 +73,7 @@ These functions are available inside `nnwm.key()` callbacks:
 | `nnwm.quit()`        | Terminate the compositor                     |
 | `nnwm.close()`       | Close the focused window                     |
 | `nnwm.spawn(cmd)`    | Run `cmd` via `/bin/sh -c`                   |
+| `nnwm.host_name()`   | Return the machine hostname as a string      |
 | `nnwm.focus_left()`  | Focus the master window (first in list)      |
 | `nnwm.focus_right()` | Focus the first stack window                 |
 | `nnwm.focus_next()`  | Focus the next window (wraps)                |
