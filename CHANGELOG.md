@@ -50,6 +50,12 @@
   the last focused window on the target monitor. `nnwm.move_to_monitor_next()`
   and `nnwm.move_to_monitor_prev()` send the focused window to the adjacent
   output's active workspace; focus follows the window to the destination.
+- **Output monitor configuration**: `nnwm.monitors` is an array-of-tables for
+  configuring outputs by name, make, model, or serial (first match wins). Each
+  entry may specify `width`/`height`/`refresh` (mode), `x`/`y` (layout
+  position), `scale`, `transform` (rotation string), `hdr` (wlroots 0.20+),
+  and `disabled`. Unmatched outputs fall back to their preferred mode and
+  auto-layout.
 
 - **Gaps support**: `nnwm.outer_gap` (space between windows and screen edge)
   and `nnwm.inner_gap` (space between adjacent windows) config fields. Both
@@ -110,3 +116,6 @@
 - Focus changes update border colors for all windows (focused vs unfocused).
 - Config reload re-applies border colors, tiling layout, and keyboard repeat
   settings.
+- **Titlebar update on resize**: titlebar is now re-rendered when a window is
+  resized via mouse drag, and the resize height calculation correctly subtracts
+  the titlebar height (matching `arrange_windows` behavior).
