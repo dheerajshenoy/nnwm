@@ -75,9 +75,11 @@
     - [ ] wlr-output-configuration-unstable-v1
 - [ ] Show error messages when config fails to load
 - [ ] XWayland
-- [ ] Moving window to other monitor should make it associated with that monitor
+- [X] Moving window to other monitor should make it associated with that monitor
 - [X] Fix per-monitor workspaces not working correctly
 - [X] fix focus_follows_mouse not working
 - [X] fix mouse click being forwarded to clients when resizing
-- [ ] Sticky windows
+- [X] Sticky windows
 - [ ] Fake fullscreen mode
+- [X] layout next and prev
+- [ ] popup menu crash on waybar
