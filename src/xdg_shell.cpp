@@ -325,6 +325,9 @@ handle_xdg_popup_destroy(wl_listener *listener, void * /*data*/)
     wl_list_remove(&popup->commit.link);
     wl_list_remove(&popup->destroy.link);
 
+    if (popup->offset_tree)
+        wlr_scene_node_destroy(&popup->offset_tree->node);
+
     delete popup;
 }
 
@@ -423,13 +426,22 @@ server_new_xdg_popup(wl_listener *listener, void *data)
         }
     }
 
-    /* Null-parent popup: positioner uses screen-space coordinates.
-     * Place it in the overlay layer (at global origin) so its scene
-     * position equals its screen position. */
+    /* Null-parent popup: positioner uses output-local coordinates.
+     * Create an intermediate scene tree offset to the output's global
+     * origin so positioner coordinates map to the correct screen position. */
     if (!parent_tree) {
-        parent_tree   = server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY];
-        popup->output = server->focused_output
-                      ? server->focused_output->wlr_output : nullptr;
+        nnwm_output *out = server->focused_output;
+        popup->output    = out ? out->wlr_output : nullptr;
+
+        wlr_scene_tree *offset_tree = wlr_scene_tree_create(
+            server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY]);
+        if (out) {
+            wlr_box area;
+            wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
+            wlr_scene_node_set_position(&offset_tree->node, area.x, area.y);
+        }
+        popup->offset_tree = offset_tree;
+        parent_tree        = offset_tree;
     }
 
     popup->parent_tree = parent_tree;

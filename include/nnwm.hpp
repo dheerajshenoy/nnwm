@@ -240,8 +240,9 @@ struct nnwm_popup
 {
     struct wlr_xdg_popup  *xdg_popup;
     struct nnwm_server    *server;
-    struct wlr_output     *output;      /* output for constraining */
-    struct wlr_scene_tree *parent_tree; /* parent surface scene tree for coord lookup */
+    struct wlr_output     *output;       /* output for constraining */
+    struct wlr_scene_tree *parent_tree;  /* parent surface scene tree for coord lookup */
+    struct wlr_scene_tree *offset_tree;  /* intermediate tree at output origin for null-parent popups */
     struct wl_listener commit;
     struct wl_listener destroy;
 };
