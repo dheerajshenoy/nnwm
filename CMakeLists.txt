@@ -9,9 +9,14 @@ option(USE_SCENEFX "Build and use scenefx from GitHub for rounded corners and sh
 
 find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(WLROOTS wlroots-0.19)
-if(NOT WLROOTS_FOUND)
+# scenefx requires wlroots 0.20; without it prefer 0.19 then fall back to 0.20
+if(USE_SCENEFX)
     pkg_check_modules(WLROOTS REQUIRED wlroots-0.20)
+else()
+    pkg_check_modules(WLROOTS wlroots-0.19)
+    if(NOT WLROOTS_FOUND)
+        pkg_check_modules(WLROOTS REQUIRED wlroots-0.20)
+    endif()
 endif()
 
 pkg_check_modules(WAYLAND_SERVER REQUIRED wayland-server)
