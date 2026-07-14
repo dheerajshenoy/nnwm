@@ -59,7 +59,11 @@
 - [x] layout next and prev
 - [x] popup menu crash on waybar
 - [X] Monitor focus move mouse to center of monitor
-- [ ] Animations
+- [x] Animations
+- [ ] Styles of animation
+    - [ ] Ease-out
+    - [ ] Ease-in
+    - [ ] Ease-in-out
 - [x] Blur
 - [x] Shadows
 - [x] Corner radius
