@@ -261,9 +261,15 @@ nnwm::action_swap_next(nnwm_server *server)
     nnwm_toplevel *cur = get_focused_toplevel(server);
     if (!cur) return;
     nnwm_toplevel *next = ws_next(server, out, cur);
-    if (!next) return;
-    wl_list_remove(&cur->link);
-    wl_list_insert(&next->link, &cur->link);
+    if (next) {
+        wl_list_remove(&cur->link);
+        wl_list_insert(&next->link, &cur->link);
+    } else {
+        nnwm_toplevel *first = ws_first(server, out);
+        if (!first || first == cur) return;
+        wl_list_remove(&cur->link);
+        wl_list_insert(first->link.prev, &cur->link); /* insert before first → cur becomes master */
+    }
     focus_toplevel(cur);
     arrange_windows(server, out);
 }
@@ -276,9 +282,15 @@ nnwm::action_swap_prev(nnwm_server *server)
     nnwm_toplevel *cur = get_focused_toplevel(server);
     if (!cur) return;
     nnwm_toplevel *prev = ws_prev(server, out, cur);
-    if (!prev) return;
-    wl_list_remove(&cur->link);
-    wl_list_insert(prev->link.prev, &cur->link);
+    if (prev) {
+        wl_list_remove(&cur->link);
+        wl_list_insert(prev->link.prev, &cur->link);
+    } else {
+        nnwm_toplevel *last = ws_last(server, out);
+        if (!last || last == cur) return;
+        wl_list_remove(&cur->link);
+        wl_list_insert(&last->link, &cur->link); /* insert after last → cur becomes last */
+    }
     focus_toplevel(cur);
     arrange_windows(server, out);
 }
