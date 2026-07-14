@@ -386,16 +386,18 @@ server_new_xdg_popup(wl_listener *listener, void *data)
 
     wlr_scene_tree *parent_tree = nullptr;
 
-    wlr_xdg_surface *xdg_parent =
-        wlr_xdg_surface_try_from_wlr_surface(xdg_popup->parent);
-    if (xdg_parent) {
-        parent_tree = static_cast<wlr_scene_tree*>(xdg_parent->data);
-    } else {
-        wlr_layer_surface_v1 *layer_parent =
-            wlr_layer_surface_v1_try_from_wlr_surface(xdg_popup->parent);
-        if (layer_parent) {
-            auto *ls = static_cast<nnwm_layer_surface*>(layer_parent->data);
-            parent_tree = ls->scene->tree;
+    if (xdg_popup->parent) {
+        wlr_xdg_surface *xdg_parent =
+            wlr_xdg_surface_try_from_wlr_surface(xdg_popup->parent);
+        if (xdg_parent) {
+            parent_tree = static_cast<wlr_scene_tree*>(xdg_parent->data);
+        } else {
+            wlr_layer_surface_v1 *layer_parent =
+                wlr_layer_surface_v1_try_from_wlr_surface(xdg_popup->parent);
+            if (layer_parent) {
+                auto *ls = static_cast<nnwm_layer_surface*>(layer_parent->data);
+                parent_tree = ls->scene->tree;
+            }
         }
     }
 
