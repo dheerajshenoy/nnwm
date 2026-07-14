@@ -198,6 +198,10 @@ main(int argc, char *argv[])
     server.xdg_output_manager = wlr_xdg_output_manager_v1_create(
         server.wl_display, server.output_layout);
 
+    /* data-control: allows clipboard managers (cliphist, wl-paste, etc.) to
+     * access the clipboard without needing keyboard focus */
+    wlr_data_control_manager_v1_create(server.wl_display);
+
     /* screencopy: allows clients like grim to capture screen contents */
     server.screencopy_manager = wlr_screencopy_manager_v1_create(server.wl_display);
 

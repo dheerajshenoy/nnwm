@@ -52,6 +52,7 @@ extern "C"
 #else
 #  include <wlr/types/wlr_output_management_v1.h>
 #endif
+#include <wlr/types/wlr_data_control_v1.h>
 #include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/types/wlr_export_dmabuf_v1.h>
 #include <wlr/types/wlr_session_lock_v1.h>
