@@ -84,7 +84,21 @@
 - **Stale focus when switching to an empty monitor**: moving keyboard focus to a
   monitor with no windows left the previously focused window on the old monitor
   still holding keyboard focus. Both focus-monitor actions now call
-  `wlr_seat_keyboard_clear_focus` when no window is found on the target monitor.
+  `wlr_seat_keyboard_clear_focus` when no window is found on the target monitor,
+  and the previously focused window's border is also unfocused via
+  `unfocus_all_borders`.
+- **Config error overlay**: when a config hot-reload fails (syntax error or
+  runtime error in `init.lua`), a red error bar is rendered at the top of every
+  connected output showing the error message in white text — similar to i3/sway's
+  error bar. The bar auto-dismisses after 8 seconds. If the config is fixed and
+  successfully reloaded, the bar is hidden immediately.
+- **Monitor flickering**: on multi-monitor setups one output could flicker
+  continuously. The frame handler was calling `wlr_scene_output_send_frame_done`
+  unconditionally even when `wlr_scene_output_commit` returned false (nothing to
+  render / no damage). Spurious frame-done callbacks caused clients to submit new
+  buffers prematurely, creating a rendering feedback loop. The frame handler now
+  returns early when commit fails, so `send_frame_done` is only called when a
+  frame was actually presented.
 - **Tabbed layout floating window transparency**: floating windows in tabbed
   mode no longer appear transparent or blank. The tab bar is now raised to the
   top after floating windows, so floating windows remain visible above it.
