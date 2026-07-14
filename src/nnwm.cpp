@@ -629,7 +629,8 @@ focus_toplevel(nnwm_toplevel *toplevel)
             out->prev_focused[ws] = out->last_focused[ws];
         out->last_focused[ws] = toplevel;
 
-        if (out->layout_mode[ws] == NNWM_LAYOUT_TABBED)
+        if (out->layout_mode[ws] == NNWM_LAYOUT_TABBED ||
+            out->layout_mode[ws] == NNWM_LAYOUT_SCROLL)
             arrange_windows(server, out);
     }
 }

@@ -4,6 +4,9 @@
 
 ### Features
 
+- **Scroll layout focus tracking**: focusing a window in scroll layout (via
+  keybinding, click, or focus-follows-mouse) automatically scrolls the viewport
+  to center it, matching the behavior of niri and similar scrolling compositors.
 - **Scroll layout**: `nnwm.layout.scroll.toggle()` switches the active workspace
   between master-stack and a horizontal scrolling layout. Windows are arranged
   in a left-to-right strip, each occupying a configurable fraction of the
