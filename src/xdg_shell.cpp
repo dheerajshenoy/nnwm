@@ -6,6 +6,10 @@
 #include <cstring>
 #include <fnmatch.h>
 
+extern "C" {
+#include <wlr/types/wlr_layer_shell_v1.h>
+}
+
 /* ---- Window rules application ---- */
 
 void
@@ -380,11 +384,26 @@ server_new_xdg_popup(wl_listener *listener, void *data)
     nnwm_popup *popup = new nnwm_popup{};
     popup->xdg_popup    = xdg_popup;
 
-    wlr_xdg_surface *parent
-        = wlr_xdg_surface_try_from_wlr_surface(xdg_popup->parent);
-    assert(parent != nullptr);
-    wlr_scene_tree *parent_tree =
-        static_cast<wlr_scene_tree*>(parent->data);
+    wlr_scene_tree *parent_tree = nullptr;
+
+    wlr_xdg_surface *xdg_parent =
+        wlr_xdg_surface_try_from_wlr_surface(xdg_popup->parent);
+    if (xdg_parent) {
+        parent_tree = static_cast<wlr_scene_tree*>(xdg_parent->data);
+    } else {
+        wlr_layer_surface_v1 *layer_parent =
+            wlr_layer_surface_v1_try_from_wlr_surface(xdg_popup->parent);
+        if (layer_parent) {
+            auto *ls = static_cast<nnwm_layer_surface*>(layer_parent->data);
+            parent_tree = ls->scene->tree;
+        }
+    }
+
+    if (!parent_tree) {
+        delete popup;
+        return;
+    }
+
     xdg_popup->base->data
         = wlr_scene_xdg_surface_create(parent_tree, xdg_popup->base);
 
