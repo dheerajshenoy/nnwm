@@ -1,12 +1,12 @@
 # nnWM TODO
 
 - Lua Config Support
-    - [X] Keybindings
-    - [X] Rules
-        - [X] Floating
-        - [X] Fullscreen
-        - [X] Monitor
-        - [X] Workspace
+    - [x] Keybindings
+    - [x] Rules
+        - [x] Floating
+        - [x] Fullscreen
+        - [x] Monitor
+        - [x] Workspace
     - [ ] Hooks
         - [ ] Window
             - [ ] New
@@ -15,38 +15,47 @@
             - [ ] Focus Change
         - [ ] Startup
         - [ ] Shutdown
-- [X] Monitor configuration
-- [X] Move to workspace
-- [X] Switch workspace
-- [X] Handle window close
-- [X] Tiling window management
-- [X] Active window border
+- [x] Monitor configuration
+- [x] Move to workspace
+- [x] Switch workspace
+- [x] Handle window close
+- [x] Tiling window management
+- [x] Active window border
 - Layouts
-    - [X] Master Stack
-    - [ ] Sway-like tabbed layout
+    - [x] Master Stack
+    - [x] Sway-like tabbed layout
     - [ ] Dwindle
-- [X] Gaps
-- [X] Smart border
-- [X] Smart gaps
-- [X] Multi-monitor support
-- [X] Switch monitor focus
-- [X] Always master window option
-- [X] Fullscreen
-- [X] Float window
-- [X] Floating window mouse window resize
-- [X] Floating window mouse window move
-- [X] Focus follows mouse
-- [X] Allow xkb options
-- [X] Implement `usable_area` for panel support
-- [X] Switching focus from rofi doesn't work
-- [X] spawn vs spawn once
-- [X] optional window decoration
-- [X] font configuration for window decoration
-- [X] text alignment for window decoration
-- [X] color for the window decoration
-- [X] Dialog window support wierd invisible window issue
-- [X] Tilde not rendering in the titlebar
-- [X] Titlebar not updating on window resize
+    - [ ] Horizontal scrolling
+    - [ ] Vertical scrolling
+- [x] Gaps
+- [x] Smart border
+- [x] Smart gaps
+- [x] Multi-monitor support
+- [x] Switch monitor focus
+- [x] Always master window option
+- [x] Fullscreen
+- [x] Float window
+- [x] Floating window mouse window resize
+- [x] Floating window mouse window move
+- [x] Focus follows mouse
+- [x] Allow xkb options
+- [x] Implement `usable_area` for panel support
+- [x] Switching focus from rofi doesn't work
+- [x] spawn vs spawn once
+- [x] optional window decoration
+- [x] font configuration for window decoration
+- [x] text alignment for window decoration
+- [x] color for the window decoration
+- [x] Dialog window support wierd invisible window issue
+- [x] Tilde not rendering in the titlebar
+- [x] Titlebar not updating on window resize
+- [x] Moving window to other monitor should make it associated with that monitor
+- [x] Fix per-monitor workspaces not working correctly
+- [x] fix focus_follows_mouse not working
+- [x] fix mouse click being forwarded to clients when resizing
+- [x] Sticky windows
+- [x] layout next and prev
+- [x] popup menu crash on waybar
 - [ ] Animations with scenefx
 - [ ] Blur
 - [ ] Shadows
@@ -56,17 +65,17 @@
 - [ ] Scratchpad
 - [ ] Multi workspace viewing at once (like dwm)
 - lua helper functions
-    - [X] device_name
+    - [x] device_name
 - wlr protocols
-    - [X] wlr-layer-shell-unstable-v1
-    - [X] wlr-output-management-unstable-v1
-    - [X] xdg-output-unstable-v1
-    - [X] wlr-screencopy-unstable-v1
-    - [X] Screenrecording
-    - [X] ext-image-copy-capture-v1
-    - [X] ext-session-lock-v1
-    - [X] wlr-output-power-management-unstable-v1
-    - [X] ext-workspace-v1
+    - [x] wlr-layer-shell-unstable-v1
+    - [x] wlr-output-management-unstable-v1
+    - [x] xdg-output-unstable-v1
+    - [x] wlr-screencopy-unstable-v1
+    - [x] Screenrecording
+    - [x] ext-image-copy-capture-v1
+    - [x] ext-session-lock-v1
+    - [x] wlr-output-power-management-unstable-v1
+    - [x] ext-workspace-v1
     - [ ] wlr-data-control-unstable-v1
     - [ ] wlr-virtual-pointer-unstable-v1
     - [ ] wlr-virtual-keyboard-unstable-v1
@@ -75,11 +84,5 @@
     - [ ] wlr-output-configuration-unstable-v1
 - [ ] Show error messages when config fails to load
 - [ ] XWayland
-- [X] Moving window to other monitor should make it associated with that monitor
-- [X] Fix per-monitor workspaces not working correctly
-- [X] fix focus_follows_mouse not working
-- [X] fix mouse click being forwarded to clients when resizing
-- [X] Sticky windows
 - [ ] Fake fullscreen mode
-- [X] layout next and prev
-- [ ] popup menu crash on waybar
+- [ ] Monitor focus move mouse to center of monitor
