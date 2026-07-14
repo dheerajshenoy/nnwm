@@ -296,14 +296,14 @@ l_nnwm_key(lua_State *L)
 static int
 l_nnwm_quit(lua_State *L)
 {
-    nnwm::action_quit(get_server(L));
+    nnwm::quit(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_close(lua_State *L)
 {
-    nnwm::action_close(get_server(L));
+    nnwm::close(get_server(L));
     return 0;
 }
 
@@ -311,7 +311,7 @@ static int
 l_nnwm_spawn(lua_State *L)
 {
     const char *cmd = luaL_checkstring(L, 1);
-    nnwm::action_spawn(get_server(L), cmd);
+    nnwm::spawn(get_server(L), cmd);
     return 0;
 }
 
@@ -319,98 +319,98 @@ static int
 l_nnwm_spawn_once(lua_State *L)
 {
     const char *cmd = luaL_checkstring(L, 1);
-    nnwm::action_spawn_once(get_server(L), cmd);
+    nnwm::spawn_once(get_server(L), cmd);
     return 0;
 }
 
 static int
 l_nnwm_focus_left(lua_State *L)
 {
-    nnwm::action_focus_left(get_server(L));
+    nnwm::focus::left(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_focus_right(lua_State *L)
 {
-    nnwm::action_focus_right(get_server(L));
+    nnwm::focus::right(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_focus_next(lua_State *L)
 {
-    nnwm::action_focus_next(get_server(L));
+    nnwm::focus::next(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_focus_prev(lua_State *L)
 {
-    nnwm::action_focus_prev(get_server(L));
+    nnwm::focus::prev(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_focus_mode_toggle(lua_State *L)
 {
-    nnwm::action_focus_mode_toggle(get_server(L));
+    nnwm::focus::mode_toggle(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_focus_next_float(lua_State *L)
 {
-    nnwm::action_focus_next_float(get_server(L));
+    nnwm::focus::next_float(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_focus_prev_float(lua_State *L)
 {
-    nnwm::action_focus_prev_float(get_server(L));
+    nnwm::focus::prev_float(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_swap_left(lua_State *L)
 {
-    nnwm::action_swap_left(get_server(L));
+    nnwm::swap::left(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_swap_right(lua_State *L)
 {
-    nnwm::action_swap_right(get_server(L));
+    nnwm::swap::right(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_swap_next(lua_State *L)
 {
-    nnwm::action_swap_next(get_server(L));
+    nnwm::swap::next(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_swap_prev(lua_State *L)
 {
-    nnwm::action_swap_prev(get_server(L));
+    nnwm::swap::prev(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_cycle(lua_State *L)
 {
-    nnwm::action_cycle(get_server(L));
+    nnwm::cycle(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_swap_master(lua_State *L)
 {
-    nnwm::action_swap_master(get_server(L));
+    nnwm::swap::master(get_server(L));
     return 0;
 }
 
@@ -420,7 +420,7 @@ l_nnwm_switch_workspace(lua_State *L)
     int ws = (int)luaL_checkinteger(L, 1);
     if (ws < 1 || ws > NNWM_NUM_WORKSPACES)
         return luaL_error(L, "nnwm.switch_workspace: index must be 1-%d", NNWM_NUM_WORKSPACES);
-    nnwm::action_switch_workspace(get_server(L), ws - 1);
+    nnwm::workspace::switch_to(get_server(L), ws - 1);
     return 0;
 }
 
@@ -430,98 +430,98 @@ l_nnwm_move_to_workspace(lua_State *L)
     int ws = (int)luaL_checkinteger(L, 1);
     if (ws < 1 || ws > NNWM_NUM_WORKSPACES)
         return luaL_error(L, "nnwm.move_to_workspace: index must be 1-%d", NNWM_NUM_WORKSPACES);
-    nnwm::action_move_to_workspace(get_server(L), ws - 1);
+    nnwm::workspace::move_to(get_server(L), ws - 1);
     return 0;
 }
 
 static int
 l_nnwm_master_ratio_grow(lua_State *L)
 {
-    nnwm::action_master_ratio_grow(get_server(L));
+    nnwm::layout::master_ratio_grow(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_master_ratio_shrink(lua_State *L)
 {
-    nnwm::action_master_ratio_shrink(get_server(L));
+    nnwm::layout::master_ratio_shrink(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_toggle_float(lua_State *L)
 {
-    nnwm::action_toggle_float(get_server(L));
+    nnwm::window::toggle_float(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_toggle_fullscreen(lua_State *L)
 {
-    nnwm::action_toggle_fullscreen(get_server(L));
+    nnwm::window::toggle_fullscreen(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_toggle_tabbed(lua_State *L)
 {
-    nnwm::action_toggle_tabbed(get_server(L));
+    nnwm::layout::toggle_tabbed(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_toggle_scroll(lua_State *L)
 {
-    nnwm::action_toggle_scroll(get_server(L));
+    nnwm::layout::toggle_scroll(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_layout_next(lua_State *L)
 {
-    nnwm::action_layout_next(get_server(L));
+    nnwm::layout::next(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_layout_prev(lua_State *L)
 {
-    nnwm::action_layout_prev(get_server(L));
+    nnwm::layout::prev(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_toggle_sticky(lua_State *L)
 {
-    nnwm::action_toggle_sticky(get_server(L));
+    nnwm::window::toggle_sticky(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_focus_monitor_next(lua_State *L)
 {
-    nnwm::action_focus_monitor_next(get_server(L));
+    nnwm::monitor::focus_next(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_focus_monitor_prev(lua_State *L)
 {
-    nnwm::action_focus_monitor_prev(get_server(L));
+    nnwm::monitor::focus_prev(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_move_to_monitor_next(lua_State *L)
 {
-    nnwm::action_move_to_monitor_next(get_server(L));
+    nnwm::monitor::move_to_next(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_move_to_monitor_prev(lua_State *L)
 {
-    nnwm::action_move_to_monitor_prev(get_server(L));
+    nnwm::monitor::move_to_prev(get_server(L));
     return 0;
 }
 

@@ -358,41 +358,9 @@ void seat_request_set_selection(struct wl_listener *, void *);
 #endif
 
 #ifdef __cplusplus
+#include "actions.hpp"
+
 namespace nnwm {
-/* Compositor actions callable from Lua keybinding callbacks */
-void action_quit(struct nnwm_server *server);
-void action_close(struct nnwm_server *server);
-void action_spawn(struct nnwm_server *server, const char *cmd);
-void action_spawn_once(struct nnwm_server *server, const char *cmd);
-void flush_autostart(struct nnwm_server *server);
-void action_focus_left(struct nnwm_server *server);
-void action_focus_right(struct nnwm_server *server);
-void action_focus_next(struct nnwm_server *server);
-void action_focus_prev(struct nnwm_server *server);
-void action_focus_next_float(struct nnwm_server *server);
-void action_focus_prev_float(struct nnwm_server *server);
-void action_focus_mode_toggle(struct nnwm_server *server);
-void action_swap_left(struct nnwm_server *server);
-void action_swap_right(struct nnwm_server *server);
-void action_swap_next(struct nnwm_server *server);
-void action_swap_prev(struct nnwm_server *server);
-void action_swap_master(struct nnwm_server *server);
-void action_cycle(struct nnwm_server *server);
-void action_switch_workspace(struct nnwm_server *server, int ws);
-void action_move_to_workspace(struct nnwm_server *server, int ws);
-void action_focus_monitor_next(struct nnwm_server *server);
-void action_focus_monitor_prev(struct nnwm_server *server);
-void action_move_to_monitor_next(struct nnwm_server *server);
-void action_move_to_monitor_prev(struct nnwm_server *server);
-void action_master_ratio_grow(struct nnwm_server *server);
-void action_master_ratio_shrink(struct nnwm_server *server);
-void action_toggle_float(struct nnwm_server *server);
-void action_toggle_fullscreen(struct nnwm_server *server);
-void action_toggle_sticky(struct nnwm_server *server);
-void action_toggle_tabbed(struct nnwm_server *server);
-void action_toggle_scroll(struct nnwm_server *server);
-void action_layout_next(struct nnwm_server *server);
-void action_layout_prev(struct nnwm_server *server);
 void ext_workspace_init(struct nnwm_server *server);
 void ext_workspace_notify(struct nnwm_server *server);
 } // namespace nnwm

@@ -62,13 +62,13 @@ get_focused_toplevel(nnwm_server *server)
 }
 
 void
-nnwm::action_quit(nnwm_server *server)
+nnwm::quit(nnwm_server *server)
 {
     wl_display_terminate(server->wl_display);
 }
 
 void
-nnwm::action_close(nnwm_server *server)
+nnwm::close(nnwm_server *server)
 {
     nnwm_toplevel *focused = get_focused_toplevel(server);
     if (focused)
@@ -76,7 +76,7 @@ nnwm::action_close(nnwm_server *server)
 }
 
 void
-nnwm::action_spawn(nnwm_server *server, const char *cmd)
+nnwm::spawn(nnwm_server *server, const char *cmd)
 {
     if (!server->wayland_started) {
         if (server->autostart_count >= server->autostart_cap) {
@@ -108,7 +108,7 @@ nnwm::flush_autostart(nnwm_server *server)
 }
 
 void
-nnwm::action_spawn_once(nnwm_server *server, const char *cmd)
+nnwm::spawn_once(nnwm_server *server, const char *cmd)
 {
     for (int i = 0; i < server->spawn_once_count; i++)
         if (strcmp(server->spawn_once_cmds[i], cmd) == 0)
@@ -121,11 +121,11 @@ nnwm::action_spawn_once(nnwm_server *server, const char *cmd)
                     server->spawn_once_cap * sizeof(char*)));
     }
     server->spawn_once_cmds[server->spawn_once_count++] = strdup(cmd);
-    nnwm::action_spawn(server, cmd);
+    nnwm::spawn(server, cmd);
 }
 
 void
-nnwm::action_focus_left(nnwm_server *server)
+nnwm::focus::left(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -135,7 +135,7 @@ nnwm::action_focus_left(nnwm_server *server)
 }
 
 void
-nnwm::action_focus_right(nnwm_server *server)
+nnwm::focus::right(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -147,7 +147,7 @@ nnwm::action_focus_right(nnwm_server *server)
 }
 
 void
-nnwm::action_focus_next(nnwm_server *server)
+nnwm::focus::next(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -161,7 +161,7 @@ nnwm::action_focus_next(nnwm_server *server)
 }
 
 void
-nnwm::action_focus_prev(nnwm_server *server)
+nnwm::focus::prev(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -175,7 +175,7 @@ nnwm::action_focus_prev(nnwm_server *server)
 }
 
 void
-nnwm::action_focus_mode_toggle(nnwm_server *server)
+nnwm::focus::mode_toggle(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -190,7 +190,7 @@ nnwm::action_focus_mode_toggle(nnwm_server *server)
 }
 
 void
-nnwm::action_focus_next_float(nnwm_server *server)
+nnwm::focus::next_float(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -203,7 +203,7 @@ nnwm::action_focus_next_float(nnwm_server *server)
 }
 
 void
-nnwm::action_focus_prev_float(nnwm_server *server)
+nnwm::focus::prev_float(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -216,7 +216,7 @@ nnwm::action_focus_prev_float(nnwm_server *server)
 }
 
 void
-nnwm::action_swap_left(nnwm_server *server)
+nnwm::swap::left(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -231,7 +231,7 @@ nnwm::action_swap_left(nnwm_server *server)
 }
 
 void
-nnwm::action_swap_right(nnwm_server *server)
+nnwm::swap::right(nnwm_server *server)
 {
     nnwm_output *out    = server->focused_output;
     if (!out) return;
@@ -254,7 +254,7 @@ nnwm::action_swap_right(nnwm_server *server)
 }
 
 void
-nnwm::action_swap_next(nnwm_server *server)
+nnwm::swap::next(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -275,7 +275,7 @@ nnwm::action_swap_next(nnwm_server *server)
 }
 
 void
-nnwm::action_swap_prev(nnwm_server *server)
+nnwm::swap::prev(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -296,7 +296,7 @@ nnwm::action_swap_prev(nnwm_server *server)
 }
 
 void
-nnwm::action_swap_master(nnwm_server *server)
+nnwm::swap::master(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -321,7 +321,7 @@ nnwm::action_swap_master(nnwm_server *server)
 }
 
 void
-nnwm::action_cycle(nnwm_server *server)
+nnwm::cycle(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out || ws_count(server, out) < 2) return;
@@ -336,7 +336,7 @@ nnwm::action_cycle(nnwm_server *server)
 }
 
 void
-nnwm::action_switch_workspace(nnwm_server *server, int ws)
+nnwm::workspace::switch_to(nnwm_server *server, int ws)
 {
     nnwm_output *out = server->focused_output;
     if (!out || ws < 0 || ws >= NNWM_NUM_WORKSPACES || ws == out->active_workspace)
@@ -360,7 +360,7 @@ nnwm::action_switch_workspace(nnwm_server *server, int ws)
         wlr_seat_keyboard_clear_focus(server->seat);
 
     arrange_windows(server, out);
-    ext_workspace_notify(server);
+    nnwm::ext_workspace_notify(server);
 }
 
 static void
@@ -374,7 +374,7 @@ warp_cursor_to_output(nnwm_server *server, nnwm_output *out)
 }
 
 void
-nnwm::action_focus_monitor_next(nnwm_server *server)
+nnwm::monitor::focus_next(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -390,7 +390,7 @@ nnwm::action_focus_monitor_next(nnwm_server *server)
 }
 
 void
-nnwm::action_focus_monitor_prev(nnwm_server *server)
+nnwm::monitor::focus_prev(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -440,19 +440,19 @@ move_to_monitor(nnwm_server *server, int dir)
 }
 
 void
-nnwm::action_move_to_monitor_next(nnwm_server *server)
+nnwm::monitor::move_to_next(nnwm_server *server)
 {
     move_to_monitor(server, +1);
 }
 
 void
-nnwm::action_move_to_monitor_prev(nnwm_server *server)
+nnwm::monitor::move_to_prev(nnwm_server *server)
 {
     move_to_monitor(server, -1);
 }
 
 void
-nnwm::action_master_ratio_grow(nnwm_server *server)
+nnwm::layout::master_ratio_grow(nnwm_server *server)
 {
     nnwm_config *cfg = server->config;
     cfg->master_ratio += cfg->master_ratio_step;
@@ -462,7 +462,7 @@ nnwm::action_master_ratio_grow(nnwm_server *server)
 }
 
 void
-nnwm::action_master_ratio_shrink(nnwm_server *server)
+nnwm::layout::master_ratio_shrink(nnwm_server *server)
 {
     nnwm_config *cfg = server->config;
     cfg->master_ratio -= cfg->master_ratio_step;
@@ -472,7 +472,7 @@ nnwm::action_master_ratio_shrink(nnwm_server *server)
 }
 
 void
-nnwm::action_toggle_float(nnwm_server *server)
+nnwm::window::toggle_float(nnwm_server *server)
 {
     nnwm_toplevel *tl = get_focused_toplevel(server);
     if (!tl)
@@ -495,7 +495,7 @@ nnwm::action_toggle_float(nnwm_server *server)
 }
 
 void
-nnwm::action_toggle_fullscreen(nnwm_server *server)
+nnwm::window::toggle_fullscreen(nnwm_server *server)
 {
     nnwm_toplevel *tl = get_focused_toplevel(server);
     if (tl)
@@ -503,7 +503,7 @@ nnwm::action_toggle_fullscreen(nnwm_server *server)
 }
 
 void
-nnwm::action_toggle_sticky(nnwm_server *server)
+nnwm::window::toggle_sticky(nnwm_server *server)
 {
     nnwm_toplevel *tl = get_focused_toplevel(server);
     if (!tl) return;
@@ -512,7 +512,7 @@ nnwm::action_toggle_sticky(nnwm_server *server)
 }
 
 void
-nnwm::action_toggle_tabbed(nnwm_server *server)
+nnwm::layout::toggle_tabbed(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -524,7 +524,7 @@ nnwm::action_toggle_tabbed(nnwm_server *server)
 }
 
 void
-nnwm::action_toggle_scroll(nnwm_server *server)
+nnwm::layout::toggle_scroll(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -536,7 +536,7 @@ nnwm::action_toggle_scroll(nnwm_server *server)
 }
 
 void
-nnwm::action_layout_next(nnwm_server *server)
+nnwm::layout::next(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -547,7 +547,7 @@ nnwm::action_layout_next(nnwm_server *server)
 }
 
 void
-nnwm::action_layout_prev(nnwm_server *server)
+nnwm::layout::prev(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
@@ -558,7 +558,7 @@ nnwm::action_layout_prev(nnwm_server *server)
 }
 
 void
-nnwm::action_move_to_workspace(nnwm_server *server, int ws)
+nnwm::workspace::move_to(nnwm_server *server, int ws)
 {
     if (ws < 0 || ws >= NNWM_NUM_WORKSPACES)
         return;

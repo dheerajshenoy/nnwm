@@ -63,7 +63,7 @@ workspace_handle_activate(struct wl_client * /*client*/,
     nnwm_output *out = ws->group->output;
     if (out)
         server->focused_output = out;
-    nnwm::action_switch_workspace(server, ws->index);
+    nnwm::workspace::switch_to(server, ws->index);
 }
 
 static void
