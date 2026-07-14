@@ -109,6 +109,32 @@
   connected output showing the error message in white text — similar to i3/sway's
   error bar. The bar auto-dismisses after 8 seconds. If the config is fixed and
   successfully reloaded, the bar is hidden immediately.
+- **scenefx crash on DRM (SIGSEGV in scene_output_handle_commit)**: nnwm
+  crashed immediately on startup from a TTY when built with `USE_SCENEFX=ON`.
+  The scenefx `main` branch requires wlroots ≥ 0.20, but nnwm was previously
+  selecting wlroots 0.19 when both versions are installed. scenefx was compiled
+  against the 0.20 ABI while nnwm linked the 0.19 runtime, causing a struct
+  layout mismatch that manifested as a SIGSEGV on the first DRM page-flip
+  callback. Fixed by making `USE_SCENEFX=ON` unconditionally select wlroots 0.20.
+  Additionally, wlroots 0.20's `wlr/render/color.h` uses C99 `[static N]` static
+  array syntax which is invalid C++; the header is now pre-included with `static`
+  suppressed (via `pragma push_macro`) before any transitive inclusion fires.
+- **scenefx rounded corners not clipping window content**: with `corner_radius > 0`
+  the window surface itself still showed square corners even though the border
+  background rect was rounded. `wlr_scene_xdg_surface_create` nests the actual
+  surface buffer inside an intermediate subsurface tree; the previous code only
+  iterated direct children of the scene tree, so `wlr_scene_buffer_set_corner_radius`
+  was never called on the real buffer. Replaced the one-level loop with a recursive
+  traversal that walks the full subtree and applies the corner radius to every
+  buffer node, including those in nested subsurface trees.
+- **scenefx crash when running nested (SIGABRT in wlr_scene_output_build_state)**:
+  when running inside another Wayland compositor (e.g. for testing), scenefx's
+  `fx_renderer_create` succeeded even on the Wayland backend because a GPU render
+  node is available, but the renderer was incompatible with the Wayland backend's
+  buffer pipeline, triggering an assertion. The fix checks `WAYLAND_DISPLAY` and
+  `DISPLAY` at startup: if either is set, the standard `wlr_renderer_autocreate`
+  is used instead of the FX renderer, so scenefx effects are only active on real
+  DRM hardware.
 - **Monitor flickering**: on multi-monitor setups one output could flicker
   continuously. The frame handler was calling `wlr_scene_output_send_frame_done`
   unconditionally even when `wlr_scene_output_commit` returned false (nothing to
