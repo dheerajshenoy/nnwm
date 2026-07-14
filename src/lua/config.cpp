@@ -2,6 +2,7 @@
 
 #include "config.hpp"
 #include "nnwm.hpp"
+#include "../nnwm_internal.hpp"
 
 extern "C"
 {
@@ -772,9 +773,7 @@ free_monitor_configs(struct nnwm_config *cfg)
     {
         auto &mc = cfg->monitor_configs[i];
         free(mc.name);
-        free(mc.make);
-        free(mc.model);
-        free(mc.serial);
+        free(mc.description);
     }
     free(cfg->monitor_configs);
     cfg->monitor_configs     = nullptr;
@@ -816,10 +815,8 @@ read_monitor_configs(lua_State *L, struct nnwm_config *cfg)
         mc.y = INT_MAX;
         mc.transform = -1;
 
-        mc.name   = get_string_field(L, "name", nullptr);
-        mc.make   = get_string_field(L, "make", nullptr);
-        mc.model  = get_string_field(L, "model", nullptr);
-        mc.serial = get_string_field(L, "serial", nullptr);
+        mc.name        = get_string_field(L, "name", nullptr);
+        mc.description = get_string_field(L, "description", nullptr);
 
         mc.width   = get_int_field(L, "width", 0);
         mc.height  = get_int_field(L, "height", 0);
@@ -1053,9 +1050,15 @@ nnwm::lua_load_config(struct nnwm_server *server, struct nnwm_config *cfg,
 
     if (luaL_dofile(server->lua, path) != LUA_OK)
     {
-        std::fprintf(stderr, "nnwm: config error: %s\n",
-                     lua_tostring(server->lua, -1));
+        const char *err = lua_tostring(server->lua, -1);
+        std::fprintf(stderr, "nnwm: config error: %s\n", err);
+        if (server->wayland_started)
+            show_config_error(server, err);
         lua_pop(server->lua, 1);
+    }
+    else if (server->wayland_started)
+    {
+        hide_config_error(server);
     }
 
     read_config_table(server->lua, cfg);
@@ -1084,9 +1087,14 @@ nnwm::lua_reload(struct nnwm_server *server, struct nnwm_config *cfg)
 
     if (luaL_dofile(server->lua, server->config_path) != LUA_OK)
     {
-        std::fprintf(stderr, "nnwm: config error: %s\n",
-                     lua_tostring(server->lua, -1));
+        const char *err = lua_tostring(server->lua, -1);
+        std::fprintf(stderr, "nnwm: config error: %s\n", err);
+        show_config_error(server, err);
         lua_pop(server->lua, 1);
+    }
+    else
+    {
+        hide_config_error(server);
     }
 
     read_config_table(server->lua, cfg);
@@ -1200,9 +1208,7 @@ nnwm::config_free(struct nnwm_config *cfg)
     {
         auto &mc = cfg->monitor_configs[i];
         free(mc.name);
-        free(mc.make);
-        free(mc.model);
-        free(mc.serial);
+        free(mc.description);
     }
     free(cfg->monitor_configs);
     free_window_rules(cfg);

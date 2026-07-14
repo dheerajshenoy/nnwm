@@ -6,18 +6,35 @@
 #include <cstring>
 #include <ctime>
 
+/* Build "make model serial" description string for matching (caller must free) */
+static char *output_description(const wlr_output *o)
+{
+    char buf[512] = {};
+    if (o->make  && o->make[0])  { if (buf[0]) strcat(buf, " "); strcat(buf, o->make); }
+    if (o->model && o->model[0]) { if (buf[0]) strcat(buf, " "); strcat(buf, o->model); }
+    if (buf[0]) strcat(buf, " ");
+    if (o->serial && o->serial[0]) strcat(buf, o->serial);
+    else                           strcat(buf, "Unknown");
+    return strdup(buf);
+}
+
 /* ---- Output frame and state request ---- */
 
 void
 output_frame(wl_listener *listener, void * /*data*/)
 {
     nnwm_output *output = wl_container_of(listener, output, frame);
-    wlr_scene   *scene  = output->server->scene;
+
+    if (!output->wlr_output->enabled)
+        return;
 
     wlr_scene_output *scene_output
-        = wlr_scene_get_scene_output(scene, output->wlr_output);
+        = wlr_scene_get_scene_output(output->server->scene, output->wlr_output);
+    if (!scene_output)
+        return;
 
-    wlr_scene_output_commit(scene_output, nullptr);
+    if (!wlr_scene_output_commit(scene_output, nullptr))
+        return;
 
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
@@ -53,6 +70,8 @@ output_destroy(wl_listener *listener, void * /*data*/)
     wl_list_remove(&output->link);
     if (output->tab_bar)
         wlr_scene_node_destroy(&output->tab_bar->node);
+    if (output->error_bar)
+        wlr_scene_node_destroy(&output->error_bar->node);
     delete output;
 
     output_manager_build_config(server);
@@ -193,15 +212,15 @@ server_apply_config(nnwm_server *server)
             nnwm_monitor_config *mc = nullptr;
             {
                 auto *cfg = server->config;
+                char *desc = output_description(wlr_output);
                 for (int i = 0; i < cfg->monitor_config_count; i++) {
                     auto &c = cfg->monitor_configs[i];
                     bool match = true;
-                    if (c.name   && (!wlr_output->name   || strcmp(c.name,   wlr_output->name)   != 0)) match = false;
-                    if (c.make   && (!wlr_output->make   || strcmp(c.make,   wlr_output->make)   != 0)) match = false;
-                    if (c.model  && (!wlr_output->model  || strcmp(c.model,  wlr_output->model)  != 0)) match = false;
-                    if (c.serial && (!wlr_output->serial || strcmp(c.serial, wlr_output->serial) != 0)) match = false;
+                    if (c.name        && (!wlr_output->name || strcmp(c.name, wlr_output->name) != 0)) match = false;
+                    if (c.description && strcmp(c.description, desc) != 0) match = false;
                     if (match) { mc = &c; break; }
                 }
+                free(desc);
             }
 
             if (!mc)
@@ -304,20 +323,26 @@ server_new_output(wl_listener *listener, void *data)
 
     wlr_output_init_render(wlr_output, server->allocator, server->renderer);
 
+    wlr_log(WLR_INFO, "new output: name='%s' make='%s' model='%s' serial='%s'",
+            wlr_output->name   ? wlr_output->name   : "",
+            wlr_output->make   ? wlr_output->make   : "",
+            wlr_output->model  ? wlr_output->model  : "",
+            wlr_output->serial ? wlr_output->serial : "");
+
     /* Find matching monitor config (first match wins) */
     nnwm_monitor_config *mc = nullptr;
     {
         auto *cfg = server->config;
+        char *desc = output_description(wlr_output);
         for (int i = 0; i < cfg->monitor_config_count; i++)
         {
             auto &c = cfg->monitor_configs[i];
             bool match = true;
-            if (c.name   && (!wlr_output->name   || strcmp(c.name,   wlr_output->name)   != 0)) match = false;
-            if (c.make   && (!wlr_output->make   || strcmp(c.make,   wlr_output->make)   != 0)) match = false;
-            if (c.model  && (!wlr_output->model  || strcmp(c.model,  wlr_output->model)  != 0)) match = false;
-            if (c.serial && (!wlr_output->serial || strcmp(c.serial, wlr_output->serial) != 0)) match = false;
+            if (c.name        && (!wlr_output->name || strcmp(c.name, wlr_output->name) != 0)) match = false;
+            if (c.description && strcmp(c.description, desc) != 0) match = false;
             if (match) { mc = &c; break; }
         }
+        free(desc);
     }
 
     wlr_output_state state;
@@ -387,6 +412,8 @@ server_new_output(wl_listener *listener, void *data)
         output->layout_mode[i] = NNWM_LAYOUT_TILE;
     output->tab_bar = wlr_scene_buffer_create(server->scene_windows, nullptr);
     wlr_scene_node_set_enabled(&output->tab_bar->node, false);
+    output->error_bar = wlr_scene_buffer_create(server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY], nullptr);
+    wlr_scene_node_set_enabled(&output->error_bar->node, false);
     if (!server->focused_output)
         server->focused_output = output;
 

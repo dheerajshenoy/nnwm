@@ -88,10 +88,8 @@ MOD = {}
 ---@field monitor    string?  Assign to the output with this name (e.g. `"DP-1"`)
 
 ---@class nnwm_monitor_config
----@field name      string?   Output name, e.g. "DP-1"
----@field make      string?   Manufacturer string
----@field model     string?   Model string
----@field serial    string?   Serial number string
+---@field name        string?   Output connector name, e.g. `"DP-1"`, `"eDP-1"`
+---@field description string?   Combined EDID string `"make model serial"` (serial is `"Unknown"` if absent), e.g. `"HP Inc. HP P24h G5 3CM5031JJC"`
 ---@field width     integer?  Mode width in pixels
 ---@field height    integer?  Mode height in pixels
 ---@field refresh   integer?  Refresh rate in Hz

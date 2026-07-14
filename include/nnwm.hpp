@@ -178,6 +178,7 @@ struct nnwm_server
     char *config_path;
     int config_inotify_fd;
     struct wl_event_source *config_event_source;
+    struct wl_event_source *error_dismiss_timer; /* auto-hides config error bar */
 
     /* spawn_once: commands already launched this session */
     char **spawn_once_cmds;
@@ -200,6 +201,7 @@ struct nnwm_output
     int active_workspace;
     enum nnwm_layout_mode layout_mode[NNWM_NUM_WORKSPACES];
     struct wlr_scene_buffer *tab_bar;
+    struct wlr_scene_buffer *error_bar;
     struct nnwm_toplevel *last_focused[NNWM_NUM_WORKSPACES];
     struct nnwm_toplevel *prev_focused[NNWM_NUM_WORKSPACES]; /* focused before last_focused */
     struct wl_listener frame;

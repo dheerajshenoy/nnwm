@@ -588,3 +588,91 @@ unfocus_all_borders(nnwm_server *server)
         render_titlebar(tl, tl->titlebar_width, false);
     }
 }
+
+/* ---- Config error overlay ---- */
+
+static int
+error_dismiss_cb(void *data)
+{
+    hide_config_error(static_cast<nnwm_server*>(data));
+    return 0;
+}
+
+void
+show_config_error(nnwm_server *server, const char *message)
+{
+    const int bar_h = 24;
+    const float bg[4] = { 0.7f, 0.1f, 0.1f, 1.0f };
+    const float fg[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+    nnwm_output *out;
+    wl_list_for_each(out, &server->outputs, link) {
+        if (!out->error_bar) continue;
+        wlr_box area;
+        wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
+        int W = area.width;
+        if (W <= 0) continue;
+
+        nnwm_tbuf *tb = tbuf_create(W, bar_h);
+        cairo_surface_t *surf = cairo_image_surface_create_for_data(
+            tb->data, CAIRO_FORMAT_ARGB32, W, bar_h, tb->stride);
+        cairo_t *cr = cairo_create(surf);
+
+        cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
+        cairo_paint(cr);
+
+        PangoLayout *layout = pango_cairo_create_layout(cr);
+        const char *font = server->config->titlebar_font
+                         ? server->config->titlebar_font : "Sans 10";
+        PangoFontDescription *fd = pango_font_description_from_string(font);
+        pango_layout_set_font_description(layout, fd);
+        pango_font_description_free(fd);
+
+        char text[1024];
+        std::snprintf(text, sizeof(text), "Config error: %s", message);
+        pango_layout_set_text(layout, text, -1);
+        pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
+        pango_layout_set_width(layout, (W - 8) * PANGO_SCALE);
+
+        int pw, ph;
+        pango_layout_get_size(layout, &pw, &ph);
+        double ty = (bar_h - ph / (double)PANGO_SCALE) / 2.0;
+
+        cairo_set_source_rgba(cr, fg[0], fg[1], fg[2], fg[3]);
+        cairo_move_to(cr, 8, ty);
+        pango_cairo_show_layout(cr, layout);
+        g_object_unref(layout);
+
+        cairo_destroy(cr);
+        cairo_surface_destroy(surf);
+
+        wlr_scene_buffer_set_buffer(out->error_bar, &tb->base);
+        wlr_scene_buffer_set_dest_size(out->error_bar, W, bar_h);
+        wlr_buffer_drop(&tb->base);
+        wlr_scene_node_set_position(&out->error_bar->node, area.x, area.y);
+        wlr_scene_node_set_enabled(&out->error_bar->node, true);
+        wlr_scene_node_raise_to_top(&out->error_bar->node);
+    }
+
+    /* (Re-)arm the auto-dismiss timer for 8 seconds */
+    if (!server->error_dismiss_timer) {
+        struct wl_event_loop *loop =
+            wl_display_get_event_loop(server->wl_display);
+        server->error_dismiss_timer =
+            wl_event_loop_add_timer(loop, error_dismiss_cb, server);
+    }
+    wl_event_source_timer_update(server->error_dismiss_timer, 8000);
+}
+
+void
+hide_config_error(nnwm_server *server)
+{
+    nnwm_output *out;
+    wl_list_for_each(out, &server->outputs, link) {
+        if (out->error_bar)
+            wlr_scene_node_set_enabled(&out->error_bar->node, false);
+    }
+    if (server->error_dismiss_timer) {
+        wl_event_source_timer_update(server->error_dismiss_timer, 0);
+    }
+}

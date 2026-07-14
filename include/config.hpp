@@ -29,10 +29,8 @@ struct nnwm_window_rule
 struct nnwm_monitor_config
 {
     /* Match fields (all optional; NULL = don't match on this field) */
-    char *name;       /* output name, e.g. "DP-1" */
-    char *make;       /* EDID manufacturer */
-    char *model;      /* EDID model name */
-    char *serial;     /* EDID serial number */
+    char *name;        /* output name, e.g. "DP-1" */
+    char *description; /* "make model serial" combined string */
 
     /* Mode */
     int width, height;/* pixels; 0 = use preferred mode */
