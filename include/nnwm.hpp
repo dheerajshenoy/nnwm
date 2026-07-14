@@ -74,6 +74,7 @@ extern "C"
 enum nnwm_layout_mode {
     NNWM_LAYOUT_TILE,
     NNWM_LAYOUT_TABBED,
+    NNWM_LAYOUT_SCROLL,
     NNWM_LAYOUT_COUNT,
 };
 
@@ -143,6 +144,8 @@ struct nnwm_server
     struct wlr_box grab_geobox;
     uint32_t resize_edges;
 
+    struct wl_listener session_active; /* VT switch resume → re-tile all outputs */
+
     struct wlr_output_layout *output_layout;
     struct wl_list outputs;
     struct wl_listener new_output;
@@ -201,6 +204,7 @@ struct nnwm_output
     struct wlr_box usable_area; /* output area minus exclusive-zone struts */
     int active_workspace;
     enum nnwm_layout_mode layout_mode[NNWM_NUM_WORKSPACES];
+    int scroll_offset[NNWM_NUM_WORKSPACES]; /* horizontal scroll offset in pixels for NNWM_LAYOUT_SCROLL */
     struct wlr_scene_buffer *tab_bar;
     struct wlr_scene_buffer *error_bar;
     struct nnwm_toplevel *last_focused[NNWM_NUM_WORKSPACES];
@@ -330,6 +334,7 @@ extern "C"
 {
 #endif
 void server_apply_config(struct nnwm_server *server);
+void server_session_active(struct wl_listener *, void *);
 void server_new_output(struct wl_listener *, void *);
 void server_new_xdg_toplevel(struct wl_listener *, void *);
 void server_new_xdg_popup(struct wl_listener *, void *);
@@ -385,6 +390,7 @@ void action_toggle_float(struct nnwm_server *server);
 void action_toggle_fullscreen(struct nnwm_server *server);
 void action_toggle_sticky(struct nnwm_server *server);
 void action_toggle_tabbed(struct nnwm_server *server);
+void action_toggle_scroll(struct nnwm_server *server);
 void action_layout_next(struct nnwm_server *server);
 void action_layout_prev(struct nnwm_server *server);
 void ext_workspace_init(struct nnwm_server *server);

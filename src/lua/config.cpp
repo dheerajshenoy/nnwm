@@ -470,6 +470,13 @@ l_nnwm_toggle_tabbed(lua_State *L)
 }
 
 static int
+l_nnwm_toggle_scroll(lua_State *L)
+{
+    nnwm::action_toggle_scroll(get_server(L));
+    return 0;
+}
+
+static int
 l_nnwm_layout_next(lua_State *L)
 {
     nnwm::action_layout_next(get_server(L));
@@ -657,6 +664,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "master_ratio_min");
     lua_pushnumber(L, cfg->master_ratio_max);
     lua_setfield(L, -2, "master_ratio_max");
+    lua_pushnumber(L, cfg->scroll_column_width);
+    lua_setfield(L, -2, "scroll_column_width");
     lua_setfield(L, -2, "layout");
 
     /* gaps sub-table */
@@ -878,7 +887,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         cfg->master_ratio       = get_float_field(L, "master_ratio", cfg->master_ratio);
         cfg->master_ratio_step  = get_float_field(L, "master_ratio_step", cfg->master_ratio_step);
         cfg->master_ratio_min   = get_float_field(L, "master_ratio_min", cfg->master_ratio_min);
-        cfg->master_ratio_max   = get_float_field(L, "master_ratio_max", cfg->master_ratio_max);
+        cfg->master_ratio_max    = get_float_field(L, "master_ratio_max", cfg->master_ratio_max);
+        cfg->scroll_column_width = get_float_field(L, "scroll_column_width", cfg->scroll_column_width);
     }
     lua_pop(L, 1);
 
@@ -1003,6 +1013,10 @@ nnwm::lua_init(struct nnwm_server *server)
     lua_pushcfunction(server->lua, l_nnwm_toggle_tabbed);
     lua_setfield(server->lua, -2, "toggle");
     lua_setfield(server->lua, -2, "tabbed");
+    lua_newtable(server->lua);                      /* nnwm.layout.scroll   */
+    lua_pushcfunction(server->lua, l_nnwm_toggle_scroll);
+    lua_setfield(server->lua, -2, "toggle");
+    lua_setfield(server->lua, -2, "scroll");
     lua_pushcfunction(server->lua, l_nnwm_layout_next);
     lua_setfield(server->lua, -2, "next");
     lua_pushcfunction(server->lua, l_nnwm_layout_prev);
@@ -1138,10 +1152,11 @@ nnwm::config_defaults(void)
 {
     auto *cfg = new nnwm_config{};
 
-    cfg->master_ratio      = 0.55f;
-    cfg->master_ratio_step = 0.05f;
-    cfg->master_ratio_min  = 0.1f;
-    cfg->master_ratio_max  = 0.9f;
+    cfg->master_ratio       = 0.55f;
+    cfg->master_ratio_step  = 0.05f;
+    cfg->master_ratio_min   = 0.1f;
+    cfg->master_ratio_max   = 0.9f;
+    cfg->scroll_column_width = 0.5f;
 
     cfg->inner_gap     = 0;
     cfg->outer_gap     = 0;

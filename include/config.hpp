@@ -90,6 +90,7 @@ struct nnwm_config
 
     /* Layout behaviour */
     bool new_window_master; /* true = new window becomes master, false = appended to stack */
+    float scroll_column_width; /* fraction of output width per column in scroll layout (0.0–1.0) */
 
     /* Decorations */
     bool client_decorations; /* true = CSD (client draws titlebar), false = SSD (no titlebar) */

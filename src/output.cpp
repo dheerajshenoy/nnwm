@@ -77,6 +77,22 @@ output_destroy(wl_listener *listener, void * /*data*/)
     output_manager_build_config(server);
 }
 
+/* ---- VT resume ---- */
+
+void
+server_session_active(wl_listener *listener, void * /*data*/)
+{
+    nnwm_server *server = wl_container_of(listener, server, session_active);
+    if (!server->session || !server->session->active)
+        return;
+    /* Refresh usable_area from the output layout and re-tile every output.
+     * The DRM backend may have applied a new mode or transform while the
+     * session was inactive, so we must re-query the layout box. */
+    nnwm_output *out;
+    wl_list_for_each(out, &server->outputs, link)
+        arrange_layers(server, out->wlr_output);
+}
+
 /* ---- wlr-output-management ---- */
 
 void
@@ -408,8 +424,10 @@ server_new_output(wl_listener *listener, void *data)
     output->active_workspace = 0;
     memset(output->last_focused, 0, sizeof(output->last_focused));
     memset(output->prev_focused, 0, sizeof(output->prev_focused));
-    for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
-        output->layout_mode[i] = NNWM_LAYOUT_TILE;
+    for (int i = 0; i < NNWM_NUM_WORKSPACES; i++) {
+        output->layout_mode[i]  = NNWM_LAYOUT_TILE;
+        output->scroll_offset[i] = 0;
+    }
     output->tab_bar = wlr_scene_buffer_create(server->scene_windows, nullptr);
     wlr_scene_node_set_enabled(&output->tab_bar->node, false);
     output->error_bar = wlr_scene_buffer_create(server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY], nullptr);

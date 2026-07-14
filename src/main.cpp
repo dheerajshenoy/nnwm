@@ -155,6 +155,12 @@ main(int argc, char *argv[])
     server.new_output.notify = server_new_output;
     wl_signal_add(&server.backend->events.new_output, &server.new_output);
 
+    /* Re-tile all outputs on VT resume (session re-activation) */
+    if (server.session) {
+        server.session_active.notify = server_session_active;
+        wl_signal_add(&server.session->events.active, &server.session_active);
+    }
+
     /* Create a scene graph. This is a wlroots abstraction that handles all
      * rendering and damage tracking. All the compositor author needs to do
      * is add things that should be rendered to the scene graph at the proper
@@ -395,6 +401,8 @@ main(int argc, char *argv[])
     wl_list_remove(&server.request_set_selection.link);
 
     wl_list_remove(&server.new_output.link);
+    if (server.session)
+        wl_list_remove(&server.session_active.link);
 
     wl_global_destroy(server.ext_workspace_global);
     wlr_scene_node_destroy(&server.scene->tree.node);

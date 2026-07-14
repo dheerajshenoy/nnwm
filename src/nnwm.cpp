@@ -438,6 +438,62 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         return;
     }
 
+    /* ── Scroll layout (horizontal strip) ─────────────────────────────────── */
+    if (out->layout_mode[ws] == NNWM_LAYOUT_SCROLL) {
+        if (out->tab_bar)
+            wlr_scene_node_set_enabled(&out->tab_bar->node, false);
+
+        int og    = cfg->outer_gap;
+        int ig    = cfg->inner_gap;
+        int bw    = cfg->border_width;
+        int th    = cfg->titlebar_height;
+        float cw_frac = cfg->scroll_column_width > 0.0f ? cfg->scroll_column_width : 0.5f;
+        int col_w = (int)(area.width * cw_frac);
+        int col_h = area.height - 2 * og;
+
+        /* Find focused window index to compute scroll offset */
+        nnwm_toplevel *active = out->last_focused[ws];
+        if (!active || active->output != out || active->workspace != ws
+                    || active->floating || active->fullscreen)
+            active = ws_first(server, out);
+
+        int fi = 0, idx = 0;
+        wl_list_for_each(tl, &server->toplevels, link) {
+            if (!WS_TILED(tl, out)) continue;
+            if (tl == active) fi = idx;
+            idx++;
+        }
+
+        /* Center the focused column in the viewport */
+        int focused_left = og + fi * (col_w + ig);
+        int target = focused_left + col_w / 2 - area.width / 2;
+        if (target < 0) target = 0;
+        out->scroll_offset[ws] = target;
+
+        wlr_surface *focused_surface = server->seat->keyboard_state.focused_surface;
+        int i = 0;
+        wl_list_for_each(tl, &server->toplevels, link) {
+            if (!WS_TILED(tl, out)) continue;
+            int tx = area.x + og + i * (col_w + ig) - out->scroll_offset[ws];
+            int ty = area.y + og;
+            bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
+            wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
+            wlr_scene_node_set_position(&tl->scene_tree->node, tx, ty);
+            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, col_w - 2 * bw, col_h - 2 * bw - th);
+            update_borders(tl, col_w, col_h, bw);
+            render_titlebar(tl, col_w - 2 * bw, focused);
+            i++;
+        }
+
+        /* Floating and fullscreen windows above tiled */
+        wl_list_for_each(tl, &server->toplevels, link) {
+            if (tl->output == out && (tl->workspace == ws || tl->sticky)
+                    && (tl->floating || tl->fullscreen))
+                wlr_scene_node_raise_to_top(&tl->scene_tree->node);
+        }
+        return;
+    }
+
     /* ── Tile layout (master-stack) ────────────────────────────────────────── */
 
     /* Disable tab bar and re-enable tiled scene trees (from possible tabbed state) */

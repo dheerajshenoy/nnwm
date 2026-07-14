@@ -524,6 +524,18 @@ nnwm::action_toggle_tabbed(nnwm_server *server)
 }
 
 void
+nnwm::action_toggle_scroll(nnwm_server *server)
+{
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+    int ws = out->active_workspace;
+    out->layout_mode[ws] = (out->layout_mode[ws] == NNWM_LAYOUT_SCROLL)
+        ? NNWM_LAYOUT_TILE
+        : NNWM_LAYOUT_SCROLL;
+    arrange_windows(server, out);
+}
+
+void
 nnwm::action_layout_next(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
