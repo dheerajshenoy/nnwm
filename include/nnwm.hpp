@@ -10,6 +10,17 @@ extern "C"
 #include <cstdlib>
 #include <unistd.h>
 #include <wayland-server-core.h>
+/* wlr/render/color.h uses C99 [static N] array syntax which is invalid C++.
+ * Pre-include it with `static` suppressed so every transitive inclusion is a
+ * no-op (include guard already fired). */
+#ifdef __cplusplus
+#  pragma push_macro("static")
+#  define static
+#  include <wlr/render/color.h>
+#  pragma pop_macro("static")
+#else
+#  include <wlr/render/color.h>
+#endif
 #include <wlr/backend.h>
 #include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>

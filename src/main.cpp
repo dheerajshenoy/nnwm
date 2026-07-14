@@ -114,9 +114,18 @@ main(int argc, char *argv[])
      * The renderer is responsible for defining the various pixel formats it
      * supports for shared memory, this configures that for clients. */
 #ifdef HAVE_SCENEFX
-    server.renderer = fx_renderer_create(server.backend);
+    /* scenefx's fx_renderer only works correctly on a real DRM/KMS backend.
+     * When running nested (WAYLAND_DISPLAY or DISPLAY is set), the Wayland/X11
+     * backend opens a render node for EGL but wlr_backend_get_drm_fd still
+     * returns a valid fd, so we cannot use that to distinguish. Instead check
+     * the environment: if we are nested, fall back to the standard renderer. */
+    if (!getenv("WAYLAND_DISPLAY") && !getenv("DISPLAY")) {
+        int drm_fd = wlr_backend_get_drm_fd(server.backend);
+        if (drm_fd >= 0)
+            server.renderer = fx_renderer_create_with_drm_fd(drm_fd);
+    }
     if (!server.renderer) {
-        wlr_log(WLR_INFO, "scenefx fx_renderer unavailable (no DRM fd), falling back");
+        wlr_log(WLR_INFO, "scenefx: nested or no DRM fd — falling back to default renderer");
         server.renderer = wlr_renderer_autocreate(server.backend);
     }
 #else
