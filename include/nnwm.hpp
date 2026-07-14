@@ -185,6 +185,7 @@ struct nnwm_server
     struct wl_listener new_xdg_toplevel;
     struct wl_listener new_xdg_popup;
     struct wl_list toplevels;
+    struct wl_list dying_toplevels;  /* toplevels fading out after unmap */
 
     struct wlr_cursor *cursor;
     struct wlr_xcursor_manager *cursor_mgr;
@@ -298,6 +299,31 @@ struct nnwm_toplevel
     struct wlr_scene_shadow *fx_shadow; /* scenefx shadow node, nullptr if disabled */
     struct wlr_scene_blur  *fx_blur;    /* scenefx background blur node, nullptr if disabled */
 #endif
+    /* Current visual geometry — tracks what's actually rendered */
+    int cur_x, cur_y, cur_w, cur_h;
+
+    /* Geometry animation (position + size tween) */
+    bool   geo_anim;
+    double geo_t0;
+    int    geo_from_x, geo_from_y, geo_from_w, geo_from_h;
+    int    geo_to_x,   geo_to_y,   geo_to_w,   geo_to_h;
+    int    geo_bw;
+    bool   geo_then_hide;
+
+    /* Fade animation (open/close) */
+    bool   fade_anim;
+    double fade_t0;
+    float  fade_from, fade_to;
+
+    /* Border color animation (focus change) */
+    bool   bcol_anim;
+    double bcol_t0;
+    float  bcol_from[4], bcol_to[4];
+
+    /* Dying: removed from server->toplevels but still fading out */
+    bool           dying;
+    struct wl_list dying_link;
+
     struct wl_listener map;
     struct wl_listener unmap;
     struct wl_listener commit;

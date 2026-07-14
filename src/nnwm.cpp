@@ -1,8 +1,10 @@
 #include "nnwm.hpp"
 #include "nnwm_internal.hpp"
 
+#include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <drm_fourcc.h>
 #include <pango/pangocairo.h>
 extern "C" {
@@ -113,6 +115,40 @@ render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused)
     wlr_buffer_drop(&tb->base);
 }
 
+/* Forward declaration for set_opacity_recursive (defined later in scenefx block) */
+#ifdef HAVE_SCENEFX
+static void set_opacity_recursive(struct wlr_scene_tree *tree, float opacity);
+#endif
+
+/* ---- Animation helpers ---- */
+
+double
+anim_now(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec + ts.tv_nsec * 1e-9;
+}
+
+static float
+ease_out(float t)
+{
+    float f = 1.0f - t;
+    return 1.0f - f * f * f;
+}
+
+static float
+anim_t(nnwm_server *server, double t0, double now)
+{
+    if (!server->config->anim_enabled || server->config->anim_duration_ms <= 0)
+        return 1.0f;
+    float t = (float)((now - t0) / (server->config->anim_duration_ms * 0.001));
+    return t >= 1.0f ? 1.0f : ease_out(t);
+}
+
+static float lerpf(float a, float b, float t) { return a + (b - a) * t; }
+static int   lerpi(int   a, int   b, float t) { return a + (int)roundf((float)(b - a) * t); }
+
 /* ---- Borders and surface placement ---- */
 
 void
@@ -158,6 +194,143 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
             (int)cfg->shadow_offset_x, (int)cfg->shadow_offset_y);
     }
 #endif
+}
+
+/* ---- Animation functions ---- */
+
+void
+tl_set_geometry(nnwm_toplevel *tl, int x, int y, int w, int h, int bw)
+{
+    nnwm_config *cfg = tl->server->config;
+    bool do_anim = cfg->anim_enabled && cfg->anim_duration_ms > 0;
+    bool first   = (tl->cur_w == 0 && tl->cur_h == 0);
+    bool changed = (x != tl->cur_x || y != tl->cur_y ||
+                    w != tl->cur_w || h != tl->cur_h);
+
+    tl->geo_to_x = x; tl->geo_to_y = y;
+    tl->geo_to_w = w; tl->geo_to_h = h;
+    tl->geo_bw   = bw;
+
+    if (do_anim && changed) {
+        if (first) {
+            /* First layout: grow from 95% of final size, centered */
+            int dx = w / 20, dy = h / 20;
+            tl->geo_from_x = x + dx;
+            tl->geo_from_y = y + dy;
+            tl->geo_from_w = w - 2 * dx;
+            tl->geo_from_h = h - 2 * dy;
+        } else {
+            tl->geo_from_x = tl->cur_x;
+            tl->geo_from_y = tl->cur_y;
+            tl->geo_from_w = tl->cur_w;
+            tl->geo_from_h = tl->cur_h;
+        }
+        tl->geo_anim      = true;
+        tl->geo_t0        = anim_now();
+        tl->geo_then_hide = false;
+        wlr_scene_node_set_position(&tl->scene_tree->node, tl->geo_from_x, tl->geo_from_y);
+        update_borders(tl, tl->geo_from_w, tl->geo_from_h, bw);
+        tl->cur_x = tl->geo_from_x; tl->cur_y = tl->geo_from_y;
+        tl->cur_w = tl->geo_from_w; tl->cur_h = tl->geo_from_h;
+    } else {
+        tl->geo_anim = false;
+        tl->cur_x = x; tl->cur_y = y;
+        tl->cur_w = w; tl->cur_h = h;
+        wlr_scene_node_set_position(&tl->scene_tree->node, x, y);
+        update_borders(tl, w, h, bw);
+    }
+}
+
+void
+tl_start_fade(nnwm_toplevel *tl, float from, float to)
+{
+    tl->fade_from = from;
+    tl->fade_to   = to;
+    if (tl->server->config->anim_enabled && tl->server->config->anim_duration_ms > 0) {
+        tl->fade_anim = true;
+        tl->fade_t0   = anim_now();
+#ifdef HAVE_SCENEFX
+        set_opacity_recursive(tl->scene_surface, from);
+#endif
+    } else {
+        tl->fade_anim = false;
+#ifdef HAVE_SCENEFX
+        set_opacity_recursive(tl->scene_surface, to);
+#endif
+    }
+}
+
+void
+tl_start_border_color(nnwm_toplevel *tl, const float to[4])
+{
+    if (!tl->server->config->anim_enabled || tl->server->config->anim_duration_ms <= 0) {
+        for (int i = 0; i < 4; i++)
+            wlr_scene_rect_set_color(tl->border[i], to);
+        tl->bcol_anim = false;
+        return;
+    }
+    for (int i = 0; i < 4; i++) {
+        tl->bcol_from[i] = tl->bcol_anim ? tl->bcol_to[i] : tl->border[0]->color[i];
+        tl->bcol_to[i]   = to[i];
+    }
+    tl->bcol_anim = true;
+    tl->bcol_t0   = anim_now();
+}
+
+static void
+animate_step_one(nnwm_server *server, nnwm_toplevel *tl, double now)
+{
+    if (tl->geo_anim) {
+        float t  = anim_t(server, tl->geo_t0, now);
+        int   cx = lerpi(tl->geo_from_x, tl->geo_to_x, t);
+        int   cy = lerpi(tl->geo_from_y, tl->geo_to_y, t);
+        int   cw = lerpi(tl->geo_from_w, tl->geo_to_w, t);
+        int   ch = lerpi(tl->geo_from_h, tl->geo_to_h, t);
+        wlr_scene_node_set_position(&tl->scene_tree->node, cx, cy);
+        update_borders(tl, cw, ch, tl->geo_bw);
+        tl->cur_x = cx; tl->cur_y = cy;
+        tl->cur_w = cw; tl->cur_h = ch;
+        if (t >= 1.0f) {
+            tl->geo_anim = false;
+            if (tl->geo_then_hide) {
+                wlr_scene_node_set_enabled(&tl->scene_tree->node, false);
+                tl->cur_x = tl->geo_from_x; tl->cur_y = tl->geo_from_y;
+                tl->cur_w = tl->geo_from_w; tl->cur_h = tl->geo_from_h;
+            }
+        }
+    }
+    if (tl->fade_anim) {
+        float t = anim_t(server, tl->fade_t0, now);
+#ifdef HAVE_SCENEFX
+        set_opacity_recursive(tl->scene_surface, lerpf(tl->fade_from, tl->fade_to, t));
+#endif
+        if (t >= 1.0f) {
+            tl->fade_anim = false;
+            if (tl->dying)
+                wlr_scene_node_set_enabled(&tl->scene_tree->node, false);
+        }
+    }
+    if (tl->bcol_anim) {
+        float t = anim_t(server, tl->bcol_t0, now);
+        float col[4];
+        for (int i = 0; i < 4; i++)
+            col[i] = lerpf(tl->bcol_from[i], tl->bcol_to[i], t);
+        for (int i = 0; i < 4; i++)
+            wlr_scene_rect_set_color(tl->border[i], col);
+        if (t >= 1.0f) tl->bcol_anim = false;
+    }
+}
+
+void
+animate_step(nnwm_server *server)
+{
+    double now = anim_now();
+
+    nnwm_toplevel *tl;
+    wl_list_for_each(tl, &server->toplevels, link)
+        animate_step_one(server, tl, now);
+    wl_list_for_each(tl, &server->dying_toplevels, dying_link)
+        animate_step_one(server, tl, now);
 }
 
 /* ---- scenefx per-window decorations ---- */
@@ -550,9 +723,8 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
             wlr_scene_node_set_enabled(&tl->scene_tree->node, tl == active);
             if (tl->titlebar)
                 wlr_scene_node_set_enabled(&tl->titlebar->node, false);
-            wlr_scene_node_set_position(&tl->scene_tree->node, cx, cy);
             wlr_xdg_toplevel_set_size(tl->xdg_toplevel, cw - 2 * bw, ch - 2 * bw);
-            update_borders(tl, cw, ch, bw);
+            tl_set_geometry(tl, cx, cy, cw, ch, bw);
             /* Override scene_surface position: no per-window titlebar offset */
             wlr_scene_node_set_position(&tl->scene_surface->node, bw, bw);
         }
@@ -614,9 +786,8 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
             int ty = area.y + og;
             bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
             wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
-            wlr_scene_node_set_position(&tl->scene_tree->node, tx, ty);
             wlr_xdg_toplevel_set_size(tl->xdg_toplevel, col_w - 2 * bw, col_h - 2 * bw - th);
-            update_borders(tl, col_w, col_h, bw);
+            tl_set_geometry(tl, tx, ty, col_w, col_h, bw);
             render_titlebar(tl, col_w - 2 * bw, focused);
             i++;
         }
@@ -658,9 +829,8 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
     if (n == 1) {
         wl_list_for_each(tl, &server->toplevels, link) {
             if (!WS_TILED(tl, out)) continue;
-            wlr_scene_node_set_position(&tl->scene_tree->node, x0, y0);
             wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw, H - 2 * bw - th);
-            update_borders(tl, W, H, bw);
+            tl_set_geometry(tl, x0, y0, W, H, bw);
             render_titlebar(tl, W - 2 * bw,
                 tl->xdg_toplevel->base->surface == focused_surface);
             break;
@@ -676,16 +846,14 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
             if (!WS_TILED(tl, out)) continue;
             bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
             if (i == 0) {
-                wlr_scene_node_set_position(&tl->scene_tree->node, x0, y0);
                 wlr_xdg_toplevel_set_size(tl->xdg_toplevel, mw - 2 * bw, H - 2 * bw - th);
-                update_borders(tl, mw, H, bw);
+                tl_set_geometry(tl, x0, y0, mw, H, bw);
                 render_titlebar(tl, mw - 2 * bw, focused);
             } else {
                 int sy = y0 + (i - 1) * (sh + ig);
                 int h  = (i < ns) ? sh : H - (i - 1) * (sh + ig);
-                wlr_scene_node_set_position(&tl->scene_tree->node, x0 + mw + ig, sy);
                 wlr_xdg_toplevel_set_size(tl->xdg_toplevel, sw - 2 * bw, h - 2 * bw - th);
-                update_borders(tl, sw, h, bw);
+                tl_set_geometry(tl, x0 + mw + ig, sy, sw, h, bw);
                 render_titlebar(tl, sw - 2 * bw, focused);
             }
             ++i;
@@ -743,8 +911,7 @@ focus_toplevel(nnwm_toplevel *toplevel)
         bool foc = (tl == toplevel);
         float *color = foc ? server->config->focused_color
                            : server->config->unfocused_color;
-        for (int i = 0; i < 4; i++)
-            wlr_scene_rect_set_color(tl->border[i], color);
+        tl_start_border_color(tl, color);
         render_titlebar(tl, tl->titlebar_width, foc);
     }
 
@@ -776,8 +943,7 @@ unfocus_all_borders(nnwm_server *server)
 {
     nnwm_toplevel *tl;
     wl_list_for_each(tl, &server->toplevels, link) {
-        for (int i = 0; i < 4; i++)
-            wlr_scene_rect_set_color(tl->border[i], server->config->unfocused_color);
+        tl_start_border_color(tl, server->config->unfocused_color);
         render_titlebar(tl, tl->titlebar_width, false);
     }
 }

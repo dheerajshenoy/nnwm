@@ -106,4 +106,11 @@ void handle_xdg_popup_destroy(struct wl_listener *listener, void *data);
 void apply_window_rules(struct nnwm_server *server,
                         struct nnwm_toplevel *toplevel);
 
+/* ---- Animation ---- */
+double anim_now(void);
+void animate_step(struct nnwm_server *server);
+void tl_set_geometry(struct nnwm_toplevel *tl, int x, int y, int w, int h, int bw);
+void tl_start_fade(struct nnwm_toplevel *tl, float from, float to);
+void tl_start_border_color(struct nnwm_toplevel *tl, const float to[4]);
+
 #endif /* NNWM_INTERNAL_HPP */

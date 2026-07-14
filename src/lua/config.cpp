@@ -802,6 +802,14 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "blur");
     lua_setfield(L, -2, "fx");
 
+    /* animation sub-table */
+    lua_newtable(L);
+    lua_pushboolean(L, cfg->anim_enabled);
+    lua_setfield(L, -2, "enabled");
+    lua_pushinteger(L, cfg->anim_duration_ms);
+    lua_setfield(L, -2, "duration");
+    lua_setfield(L, -2, "animation");
+
     /* monitors: empty table (user populates in config file) */
     lua_newtable(L);
     lua_setfield(L, -2, "monitors");
@@ -1055,6 +1063,13 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     }
     lua_pop(L, 1);
 
+    lua_getfield(L, -1, "animation");
+    if (lua_istable(L, -1)) {
+        cfg->anim_enabled     = get_bool_field(L, "enabled",  cfg->anim_enabled);
+        cfg->anim_duration_ms = get_int_field(L,  "duration", cfg->anim_duration_ms);
+    }
+    lua_pop(L, 1);
+
     lua_pop(L, 2); /* pop opt and nnwm */
 
     read_monitor_configs(L, cfg);
@@ -1297,6 +1312,9 @@ nnwm::config_defaults(void)
     cfg->titlebar_text_color[2]  = 1.0f; cfg->titlebar_text_color[3]  = 1.0f;
     cfg->titlebar_focused_text_color[0] = 1.0f; cfg->titlebar_focused_text_color[1] = 1.0f;
     cfg->titlebar_focused_text_color[2] = 1.0f; cfg->titlebar_focused_text_color[3] = 1.0f;
+
+    cfg->anim_enabled     = true;
+    cfg->anim_duration_ms = 250;
 
     cfg->monitor_configs     = nullptr;
     cfg->monitor_config_count = 0;

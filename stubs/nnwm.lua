@@ -83,6 +83,10 @@ MOD = {}
 ---@field shadow?        nnwm.fx.shadow
 ---@field blur?          nnwm.fx.blur
 
+---@class nnwm.animations
+---@field enabled?  boolean  Enable animations (default: true)
+---@field duration? integer  Animation duration in milliseconds (default: 250)
+
 ---@class nnwm_opts
 ---@field layout?             nnwm.layout
 ---@field gaps?               nnwm.gaps
@@ -92,6 +96,7 @@ MOD = {}
 ---@field mouse?              nnwm.mouse
 ---@field titlebar?           nnwm.titlebar
 ---@field fx?                 nnwm.fx
+---@field animations?         nnwm.animations
 ---@field client_decorations? boolean
 ---@field seat_name?          string
 ---@field monitors?           nnwm_monitor_config[]

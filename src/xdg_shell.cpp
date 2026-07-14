@@ -68,6 +68,12 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
     toplevel->workspace = out ? out->active_workspace : 0;
     apply_window_rules(server, toplevel);
     apply_fx_decorations(toplevel);
+    /* Fade in on map */
+    if (server->config->anim_enabled) {
+        float target_op = (toplevel->rule_opacity >= 0.0f)
+                          ? toplevel->rule_opacity : server->config->opacity;
+        tl_start_fade(toplevel, 0.0f, target_op);
+    }
     /* After rules, ensure output pointer is still valid */
     if (!toplevel->output)
         toplevel->output = server->focused_output;
@@ -86,12 +92,21 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
     nnwm_toplevel *toplevel
         = wl_container_of(listener, toplevel, unmap);
 
+    nnwm_server *server = toplevel->server;
+
+    /* Start fade-out before removing from active list */
+    if (server->config->anim_enabled && server->config->anim_duration_ms > 0) {
+        float cur_op = (toplevel->rule_opacity >= 0.0f)
+                       ? toplevel->rule_opacity : server->config->opacity;
+        tl_start_fade(toplevel, cur_op, 0.0f);
+        toplevel->dying = true;
+    }
+
     if (toplevel == toplevel->server->grabbed_toplevel)
     {
         reset_cursor_mode(toplevel->server);
     }
 
-    nnwm_server *server = toplevel->server;
     int          ws     = toplevel->workspace;
     nnwm_output *out    = toplevel->output;
 
@@ -110,6 +125,8 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
     }
 
     wl_list_remove(&toplevel->link);
+    if (toplevel->dying)
+        wl_list_insert(&server->dying_toplevels, &toplevel->dying_link);
 
     if (out) {
         nnwm_toplevel *next = nullptr;
@@ -218,6 +235,10 @@ handle_xdg_toplevel_destroy(wl_listener *listener, void * /*data*/)
 {
     nnwm_toplevel *toplevel
         = wl_container_of(listener, toplevel, destroy);
+
+    /* Remove from dying list if still there */
+    if (toplevel->dying)
+        wl_list_remove(&toplevel->dying_link);
 
     wl_list_remove(&toplevel->map.link);
     wl_list_remove(&toplevel->unmap.link);
@@ -361,6 +382,10 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     toplevel->xdg_toplevel    = xdg_toplevel;
     toplevel->rule_opacity    = -1.0f;
     toplevel->rule_blur       = -1;
+    toplevel->cur_x = toplevel->cur_y = toplevel->cur_w = toplevel->cur_h = 0;
+    toplevel->geo_anim = toplevel->fade_anim = toplevel->bcol_anim = false;
+    toplevel->dying    = false;
+    wl_list_init(&toplevel->dying_link);
 
     toplevel->scene_tree = wlr_scene_tree_create(server->scene_windows);
     toplevel->scene_tree->node.data = toplevel;

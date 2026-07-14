@@ -33,6 +33,8 @@ output_frame(wl_listener *listener, void * /*data*/)
     if (!scene_output)
         return;
 
+    animate_step(output->server);
+
     if (!wlr_scene_output_commit(scene_output, nullptr))
         return;
 

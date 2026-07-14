@@ -342,6 +342,7 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
     if (!out || ws < 0 || ws >= NNWM_NUM_WORKSPACES || ws == out->active_workspace)
         return;
 
+    int old_ws = out->active_workspace;
     out->active_workspace = ws;
 
     /* Sync scene visibility: sticky windows always remain visible */
@@ -360,6 +361,46 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
         wlr_seat_keyboard_clear_focus(server->seat);
 
     arrange_windows(server, out);
+
+    /* Workspace slide animation */
+    if (server->config->anim_enabled && server->config->anim_duration_ms > 0) {
+        wlr_box area;
+        wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
+        int slide = (ws > old_ws) ? -area.width : area.width;
+
+        wl_list_for_each(tl, &server->toplevels, link) {
+            if (tl->output != out || tl->sticky) continue;
+
+            if (tl->workspace == old_ws) {
+                /* Slide out: keep visible, animate to off-screen, then hide */
+                wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
+                tl->geo_from_x = tl->cur_x;
+                tl->geo_from_y = tl->cur_y;
+                tl->geo_from_w = tl->cur_w;
+                tl->geo_from_h = tl->cur_h;
+                tl->geo_to_x   = tl->cur_x + slide;
+                tl->geo_to_y   = tl->cur_y;
+                tl->geo_to_w   = tl->cur_w;
+                tl->geo_to_h   = tl->cur_h;
+                tl->geo_anim   = true;
+                tl->geo_t0     = anim_now();
+                tl->geo_then_hide = true;
+            } else if (tl->workspace == ws) {
+                /* Slide in: override from position to off-screen opposite side */
+                tl->geo_from_x = tl->geo_to_x - slide;
+                tl->geo_from_y = tl->geo_to_y;
+                tl->geo_from_w = tl->geo_to_w;
+                tl->geo_from_h = tl->geo_to_h;
+                tl->geo_anim   = true;
+                tl->geo_t0     = anim_now();
+                tl->geo_then_hide = false;
+                wlr_scene_node_set_position(&tl->scene_tree->node, tl->geo_from_x, tl->geo_from_y);
+                update_borders(tl, tl->geo_from_w, tl->geo_from_h, tl->geo_bw);
+                tl->cur_x = tl->geo_from_x; tl->cur_y = tl->geo_from_y;
+            }
+        }
+    }
+
     nnwm::ext_workspace_notify(server);
 }
 

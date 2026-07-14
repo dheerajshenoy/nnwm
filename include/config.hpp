@@ -122,6 +122,10 @@ struct nnwm_config
     float blur_contrast;          /* contrast adjustment (default: 1.0) */
     float blur_saturation;        /* saturation adjustment (default: 1.0) */
 
+    /* Animation */
+    bool anim_enabled;
+    int  anim_duration_ms;
+
     /* Monitor configuration */
     struct nnwm_monitor_config *monitor_configs;
     int monitor_config_count;
