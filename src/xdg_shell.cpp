@@ -193,6 +193,20 @@ xdg_toplevel_commit(wl_listener *listener, void * /*data*/)
         if (toplevel->decoration)
             decoration_apply(toplevel->decoration,
                              toplevel->server->config->client_decorations);
+        return;
+    }
+
+    /* For floating windows, keep border rects in sync with the client's
+     * committed geometry. This catches the case where the client responds to
+     * a resize configure at a size different from the current cursor position,
+     * which would otherwise leave the surface rendering over a border rect. */
+    if (toplevel->floating && toplevel->xdg_toplevel->base->surface->mapped)
+    {
+        nnwm_server *server = toplevel->server;
+        wlr_box *geo = &toplevel->xdg_toplevel->base->geometry;
+        int bw = server->config->border_width;
+        int th = server->config->titlebar_height;
+        update_borders(toplevel, geo->width + 2 * bw, geo->height + 2 * bw + th, bw);
     }
 }
 
@@ -346,17 +360,20 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     toplevel->scene_tree = wlr_scene_tree_create(server->scene_windows);
     toplevel->scene_tree->node.data = toplevel;
 
+    toplevel->scene_surface = wlr_scene_xdg_surface_create(
+        toplevel->scene_tree, xdg_toplevel->base);
+    toplevel->scene_surface->node.data = toplevel;
+    xdg_toplevel->base->data           = toplevel->scene_surface;
+
+    /* Borders and titlebar are created after scene_surface so they sit above
+     * it in Z-order — prevents the client surface from rendering over border
+     * rects when it commits at a larger size than currently expected. */
     for (int i = 0; i < 4; i++)
         toplevel->border[i] = wlr_scene_rect_create(
             toplevel->scene_tree, 0, 0, server->config->unfocused_color);
 
     toplevel->titlebar = wlr_scene_buffer_create(toplevel->scene_tree, nullptr);
     wlr_scene_node_set_enabled(&toplevel->titlebar->node, false);
-
-    toplevel->scene_surface = wlr_scene_xdg_surface_create(
-        toplevel->scene_tree, xdg_toplevel->base);
-    toplevel->scene_surface->node.data = toplevel;
-    xdg_toplevel->base->data           = toplevel->scene_surface;
 
     toplevel->map.notify = xdg_toplevel_map;
     wl_signal_add(&xdg_toplevel->base->surface->events.map, &toplevel->map);
