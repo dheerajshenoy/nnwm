@@ -56,6 +56,7 @@
 - [x] Sticky windows
 - [x] layout next and prev
 - [x] popup menu crash on waybar
+- [X] Monitor focus move mouse to center of monitor
 - [ ] Animations with scenefx
 - [ ] Blur
 - [ ] Shadows
@@ -85,4 +86,3 @@
 - [ ] Show error messages when config fails to load
 - [ ] XWayland
 - [ ] Fake fullscreen mode
-- [ ] Monitor focus move mouse to center of monitor
