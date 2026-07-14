@@ -56,6 +56,28 @@
 - **Sloppy focus improvement**: `focus_follows_mouse` now uses enter/leave
   surface events rather than polling cursor motion, making focus transfers more
   reliable and eliminating spurious refocuses during window rearrangement.
+- **scenefx rounded corners**: when `nnwm.opt.fx.corner_radius` is set, window
+  borders are now drawn with correct rounded outer corners. The top border rect
+  rounds its two top corners; the bottom rect rounds its two bottom corners;
+  left and right strips have no rounding (they fit flush between the other two).
+  The window surface buffers receive a concentric inner radius
+  (`corner_radius − border_width`, floored at 0) so content clips cleanly inside
+  the frame. This replaces the previous `border_bg` full-window backing rect,
+  which was both visually incorrect and less efficient.
+- **scenefx window opacity**: `nnwm.opt.fx.opacity` (default `1.0`) sets the
+  composited opacity of all window content. The value is applied recursively to
+  every surface buffer in the xdg surface tree (main surface and subsurfaces).
+  Borders, titlebars, and shadows are unaffected and remain fully opaque.
+- **scenefx background blur**: `nnwm.opt.fx.blur` enables background blur behind
+  windows. Global parameters: `enabled`, `passes` (dual-kawase iterations),
+  `radius`, `noise`, `brightness`, `contrast`, `saturation`. A `wlr_scene_blur`
+  node is created per window and sized/repositioned alongside the window in every
+  layout pass. Corner radius is applied to the blur node to match the window frame.
+- **Per-window opacity and blur rules**: `nnwm.rule()` action table now accepts
+  `opacity` (float 0.0–1.0) and `blur` (boolean) to override the global
+  `nnwm.opt.fx` values for individual windows. Per-window values take precedence
+  and are applied at map time before scenefx decorations are created. Example:
+  `nnwm.rule({ app_id = "foot*" }, { opacity = 0.85, blur = true })`.
 
 ### Bug Fixes
 
@@ -120,13 +142,17 @@
   array syntax which is invalid C++; the header is now pre-included with `static`
   suppressed (via `pragma push_macro`) before any transitive inclusion fires.
 - **scenefx rounded corners not clipping window content**: with `corner_radius > 0`
-  the window surface itself still showed square corners even though the border
-  background rect was rounded. `wlr_scene_xdg_surface_create` nests the actual
-  surface buffer inside an intermediate subsurface tree; the previous code only
-  iterated direct children of the scene tree, so `wlr_scene_buffer_set_corner_radius`
-  was never called on the real buffer. Replaced the one-level loop with a recursive
-  traversal that walks the full subtree and applies the corner radius to every
-  buffer node, including those in nested subsurface trees.
+  the window surface itself still showed square corners. `wlr_scene_xdg_surface_create`
+  nests the actual surface buffer inside an intermediate subsurface tree; the previous
+  code only iterated direct children, so `wlr_scene_buffer_set_corner_radius` was
+  never called on the real buffer. Fixed by replacing the one-level loop with a
+  recursive traversal that walks the full subtree and applies the corner radius to
+  every buffer node, including those in nested subsurface trees.
+- **scenefx shadow not visible**: `shadow_offset_x` and `shadow_offset_y` were
+  read from config but never applied to the shadow node's position, leaving the
+  shadow directly behind the window with no visible offset. Fixed by calling
+  `wlr_scene_node_set_position` on the shadow node at creation and on every
+  `update_borders` call (which runs whenever the window is laid out or resized).
 - **scenefx crash when running nested (SIGABRT in wlr_scene_output_build_state)**:
   when running inside another Wayland compositor (e.g. for testing), scenefx's
   `fx_renderer_create` succeeded even on the Wayland backend because a GPU render
