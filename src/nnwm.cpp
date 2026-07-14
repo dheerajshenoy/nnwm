@@ -151,8 +151,12 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
         wlr_scene_node_set_position(&toplevel->border_bg->node, 0, 0);
         wlr_scene_rect_set_size(toplevel->border_bg, width, height);
     }
-    if (toplevel->fx_shadow)
+    if (toplevel->fx_shadow) {
+        nnwm_config *cfg = toplevel->server->config;
         wlr_scene_shadow_set_size(toplevel->fx_shadow, width, height);
+        wlr_scene_node_set_position(&toplevel->fx_shadow->node,
+            (int)cfg->shadow_offset_x, (int)cfg->shadow_offset_y);
+    }
 #endif
 }
 
@@ -213,6 +217,8 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
             toplevel->scene_tree, w, h,
             cfg->corner_radius, cfg->shadow_blur_sigma,
             cfg->shadow_color);
+        wlr_scene_node_set_position(&toplevel->fx_shadow->node,
+            (int)cfg->shadow_offset_x, (int)cfg->shadow_offset_y);
         wlr_scene_node_lower_to_bottom(&toplevel->fx_shadow->node);
     } else if (toplevel->fx_shadow) {
         if (!cfg->shadow_enabled) {
@@ -222,6 +228,8 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
             wlr_scene_shadow_set_corner_radius(toplevel->fx_shadow, cfg->corner_radius);
             wlr_scene_shadow_set_blur_sigma(toplevel->fx_shadow, cfg->shadow_blur_sigma);
             wlr_scene_shadow_set_color(toplevel->fx_shadow, cfg->shadow_color);
+            wlr_scene_node_set_position(&toplevel->fx_shadow->node,
+                (int)cfg->shadow_offset_x, (int)cfg->shadow_offset_y);
         }
     }
 #else
