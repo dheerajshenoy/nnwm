@@ -4,13 +4,14 @@
 
 Latest Version: 0.1.0
 
+## Why ?
+
+Because **MangoWC** community downvoted my lua configuration support request, I decided to make my own tiling Wayland compositor with Lua configuration and hot-reload support.
+
 ## Features
 
 - **Tiling layout** — master-stack with configurable master ratio
 - **Tabbed layout** — all tiled windows share the same area, switched via a tab bar
-- **Layout cycling** — `nnwm.layout.next()` / `nnwm.layout.prev()` cycles layouts per workspace
-- **Floating windows** — toggle with `nnwm.toggle_float()`; drag with Super+left-click, resize with Super+right-click
-- **Fullscreen** — `nnwm.toggle_fullscreen()`
 - **Sticky windows** — `nnwm.toggle_sticky()` pins a window across all workspaces
 - **9 workspaces per monitor** — independent per output, switch with `nnwm.switch_workspace(n)`
 - **Multi-monitor support** — focus monitors with `nnwm.focus_monitor_next/prev()`, move windows with `nnwm.move_to_monitor_next/prev()`
@@ -20,16 +21,11 @@ Latest Version: 0.1.0
 - **Gaps** — inner and outer gaps with smart gaps/borders support
 - **Lua configuration** with hot-reload via inotify
 - **Keybindings** defined as Lua callbacks via `nnwm.key()`
-- **Focus follows mouse** — optional sloppy focus
 - **Layer shell** — background, bottom, top, overlay layers (panels, wallpapers, etc.)
-- **XDG popups** — correct placement on all monitors including null-parent popups (e.g. waybar modules)
 - **Output configuration** — per-monitor mode, scale, transform, position, enable/disable via `nnwm.opt.monitors`
-- **ext-workspace-v1** — workspace-aware bars (waybar `ext/workspaces`)
-- **Session lock** — `ext-session-lock-v1` (swaylock, waylock)
 - **Screen capture** — `wlr-screencopy`, `wlr-export-dmabuf`, `ext-image-copy-capture-v1`
 - **DPMS** — `wlr-output-power-management-v1` (swayidle, wlopm)
 - **Input** — libinput touchpad options (tap, natural scroll, disable-while-typing), XKB options
-- **Config error overlay** — displays a red error bar on all outputs when config hot-reload fails, auto-dismisses after 8 seconds
 
 ## Configuration
 
