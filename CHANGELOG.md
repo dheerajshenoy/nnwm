@@ -4,6 +4,13 @@
 
 ### Features
 
+- **Scroll layout**: `nnwm.layout.scroll.toggle()` switches the active workspace
+  between master-stack and a horizontal scrolling layout. Windows are arranged
+  in a left-to-right strip, each occupying a configurable fraction of the
+  output width (`nnwm.opt.layout.scroll_column_width`, default `0.5`). The
+  viewport automatically centers the focused window. Windows off-screen remain
+  alive and are scrolled into view when focused. Borders, titlebars, inner and
+  outer gaps all apply per-column.
 - **Tabbed layout**: `nnwm.layout.tabbed.toggle()` switches the active workspace
   between master-stack and tabbed mode. In tabbed mode all tiled windows occupy
   the same content area; a composite tab bar rendered at the top of the output
@@ -277,6 +284,10 @@
 - **Titlebar update on resize**: titlebar is now re-rendered when a window is
   resized via mouse drag, and the resize height calculation correctly subtracts
   the titlebar height (matching `arrange_windows` behavior).
+- **VT switch resume**: returning to nnwm from another VT (e.g. sway on a
+  different TTY) now correctly re-tiles all outputs. Previously the session
+  resume was not handled, leaving window positions stale and crashing on
+  interaction with existing windows.
 - **`swap_next`/`swap_prev` wrap-around**: swapping the last window forward now
   promotes it to master (not second position), and swapping the master backward
   now demotes it to last (not second-to-last). Wrap-around direction matches
