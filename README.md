@@ -6,7 +6,7 @@ Latest Version: 0.1.0
 
 ## Why ?
 
-Because [**MangoWM**](https://github.com/mangowm/mango) community downvoted my lua configuration support request, I decided to make my own tiling Wayland compositor with Lua configuration and hot-reload support.
+Because [**MangoWM**](https://github.com/mangowm/mango) community downvoted my lua configuration support [request](https://github.com/mangowm/mango/issues/1072), I decided to make my own tiling Wayland compositor with Lua configuration and hot-reload support.
 
 P.S : MangoWM is awesome, and I love it, but I want to have my own compositor with Lua configuration support.
 
