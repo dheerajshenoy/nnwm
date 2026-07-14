@@ -113,7 +113,15 @@ main(int argc, char *argv[])
      * can also specify a renderer using the WLR_RENDERER env var.
      * The renderer is responsible for defining the various pixel formats it
      * supports for shared memory, this configures that for clients. */
+#ifdef HAVE_SCENEFX
+    server.renderer = fx_renderer_create(server.backend);
+    if (!server.renderer) {
+        wlr_log(WLR_INFO, "scenefx fx_renderer unavailable (no DRM fd), falling back");
+        server.renderer = wlr_renderer_autocreate(server.backend);
+    }
+#else
     server.renderer = wlr_renderer_autocreate(server.backend);
+#endif
     if (server.renderer == nullptr)
     {
         wlr_log(WLR_ERROR, "failed to create wlr_renderer");

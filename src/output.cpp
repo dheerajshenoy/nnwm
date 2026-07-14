@@ -315,6 +315,13 @@ server_apply_config(nnwm_server *server)
             decoration_apply(tl->decoration, server->config->client_decorations);
     }
 
+    /* Re-apply scenefx decorations (corner radius / shadow) to all windows */
+    {
+        nnwm_toplevel *tl;
+        wl_list_for_each(tl, &server->toplevels, link)
+            apply_fx_decorations(tl);
+    }
+
     /* Re-arrange to apply border_width / master_ratio changes */
     arrange_all_outputs(server);
 

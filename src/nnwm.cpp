@@ -145,6 +145,66 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
 
     /* window surface is pushed down by the titlebar */
     wlr_scene_node_set_position(&toplevel->scene_surface->node, bw, bw + th);
+
+#ifdef HAVE_SCENEFX
+    if (toplevel->fx_shadow)
+        wlr_scene_shadow_set_size(toplevel->fx_shadow, width, height);
+#endif
+}
+
+/* ---- scenefx per-window decorations ---- */
+
+void
+apply_fx_decorations(nnwm_toplevel *toplevel)
+{
+#ifdef HAVE_SCENEFX
+    nnwm_config *cfg = toplevel->server->config;
+
+    /* Corner radius on each border rect */
+    for (int i = 0; i < 4; i++) {
+        if (toplevel->border[i])
+            wlr_scene_rect_set_corner_radius(toplevel->border[i], cfg->corner_radius);
+    }
+
+    /* Corner radius on titlebar buffer */
+    if (toplevel->titlebar)
+        wlr_scene_buffer_set_corner_radius(toplevel->titlebar, cfg->corner_radius);
+
+    /* Corner radius on xdg surface buffer children */
+    if (toplevel->scene_surface) {
+        struct wlr_scene_node *child;
+        wl_list_for_each(child, &toplevel->scene_surface->children, link) {
+            if (child->type == WLR_SCENE_NODE_BUFFER)
+                wlr_scene_buffer_set_corner_radius(
+                    wlr_scene_buffer_from_node(child), cfg->corner_radius);
+        }
+    }
+
+    /* Shadow node */
+    if (cfg->shadow_enabled && !toplevel->fx_shadow) {
+        wlr_box geo = toplevel->xdg_toplevel->base->geometry;
+        int bw = cfg->border_width;
+        int th = cfg->titlebar_height;
+        int w  = geo.width  + 2 * bw;
+        int h  = geo.height + 2 * bw + th;
+        toplevel->fx_shadow = wlr_scene_shadow_create(
+            toplevel->scene_tree, w, h,
+            cfg->corner_radius, cfg->shadow_blur_sigma,
+            cfg->shadow_color);
+        wlr_scene_node_lower_to_bottom(&toplevel->fx_shadow->node);
+    } else if (toplevel->fx_shadow) {
+        if (!cfg->shadow_enabled) {
+            wlr_scene_node_destroy(&toplevel->fx_shadow->node);
+            toplevel->fx_shadow = nullptr;
+        } else {
+            wlr_scene_shadow_set_corner_radius(toplevel->fx_shadow, cfg->corner_radius);
+            wlr_scene_shadow_set_blur_sigma(toplevel->fx_shadow, cfg->shadow_blur_sigma);
+            wlr_scene_shadow_set_color(toplevel->fx_shadow, cfg->shadow_color);
+        }
+    }
+#else
+    (void)toplevel;
+#endif
 }
 
 /* ---- Tabbed layout tab bar rendering ---- */

@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+option(USE_SCENEFX "Build and use scenefx from GitHub for rounded corners and shadows" OFF)
+
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(WLROOTS wlroots-0.19)
@@ -18,6 +20,45 @@ pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols)
 pkg_check_modules(LIBINPUT REQUIRED libinput)
 pkg_check_modules(LUA REQUIRED lua5.4)
 pkg_check_modules(PANGOCAIRO REQUIRED pangocairo)
+
+if(USE_SCENEFX)
+    include(ExternalProject)
+    find_program(MESON meson REQUIRED)
+    find_program(NINJA ninja REQUIRED)
+
+    set(SCENEFX_PREFIX  "${CMAKE_BINARY_DIR}/scenefx-install")
+    set(SCENEFX_LIBDIR  "${SCENEFX_PREFIX}/lib")
+    set(SCENEFX_LIB     "${SCENEFX_LIBDIR}/libscenefx-0.5.so")
+    set(SCENEFX_INCDIR  "${SCENEFX_PREFIX}/include/scenefx-0.5")
+
+    ExternalProject_Add(
+        scenefx_ext
+        GIT_REPOSITORY  https://github.com/wlrfx/scenefx.git
+        GIT_TAG         main
+        GIT_SHALLOW     TRUE
+        PREFIX          "${CMAKE_BINARY_DIR}/scenefx-src"
+        CONFIGURE_COMMAND
+            ${MESON} setup
+                "--prefix=${SCENEFX_PREFIX}"
+                "--libdir=${SCENEFX_LIBDIR}"
+                "--buildtype=release"
+                "--wrap-mode=nodownload"
+                <BINARY_DIR>
+                <SOURCE_DIR>
+        BUILD_COMMAND   ${NINJA} -C <BINARY_DIR>
+        INSTALL_COMMAND ${NINJA} -C <BINARY_DIR> install
+        BUILD_BYPRODUCTS "${SCENEFX_LIB}"
+    )
+
+    file(MAKE_DIRECTORY "${SCENEFX_INCDIR}")
+
+    add_library(scenefx SHARED IMPORTED GLOBAL)
+    set_target_properties(scenefx PROPERTIES
+        IMPORTED_LOCATION             "${SCENEFX_LIB}"
+        INTERFACE_INCLUDE_DIRECTORIES "${SCENEFX_INCDIR}"
+    )
+    add_dependencies(scenefx scenefx_ext)
+endif()
 
 find_program(WAYLAND_SCANNER wayland-scanner REQUIRED)
 
@@ -151,6 +192,12 @@ target_include_directories(nnwm PRIVATE
 )
 
 target_compile_definitions(nnwm PRIVATE WLR_USE_UNSTABLE _DEFAULT_SOURCE)
+
+if(USE_SCENEFX)
+    target_compile_definitions(nnwm PRIVATE HAVE_SCENEFX)
+    target_link_libraries(nnwm PRIVATE scenefx)
+    add_dependencies(nnwm scenefx_ext)
+endif()
 
 target_link_libraries(nnwm PRIVATE
     ${WLROOTS_LIBRARIES}

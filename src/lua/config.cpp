@@ -752,6 +752,25 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "focused_text_color");
     lua_setfield(L, -2, "titlebar");
 
+    /* fx sub-table (scenefx: corner radius and shadows) */
+    lua_newtable(L);
+    lua_pushinteger(L, cfg->corner_radius);
+    lua_setfield(L, -2, "corner_radius");
+    lua_newtable(L);
+    lua_pushboolean(L, cfg->shadow_enabled);
+    lua_setfield(L, -2, "enabled");
+    lua_pushnumber(L, cfg->shadow_blur_sigma);
+    lua_setfield(L, -2, "blur_sigma");
+    lua_pushnumber(L, cfg->shadow_offset_x);
+    lua_setfield(L, -2, "offset_x");
+    lua_pushnumber(L, cfg->shadow_offset_y);
+    lua_setfield(L, -2, "offset_y");
+    lua_newtable(L);
+    for (int i = 0; i < 4; i++) { lua_pushnumber(L, cfg->shadow_color[i]); lua_rawseti(L, -2, i + 1); }
+    lua_setfield(L, -2, "color");
+    lua_setfield(L, -2, "shadow");
+    lua_setfield(L, -2, "fx");
+
     /* monitors: empty table (user populates in config file) */
     lua_newtable(L);
     lua_setfield(L, -2, "monitors");
@@ -976,6 +995,23 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     free(cfg->seat_name);
     cfg->seat_name = s;
 
+    lua_getfield(L, -1, "fx");
+    if (lua_istable(L, -1)) {
+        cfg->corner_radius = get_int_field(L, "corner_radius", cfg->corner_radius);
+        lua_getfield(L, -1, "shadow");
+        if (lua_istable(L, -1)) {
+            cfg->shadow_enabled    = get_bool_field(L, "enabled",    cfg->shadow_enabled);
+            cfg->shadow_blur_sigma = get_float_field(L, "blur_sigma", cfg->shadow_blur_sigma);
+            cfg->shadow_offset_x   = get_float_field(L, "offset_x",   cfg->shadow_offset_x);
+            cfg->shadow_offset_y   = get_float_field(L, "offset_y",   cfg->shadow_offset_y);
+            float dflt[4] = {cfg->shadow_color[0], cfg->shadow_color[1],
+                             cfg->shadow_color[2], cfg->shadow_color[3]};
+            get_color_field(L, "color", cfg->shadow_color, dflt);
+        }
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
+
     lua_pop(L, 2); /* pop opt and nnwm */
 
     read_monitor_configs(L, cfg);
@@ -1157,6 +1193,16 @@ nnwm::config_defaults(void)
     cfg->master_ratio_min   = 0.1f;
     cfg->master_ratio_max   = 0.9f;
     cfg->scroll_column_width = 0.5f;
+
+    cfg->corner_radius     = 0;
+    cfg->shadow_enabled    = false;
+    cfg->shadow_blur_sigma = 10.0f;
+    cfg->shadow_color[0]   = 0.0f;
+    cfg->shadow_color[1]   = 0.0f;
+    cfg->shadow_color[2]   = 0.0f;
+    cfg->shadow_color[3]   = 0.5f;
+    cfg->shadow_offset_x   = 4.0f;
+    cfg->shadow_offset_y   = 4.0f;
 
     cfg->inner_gap     = 0;
     cfg->outer_gap     = 0;

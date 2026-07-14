@@ -67,6 +67,41 @@ extern "C"
 }
 #endif
 
+#ifdef HAVE_SCENEFX
+#  ifdef __cplusplus
+extern "C" {
+#  endif
+/* fx_renderer.h has no extern "C" guards — wrap it here */
+#  include <scenefx/render/fx_renderer/fx_renderer.h>
+
+/* Forward-declare scenefx scene extension types and functions.
+ * We cannot include scenefx/types/wlr_scene.h because it shares the include
+ * guard WLR_TYPES_WLR_SCENE_H with wlr/types/wlr_scene.h (already included
+ * above) and its own transitive dependencies are not present in the build. */
+struct wlr_scene_shadow {
+    struct wlr_scene_node node;
+    int corner_radius;
+};
+struct wlr_scene_shadow *wlr_scene_shadow_create(struct wlr_scene_tree *parent,
+    int width, int height, int corner_radius, float blur_sigma,
+    const float color[4]);
+void wlr_scene_shadow_set_size(struct wlr_scene_shadow *shadow,
+    int width, int height);
+void wlr_scene_shadow_set_corner_radius(struct wlr_scene_shadow *shadow,
+    int corner_radius);
+void wlr_scene_shadow_set_blur_sigma(struct wlr_scene_shadow *shadow,
+    float blur_sigma);
+void wlr_scene_shadow_set_color(struct wlr_scene_shadow *shadow,
+    const float color[4]);
+void wlr_scene_rect_set_corner_radius(struct wlr_scene_rect *rect,
+    int corner_radius);
+void wlr_scene_buffer_set_corner_radius(struct wlr_scene_buffer *scene_buffer,
+    int corner_radius);
+#  ifdef __cplusplus
+}
+#  endif
+#endif
+
 #include "config.hpp"
 
 #define NNWM_NUM_WORKSPACES 9
@@ -230,6 +265,9 @@ struct nnwm_toplevel
     struct nnwm_decoration *decoration; /* pending decoration, applied on initial commit */
     struct wlr_scene_buffer *titlebar;  /* server-side titlebar, nullptr if disabled */
     int                      titlebar_width; /* last rendered inner width (for title-change redraws) */
+#ifdef HAVE_SCENEFX
+    struct wlr_scene_shadow *fx_shadow; /* scenefx shadow node, nullptr if disabled */
+#endif
     struct wl_listener map;
     struct wl_listener unmap;
     struct wl_listener commit;

@@ -65,6 +65,7 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
     toplevel->output    = out;
     toplevel->workspace = out ? out->active_workspace : 0;
     apply_window_rules(server, toplevel);
+    apply_fx_decorations(toplevel);
     /* After rules, ensure output pointer is still valid */
     if (!toplevel->output)
         toplevel->output = server->focused_output;
@@ -374,6 +375,9 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
 
     toplevel->titlebar = wlr_scene_buffer_create(toplevel->scene_tree, nullptr);
     wlr_scene_node_set_enabled(&toplevel->titlebar->node, false);
+#ifdef HAVE_SCENEFX
+    toplevel->fx_shadow = nullptr;
+#endif
 
     toplevel->map.notify = xdg_toplevel_map;
     wl_signal_add(&xdg_toplevel->base->surface->events.map, &toplevel->map);

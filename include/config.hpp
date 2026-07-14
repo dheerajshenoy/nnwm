@@ -104,6 +104,14 @@ struct nnwm_config
     float titlebar_text_color[4];         /* unfocused text RGBA */
     float titlebar_focused_text_color[4]; /* focused text RGBA */
 
+    /* scenefx: corner radius and shadows (requires HAVE_SCENEFX build flag) */
+    int   corner_radius;          /* pixels; 0 = disabled */
+    bool  shadow_enabled;
+    float shadow_blur_sigma;      /* Gaussian sigma; controls softness */
+    float shadow_color[4];        /* RGBA */
+    float shadow_offset_x;        /* pixels */
+    float shadow_offset_y;        /* pixels */
+
     /* Monitor configuration */
     struct nnwm_monitor_config *monitor_configs;
     int monitor_config_count;

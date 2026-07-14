@@ -9,6 +9,7 @@ void render_titlebar(struct nnwm_toplevel *tl, int inner_width, bool focused);
 void render_tab_bar(struct nnwm_server *server, struct nnwm_output *out,
                     int width, int height);
 void update_borders(struct nnwm_toplevel *toplevel, int width, int height, int bw);
+void apply_fx_decorations(struct nnwm_toplevel *toplevel);
 
 /* ---- Output / workspace helpers ---- */
 struct nnwm_output *output_cycle(struct nnwm_server *server,
