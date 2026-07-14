@@ -42,6 +42,7 @@ struct nnwm_toplevel *ws_prev_float(struct nnwm_server *server,
 
 /* ---- Focus ---- */
 void focus_toplevel(struct nnwm_toplevel *toplevel);
+void unfocus_all_borders(struct nnwm_server *server);
 struct nnwm_toplevel *get_focused_toplevel(struct nnwm_server *server);
 
 /* ---- Layout ---- */

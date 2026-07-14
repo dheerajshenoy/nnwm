@@ -351,6 +351,16 @@ nnwm::action_switch_workspace(nnwm_server *server, int ws)
     ext_workspace_notify(server);
 }
 
+static void
+warp_cursor_to_output(nnwm_server *server, nnwm_output *out)
+{
+    wlr_box area;
+    wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
+    wlr_cursor_warp(server->cursor, nullptr,
+                    area.x + area.width  / 2.0,
+                    area.y + area.height / 2.0);
+}
+
 void
 nnwm::action_focus_monitor_next(nnwm_server *server)
 {
@@ -363,6 +373,8 @@ nnwm::action_focus_monitor_next(nnwm_server *server)
     nnwm_toplevel *tl = next->last_focused[ws];
     if (!tl) tl = ws_first(server, next);
     if (tl) focus_toplevel(tl);
+    else  { wlr_seat_keyboard_clear_focus(server->seat); unfocus_all_borders(server); }
+    warp_cursor_to_output(server, next);
 }
 
 void
@@ -377,6 +389,8 @@ nnwm::action_focus_monitor_prev(nnwm_server *server)
     nnwm_toplevel *tl = next->last_focused[ws];
     if (!tl) tl = ws_first(server, next);
     if (tl) focus_toplevel(tl);
+    else  { wlr_seat_keyboard_clear_focus(server->seat); unfocus_all_borders(server); }
+    warp_cursor_to_output(server, next);
 }
 
 static void

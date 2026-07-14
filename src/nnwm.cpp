@@ -577,3 +577,14 @@ focus_toplevel(nnwm_toplevel *toplevel)
             arrange_windows(server, out);
     }
 }
+
+void
+unfocus_all_borders(nnwm_server *server)
+{
+    nnwm_toplevel *tl;
+    wl_list_for_each(tl, &server->toplevels, link) {
+        for (int i = 0; i < 4; i++)
+            wlr_scene_rect_set_color(tl->border[i], server->config->unfocused_color);
+        render_titlebar(tl, tl->titlebar_width, false);
+    }
+}
