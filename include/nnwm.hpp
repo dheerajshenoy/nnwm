@@ -73,6 +73,7 @@ extern "C"
 enum nnwm_layout_mode {
     NNWM_LAYOUT_TILE,
     NNWM_LAYOUT_TABBED,
+    NNWM_LAYOUT_COUNT,
 };
 
 struct lua_State;
@@ -377,6 +378,8 @@ void action_toggle_float(struct nnwm_server *server);
 void action_toggle_fullscreen(struct nnwm_server *server);
 void action_toggle_sticky(struct nnwm_server *server);
 void action_toggle_tabbed(struct nnwm_server *server);
+void action_layout_next(struct nnwm_server *server);
+void action_layout_prev(struct nnwm_server *server);
 void ext_workspace_init(struct nnwm_server *server);
 void ext_workspace_notify(struct nnwm_server *server);
 } // namespace nnwm

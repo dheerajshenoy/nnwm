@@ -469,6 +469,20 @@ l_nnwm_toggle_tabbed(lua_State *L)
 }
 
 static int
+l_nnwm_layout_next(lua_State *L)
+{
+    nnwm::action_layout_next(get_server(L));
+    return 0;
+}
+
+static int
+l_nnwm_layout_prev(lua_State *L)
+{
+    nnwm::action_layout_prev(get_server(L));
+    return 0;
+}
+
+static int
 l_nnwm_toggle_sticky(lua_State *L)
 {
     nnwm::action_toggle_sticky(get_server(L));
@@ -986,12 +1000,16 @@ nnwm::lua_init(struct nnwm_server *server)
     lua_newtable(server->lua);
     luaL_setfuncs(server->lua, nnwm_funcs, 0);
 
-    /* nnwm.layout.<name>.toggle() sub-tables */
+    /* nnwm.layout sub-table */
     lua_newtable(server->lua);                      /* nnwm.layout          */
     lua_newtable(server->lua);                      /* nnwm.layout.tabbed   */
     lua_pushcfunction(server->lua, l_nnwm_toggle_tabbed);
     lua_setfield(server->lua, -2, "toggle");
     lua_setfield(server->lua, -2, "tabbed");
+    lua_pushcfunction(server->lua, l_nnwm_layout_next);
+    lua_setfield(server->lua, -2, "next");
+    lua_pushcfunction(server->lua, l_nnwm_layout_prev);
+    lua_setfield(server->lua, -2, "prev");
     lua_setfield(server->lua, -2, "layout");
 
     lua_setglobal(server->lua, "nnwm");

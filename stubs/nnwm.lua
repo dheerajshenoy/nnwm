@@ -13,59 +13,6 @@
 ---@field Mod5   integer WLR_MODIFIER_MOD5
 MOD = {}
 
--- ── KEY ──────────────────────────────────────────────────────────────────────
-
----@class KEY
----@field a integer
----@field b integer
----@field c integer
----@field d integer
----@field e integer
----@field f integer
----@field g integer
----@field h integer
----@field i integer
----@field j integer
----@field k integer
----@field l integer
----@field m integer
----@field n integer
----@field o integer
----@field p integer
----@field q integer
----@field r integer
----@field s integer
----@field t integer
----@field u integer
----@field v integer
----@field w integer
----@field x integer
----@field y integer
----@field z integer
----@field F1  integer
----@field F2  integer
----@field F3  integer
----@field F4  integer
----@field F5  integer
----@field F6  integer
----@field F7  integer
----@field F8  integer
----@field F9  integer
----@field F10 integer
----@field F11 integer
----@field F12 integer
----@field Return    integer
----@field Space     integer
----@field Tab       integer
----@field Escape    integer
----@field Backspace integer
----@field Delete    integer
----@field Up        integer
----@field Down      integer
----@field Left      integer
----@field Right     integer
-KEY = {}
-
 -- ── nnwm ─────────────────────────────────────────────────────────────────────
 
 ---@class nnwm.layout
@@ -141,19 +88,19 @@ KEY = {}
 ---@field monitor    string?  Assign to the output with this name (e.g. `"DP-1"`)
 
 ---@class nnwm_monitor_config
----@field name      string   Output name, e.g. "DP-1"
----@field make      string   Manufacturer string
----@field model     string   Model string
----@field serial    string   Serial number string
----@field width     integer  Mode width in pixels
----@field height    integer  Mode height in pixels
----@field refresh   integer  Refresh rate in Hz
----@field x         integer  Layout X position (unset = auto)
----@field y         integer  Layout Y position (unset = auto)
----@field scale     number   Output scale factor (e.g. 2.0)
----@field transform string   Rotation: "none", "90", "180", "270", "flipped", "flipped-90", "flipped-180", "flipped-270"
----@field hdr       boolean  Enable HDR (wlroots 0.20+)
----@field disabled  boolean  Disable this output
+---@field name      string?   Output name, e.g. "DP-1"
+---@field make      string?   Manufacturer string
+---@field model     string?   Model string
+---@field serial    string?   Serial number string
+---@field width     integer?  Mode width in pixels
+---@field height    integer?  Mode height in pixels
+---@field refresh   integer?  Refresh rate in Hz
+---@field x         integer?  Layout X position (unset = auto)
+---@field y         integer?  Layout Y position (unset = auto)
+---@field scale     number?   Output scale factor (e.g. 2.0)
+---@field transform string?   Rotation: "none", "90", "180", "270", "flipped", "flipped-90", "flipped-180", "flipped-270"
+---@field hdr       boolean?  Enable HDR (wlroots 0.20+)
+---@field disabled  boolean?  Disable this output
 nnwm = {}
 nnwm.opt = {} ---@type nnwm_opts
 
@@ -305,3 +252,19 @@ nnwm.layout.tabbed = {}
 --- nnwm.key({"Super", "w"}, function() nnwm.layout.tabbed.toggle() end)
 --- ```
 function nnwm.layout.tabbed.toggle() end
+
+--- Advance to the next layout for the active workspace, wrapping around.
+--- Order: tile → tabbed → tile → …
+---
+--- ```lua
+--- nnwm.key({"Super", "bracketright"}, function() nnwm.layout.next() end)
+--- ```
+function nnwm.layout.next() end
+
+--- Go back to the previous layout for the active workspace, wrapping around.
+--- Order: tile → tabbed → tile → … (reversed)
+---
+--- ```lua
+--- nnwm.key({"Super", "bracketleft"}, function() nnwm.layout.prev() end)
+--- ```
+function nnwm.layout.prev() end

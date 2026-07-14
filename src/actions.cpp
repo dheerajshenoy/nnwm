@@ -387,11 +387,10 @@ move_to_monitor(nnwm_server *server, int dir)
     nnwm_output *src = tl->output;
     if (!src) return;
     nnwm_output *dst = output_cycle(server, src, dir);
-    if (!dst) return;
+    if (!dst || dst == src) return;
 
     int old_ws = tl->workspace;
     int new_ws = dst->active_workspace;
-    if (old_ws == new_ws) return;
 
     if (src->last_focused[old_ws] == tl) src->last_focused[old_ws] = nullptr;
     if (src->prev_focused[old_ws] == tl) src->prev_focused[old_ws] = nullptr;
@@ -495,6 +494,28 @@ nnwm::action_toggle_tabbed(nnwm_server *server)
     out->layout_mode[ws] = (out->layout_mode[ws] == NNWM_LAYOUT_TABBED)
         ? NNWM_LAYOUT_TILE
         : NNWM_LAYOUT_TABBED;
+    arrange_windows(server, out);
+}
+
+void
+nnwm::action_layout_next(nnwm_server *server)
+{
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+    int ws = out->active_workspace;
+    out->layout_mode[ws] = static_cast<nnwm_layout_mode>(
+        (out->layout_mode[ws] + 1) % NNWM_LAYOUT_COUNT);
+    arrange_windows(server, out);
+}
+
+void
+nnwm::action_layout_prev(nnwm_server *server)
+{
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+    int ws = out->active_workspace;
+    out->layout_mode[ws] = static_cast<nnwm_layout_mode>(
+        (out->layout_mode[ws] + NNWM_LAYOUT_COUNT - 1) % NNWM_LAYOUT_COUNT);
     arrange_windows(server, out);
 }
 
