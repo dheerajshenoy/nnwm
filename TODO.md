@@ -60,20 +60,12 @@
 - [x] popup menu crash on waybar
 - [X] Monitor focus move mouse to center of monitor
 - [x] Animations
-- [ ] Styles of animation
-    - [ ] Ease-out
-    - [ ] Ease-in
-    - [ ] Ease-in-out
 - [x] Blur
 - [x] Shadows
 - [x] Corner radius
 - [x] Transparency
-- [ ] Hardware-acceleration
-- [ ] Scratchpad
-- [ ] Multi workspace viewing at once (like dwm)
 - [x] Rounded corners
-- lua helper functions
-    - [x] device_name
+- [x] Show error messages when config fails to load
 - wlr protocols
     - [x] wlr-layer-shell-unstable-v1
     - [x] wlr-output-management-unstable-v1
@@ -90,6 +82,14 @@
     - [ ] wlr-virtual-pointer-unstable-v1
     - [ ] wlr-virtual-keyboard-unstable-v1
     - [ ] wlr-gamma-control-unstable-v1
-- [x] Show error messages when config fails to load
 - [ ] XWayland
 - [ ] Fake fullscreen mode
+- lua helper functions
+    - [x] device_name
+- [ ] Styles of animation
+    - [ ] Ease-out
+    - [ ] Ease-in
+    - [ ] Ease-in-out
+- [ ] Hardware-acceleration
+- [ ] Scratchpad
+- [ ] Multi workspace viewing at once (like dwm)
