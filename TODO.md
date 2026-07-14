@@ -7,6 +7,8 @@
         - [x] Fullscreen
         - [x] Monitor
         - [x] Workspace
+        - [x] opacity
+        - [x] blur
     - [ ] Hooks
         - [ ] Window
             - [ ] New
@@ -25,7 +27,7 @@
     - [x] Master Stack
     - [x] Sway-like tabbed layout
     - [ ] Dwindle
-    - [ ] Horizontal scrolling
+    - [x] Horizontal scrolling
     - [ ] Vertical scrolling
 - [x] Gaps
 - [x] Smart border
@@ -57,11 +59,11 @@
 - [x] layout next and prev
 - [x] popup menu crash on waybar
 - [X] Monitor focus move mouse to center of monitor
-- [ ] Animations with scenefx
-- [ ] Blur
-- [ ] Shadows
-- [ ] Corner radius
-- [ ] Transparency
+- [ ] Animations
+- [x] Blur
+- [x] Shadows
+- [x] Corner radius
+- [x] Transparency
 - [ ] Hardware-acceleration
 - [ ] Scratchpad
 - [ ] Multi workspace viewing at once (like dwm)
