@@ -78,6 +78,22 @@
   `nnwm.opt.fx` values for individual windows. Per-window values take precedence
   and are applied at map time before scenefx decorations are created. Example:
   `nnwm.rule({ app_id = "foot*" }, { opacity = 0.85, blur = true })`.
+- **Animations**: smooth transitions driven by ease-out cubic easing
+  (`1 − (1−t)³`), configurable via `nnwm.opt.animations`:
+  - **Window open/close**: new windows fade in from 0 opacity and scale up from
+    95 % of their final size (grow-from-center). Closed windows fade out to 0
+    opacity; the window is held in a "dying" list until the fade completes and
+    then destroyed.
+  - **Layout transitions**: any geometry change (tiling rearrangement,
+    master-ratio adjustment, gap change) smoothly tweens each window's position
+    and size from its previous location to the new one.
+  - **Workspace switch**: switching workspaces slides the old workspace's windows
+    off-screen in the direction of travel while the new workspace's windows slide
+    in from the opposite edge.
+  - **Focus border crossfade**: the focused and unfocused border colors blend
+    smoothly when keyboard focus moves between windows.
+  - All animations share a single duration (`duration`, default `250 ms`). Set
+    `enabled = false` to disable all animations instantly.
 
 ### Bug Fixes
 
