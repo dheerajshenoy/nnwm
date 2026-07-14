@@ -1,8 +1,78 @@
 # nnwm CHANGELOG
 
-## Unreleased
+## 0.1
 
 ### Features
+
+- **Tabbed layout**: `nnwm.layout.tabbed.toggle()` switches the active workspace
+  between master-stack and tabbed mode. In tabbed mode all tiled windows occupy
+  the same content area; a composite tab bar rendered at the top of the output
+  shows each window's title. Clicking a tab or using normal focus actions
+  switches the visible window. The tab bar is hidden in tiling mode.
+- **Layout cycling**: `nnwm.layout.next()` and `nnwm.layout.prev()` cycle
+  through all available layouts for the active workspace, wrapping around.
+  Current order: tile → tabbed.
+- **Sticky windows**: `nnwm.toggle_sticky()` pins the focused window to all
+  workspaces. A sticky tiled window participates in the active workspace's
+  layout; a sticky floating window stays visible above all workspaces.
+  `nnwm.rule()` also supports `sticky = true` as a window rule action.
+- **Window rules**: `nnwm.rule(match, action)` applies actions to windows when
+  they first map. `match` fields (`app_id`, `title`) are fnmatch globs matched
+  with AND logic. `action` fields: `floating`, `fullscreen`, `sticky`
+  (booleans), `workspace` (1–9 integer), `monitor` (output name string). All
+  rules are evaluated in order and all matching rules are applied.
+- **ext-workspace-v1**: implements the `ext-workspace-v1` staging Wayland
+  protocol, creating one workspace group per connected output with 9 workspaces
+  each. Allows workspace-aware bars such as waybar's `ext/workspaces` module to
+  display and switch per-monitor workspaces.
+- **Per-monitor independent workspaces**: each output maintains its own set of
+  9 workspaces. Switching workspaces on one monitor does not affect others.
+  Moving a window to another monitor assigns it to that monitor's active workspace.
+- **Floating window focus cycling**: `nnwm.focus_next_float()` and
+  `nnwm.focus_prev_float()` cycle keyboard focus through floating windows.
+  `nnwm.focus_mode_toggle()` jumps focus between the tiled and floating layers.
+- **`nnwm.swap_master()`**: swaps the focused window with the master window,
+  preserving both positions. No-op if the focused window is already master.
+- **Server-side titlebars**: configurable via `nnwm.opt.titlebar`. Fields:
+  `enabled`, `height`, `font` (Pango description), `text_align` (0=left,
+  1=center, 2=right), `bg_color`, `focused_bg_color`, `text_color`,
+  `focused_text_color`. Disabled by default.
+- **Client decoration control**: `nnwm.opt.client_decorations = true` requests
+  clients to draw their own titlebars (CSD); `false` suppresses client
+  decoration (default: `false`).
+- **Color hex strings**: `nnwm.color` values now accept `"RRGGBB"`,
+  `"RRGGBBAA"`, `"#RRGGBB"`, or `"#RRGGBBAA"` strings in addition to
+  `{r, g, b, a}` float tables.
+- **Sloppy focus improvement**: `focus_follows_mouse` now uses enter/leave
+  surface events rather than polling cursor motion, making focus transfers more
+  reliable and eliminating spurious refocuses during window rearrangement.
+
+### Bug Fixes
+
+- **Layer-shell popup crash**: clicking waybar modules (e.g. wifi, network)
+  that open XDG popups no longer crashes the compositor. Previously
+  `server_new_xdg_popup` asserted that the popup parent was an XDG surface;
+  layer-shell clients such as waybar use a layer surface as the parent instead.
+  Now falls back to `wlr_layer_surface_v1_try_from_wlr_surface` and uses the
+  layer surface's scene tree as the parent, with a safe no-op if neither lookup
+  succeeds.
+- **Move to monitor with same workspace index**: moving a window to a monitor
+  that happened to be on the same workspace number (e.g. both on workspace 1)
+  was silently ignored due to an `old_ws == new_ws` early return, leaving the
+  window's `output` pointer pointing at the source monitor. Subsequent tiling or
+  `toggle_float` would then tile the window back on the original monitor. The
+  guard is now `dst == src`, which correctly handles the same-index case.
+- **Tabbed layout floating window transparency**: floating windows in tabbed
+  mode no longer appear transparent or blank. The tab bar is now raised to the
+  top after floating windows, so floating windows remain visible above it.
+- **Natural scroll not applying to mouse**: `touchpad.natural_scroll` was
+  mistakenly applied to all pointer devices including mice. The setting now
+  applies only to touchpad devices (devices with `TAP_FINGER_COUNT > 0`).
+- **`focus_follows_mouse` config parsing**: the config field was not read
+  correctly from the Lua table, leaving the option permanently at its default.
+- **Rofi focus**: launching rofi and selecting a window now correctly transfers
+  keyboard focus to the chosen window. The compositor now handles the
+  `set_focus` request from the activation protocol properly.
 
 - **ext-session-lock-v1**: screen locking support. Clients such as `swaylock`
   and `waylock` can acquire a session lock, covering every output with a lock
