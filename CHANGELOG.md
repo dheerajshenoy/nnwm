@@ -277,3 +277,7 @@
 - **Titlebar update on resize**: titlebar is now re-rendered when a window is
   resized via mouse drag, and the resize height calculation correctly subtracts
   the titlebar height (matching `arrange_windows` behavior).
+- **`swap_next`/`swap_prev` wrap-around**: swapping the last window forward now
+  promotes it to master (not second position), and swapping the master backward
+  now demotes it to last (not second-to-last). Wrap-around direction matches
+  `focus_next`/`focus_prev`.
