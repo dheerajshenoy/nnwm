@@ -78,11 +78,11 @@
     - [x] wlr-output-power-management-unstable-v1
     - [x] ext-workspace-v1
     - [x] wlr-data-control-unstable-v1
+    - [x] wlr-output-configuration-unstable-v1
+    - [x] wlr-export-dmabuf-unstable-v1
     - [ ] wlr-virtual-pointer-unstable-v1
     - [ ] wlr-virtual-keyboard-unstable-v1
     - [ ] wlr-gamma-control-unstable-v1
-    - [ ] wlr-export-dmabuf-unstable-v1
-    - [ ] wlr-output-configuration-unstable-v1
 - [x] Show error messages when config fails to load
 - [ ] XWayland
 - [ ] Fake fullscreen mode
