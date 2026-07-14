@@ -71,12 +71,19 @@
   an XDG popup with a null parent (screen-space positioner, allowed in newer
   xdg-shell versions). The null parent caused a crash inside
   `wlr_xdg_surface_try_from_wlr_surface`, and after guarding against null the
-  popup was silently discarded. Null-parent popups are now placed in the overlay
-  scene layer (which sits at global origin), so the positioner's screen-space
-  coordinates map directly to global coordinates. Output constraining uses the
-  focused output. All popups also now call `wlr_xdg_popup_unconstrain_from_box`
-  before scheduling their initial configure, preventing popups from being
-  clipped or pushed off-screen.
+  popup was silently discarded. Null-parent popups are now placed under an
+  intermediate scene tree offset to the focused output's global origin, so the
+  positioner's output-local coordinates map correctly to global screen
+  coordinates. Output constraining uses the focused output. All popups also now
+  call `wlr_xdg_popup_unconstrain_from_box` before scheduling their initial
+  configure, preventing popups from being clipped or pushed off-screen.
+- **Null-parent popup wrong position on non-primary monitors**: null-parent
+  popups (e.g. waybar wifi module menu) appeared correctly on the primary monitor
+  but at the wrong position on other monitors. The intermediate scene tree was
+  previously placed at global origin, so output-local positioner coordinates were
+  interpreted as primary-monitor coordinates. The scene tree is now positioned at
+  the focused output's global offset in the layout, fixing popup placement on all
+  monitors.
 - **Cursor warps to monitor center on monitor focus change**:
   `nnwm.focus_monitor_next()` and `nnwm.focus_monitor_prev()` now warp the
   cursor to the center of the newly focused monitor so the pointer and keyboard
@@ -186,11 +193,12 @@
   and `nnwm.move_to_monitor_prev()` send the focused window to the adjacent
   output's active workspace; focus follows the window to the destination.
 - **Output monitor configuration**: `nnwm.monitors` is an array-of-tables for
-  configuring outputs by name, make, model, or serial (first match wins). Each
-  entry may specify `width`/`height`/`refresh` (mode), `x`/`y` (layout
-  position), `scale`, `transform` (rotation string), `hdr` (wlroots 0.20+),
-  and `disabled`. Unmatched outputs fall back to their preferred mode and
-  auto-layout.
+  configuring outputs by `name` (connector, e.g. `"DP-1"`) or `description`
+  (`"make model serial"` combined string; serial is `"Unknown"` when absent).
+  First match wins. Each entry may specify `width`/`height`/`refresh` (mode),
+  `x`/`y` (layout position), `scale`, `transform` (rotation string),
+  `hdr` (wlroots 0.20+), and `disabled`. Unmatched outputs fall back to their
+  preferred mode and auto-layout.
 - **`nnwm.host_name()`**: returns the machine hostname as a string. Useful for
   per-host config in a shared init file.
 
