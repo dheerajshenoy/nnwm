@@ -65,6 +65,7 @@
 - [ ] Hardware-acceleration
 - [ ] Scratchpad
 - [ ] Multi workspace viewing at once (like dwm)
+- [x] Rounded corners
 - lua helper functions
     - [x] device_name
 - wlr protocols
