@@ -291,6 +291,11 @@
   different TTY) now correctly re-tiles all outputs. Previously the session
   resume was not handled, leaving window positions stale and crashing on
   interaction with existing windows.
+- **Floating window border occlusion during resize**: borders at the growing
+  edge of a floating window are no longer hidden by the client surface.
+  Border rects are now created above the surface in the scene Z-order, and
+  the commit handler re-syncs border sizes to the client's actually committed
+  geometry after each frame.
 - **`swap_next`/`swap_prev` wrap-around**: swapping the last window forward now
   promotes it to master (not second position), and swapping the master backward
   now demotes it to last (not second-to-last). Wrap-around direction matches
