@@ -60,6 +60,18 @@ MOD = {}
 ---@field text_color?          nnwm.color  Title text color for unfocused windows (default: {1.0, 1.0, 1.0, 1.0})
 ---@field focused_text_color?  nnwm.color  Title text color for the focused window (default: {1.0, 1.0, 1.0, 1.0})
 
+---@class nnwm.fx.shadow
+---@field enabled?    boolean     Enable drop shadows (default: false)
+---@field blur_sigma? number      Gaussian blur sigma controlling shadow softness (default: 10.0)
+---@field offset_x?  number      Horizontal shadow offset in pixels (default: 4.0)
+---@field offset_y?  number      Vertical shadow offset in pixels (default: 4.0)
+---@field color?     nnwm.color  Shadow color (default: {0, 0, 0, 0.5})
+
+---@class nnwm.fx
+---Only active when built with `USE_SCENEFX=ON` and running on real DRM hardware.
+---@field corner_radius? integer      Window corner radius in pixels; 0 disables (default: 0)
+---@field shadow?        nnwm.fx.shadow
+
 ---@class nnwm_opts
 ---@field layout?             nnwm.layout
 ---@field gaps?               nnwm.gaps
@@ -68,6 +80,7 @@ MOD = {}
 ---@field touchpad?           nnwm.touchpad
 ---@field mouse?              nnwm.mouse
 ---@field titlebar?           nnwm.titlebar
+---@field fx?                 nnwm.fx
 ---@field client_decorations? boolean
 ---@field seat_name?          string
 ---@field monitors?           nnwm_monitor_config[]

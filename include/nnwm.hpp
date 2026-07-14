@@ -271,7 +271,8 @@ struct nnwm_toplevel
     bool sticky;
     struct wlr_xdg_toplevel *xdg_toplevel;
     struct wlr_scene_tree *scene_tree;
-    struct wlr_scene_rect *border[4];      /* top, bottom, left, right */
+    struct wlr_scene_rect *border[4];      /* top, bottom, left, right (used when corner_radius == 0) */
+    struct wlr_scene_rect *border_bg;     /* single bg rect used when corner_radius > 0 */
     struct wlr_scene_tree *scene_surface;
     struct nnwm_decoration *decoration; /* pending decoration, applied on initial commit */
     struct wlr_scene_buffer *titlebar;  /* server-side titlebar, nullptr if disabled */

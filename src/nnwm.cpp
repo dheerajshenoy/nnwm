@@ -147,6 +147,10 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
     wlr_scene_node_set_position(&toplevel->scene_surface->node, bw, bw + th);
 
 #ifdef HAVE_SCENEFX
+    if (toplevel->border_bg) {
+        wlr_scene_node_set_position(&toplevel->border_bg->node, 0, 0);
+        wlr_scene_rect_set_size(toplevel->border_bg, width, height);
+    }
     if (toplevel->fx_shadow)
         wlr_scene_shadow_set_size(toplevel->fx_shadow, width, height);
 #endif
@@ -154,31 +158,49 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
 
 /* ---- scenefx per-window decorations ---- */
 
+#ifdef HAVE_SCENEFX
+static void
+set_corner_radius_recursive(struct wlr_scene_tree *tree, int radius)
+{
+    struct wlr_scene_node *child;
+    wl_list_for_each(child, &tree->children, link) {
+        if (child->type == WLR_SCENE_NODE_BUFFER)
+            wlr_scene_buffer_set_corner_radius(
+                wlr_scene_buffer_from_node(child), radius);
+        else if (child->type == WLR_SCENE_NODE_TREE)
+            set_corner_radius_recursive(
+                wlr_scene_tree_from_node(child), radius);
+    }
+}
+#endif
+
 void
 apply_fx_decorations(nnwm_toplevel *toplevel)
 {
 #ifdef HAVE_SCENEFX
     nnwm_config *cfg = toplevel->server->config;
 
-    /* Corner radius on each border rect */
+    bool use_bg = (cfg->corner_radius > 0 && toplevel->border_bg);
+
+    /* When corner_radius > 0 use a single background rect for the border frame;
+     * otherwise use the 4 individual strip rects. */
     for (int i = 0; i < 4; i++) {
         if (toplevel->border[i])
-            wlr_scene_rect_set_corner_radius(toplevel->border[i], cfg->corner_radius);
+            wlr_scene_node_set_enabled(&toplevel->border[i]->node, !use_bg);
+    }
+    if (toplevel->border_bg) {
+        wlr_scene_node_set_enabled(&toplevel->border_bg->node, use_bg);
+        if (use_bg)
+            wlr_scene_rect_set_corner_radius(toplevel->border_bg, cfg->corner_radius);
     }
 
     /* Corner radius on titlebar buffer */
     if (toplevel->titlebar)
         wlr_scene_buffer_set_corner_radius(toplevel->titlebar, cfg->corner_radius);
 
-    /* Corner radius on xdg surface buffer children */
-    if (toplevel->scene_surface) {
-        struct wlr_scene_node *child;
-        wl_list_for_each(child, &toplevel->scene_surface->children, link) {
-            if (child->type == WLR_SCENE_NODE_BUFFER)
-                wlr_scene_buffer_set_corner_radius(
-                    wlr_scene_buffer_from_node(child), cfg->corner_radius);
-        }
-    }
+    /* Corner radius on all xdg surface buffers (recurse — subsurfaces are in child trees) */
+    if (toplevel->scene_surface)
+        set_corner_radius_recursive(toplevel->scene_surface, cfg->corner_radius);
 
     /* Shadow node */
     if (cfg->shadow_enabled && !toplevel->fx_shadow) {
@@ -669,6 +691,8 @@ focus_toplevel(nnwm_toplevel *toplevel)
                            : server->config->unfocused_color;
         for (int i = 0; i < 4; i++)
             wlr_scene_rect_set_color(tl->border[i], color);
+        if (tl->border_bg)
+            wlr_scene_rect_set_color(tl->border_bg, color);
         render_titlebar(tl, tl->titlebar_width, foc);
     }
 
@@ -702,6 +726,8 @@ unfocus_all_borders(nnwm_server *server)
     wl_list_for_each(tl, &server->toplevels, link) {
         for (int i = 0; i < 4; i++)
             wlr_scene_rect_set_color(tl->border[i], server->config->unfocused_color);
+        if (tl->border_bg)
+            wlr_scene_rect_set_color(tl->border_bg, server->config->unfocused_color);
         render_titlebar(tl, tl->titlebar_width, false);
     }
 }

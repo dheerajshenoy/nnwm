@@ -366,6 +366,12 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     toplevel->scene_surface->node.data = toplevel;
     xdg_toplevel->base->data           = toplevel->scene_surface;
 
+    /* Single bg rect for rounded-corner mode; sits below scene_surface. */
+    toplevel->border_bg = wlr_scene_rect_create(
+        toplevel->scene_tree, 0, 0, server->config->unfocused_color);
+    wlr_scene_node_lower_to_bottom(&toplevel->border_bg->node);
+    wlr_scene_node_set_enabled(&toplevel->border_bg->node, false);
+
     /* Borders and titlebar are created after scene_surface so they sit above
      * it in Z-order — prevents the client surface from rendering over border
      * rects when it commits at a larger size than currently expected. */
