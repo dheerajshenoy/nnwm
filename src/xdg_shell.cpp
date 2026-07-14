@@ -40,6 +40,8 @@ apply_window_rules(nnwm_server *server, nnwm_toplevel *toplevel)
         if (r.fullscreen >= 0) toplevel->fullscreen = (bool)r.fullscreen;
         if (r.sticky     >= 0) toplevel->sticky = (bool)r.sticky;
         if (r.workspace  >= 0) toplevel->workspace  = r.workspace;
+        if (r.opacity    >= 0) toplevel->rule_opacity = r.opacity;
+        if (r.blur       >= 0) toplevel->rule_blur    = r.blur;
         if (r.monitor) {
             nnwm_output *out;
             wl_list_for_each(out, &server->outputs, link) {
@@ -357,6 +359,8 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     nnwm_toplevel *toplevel = new nnwm_toplevel{};
     toplevel->server          = server;
     toplevel->xdg_toplevel    = xdg_toplevel;
+    toplevel->rule_opacity    = -1.0f;
+    toplevel->rule_blur       = -1;
 
     toplevel->scene_tree = wlr_scene_tree_create(server->scene_windows);
     toplevel->scene_tree->node.data = toplevel;
@@ -365,12 +369,6 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
         toplevel->scene_tree, xdg_toplevel->base);
     toplevel->scene_surface->node.data = toplevel;
     xdg_toplevel->base->data           = toplevel->scene_surface;
-
-    /* Single bg rect for rounded-corner mode; sits below scene_surface. */
-    toplevel->border_bg = wlr_scene_rect_create(
-        toplevel->scene_tree, 0, 0, server->config->unfocused_color);
-    wlr_scene_node_lower_to_bottom(&toplevel->border_bg->node);
-    wlr_scene_node_set_enabled(&toplevel->border_bg->node, false);
 
     /* Borders and titlebar are created after scene_surface so they sit above
      * it in Z-order — prevents the client surface from rendering over border
@@ -383,6 +381,7 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     wlr_scene_node_set_enabled(&toplevel->titlebar->node, false);
 #ifdef HAVE_SCENEFX
     toplevel->fx_shadow = nullptr;
+    toplevel->fx_blur   = nullptr;
 #endif
 
     toplevel->map.notify = xdg_toplevel_map;

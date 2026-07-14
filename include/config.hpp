@@ -24,6 +24,8 @@ struct nnwm_window_rule
     int   sticky;     /* -1=unset, 0=false, 1=true */
     int   workspace;  /* -1=unset, 0-8 = workspace index */
     char *monitor;    /* NULL=unset, output name e.g. "DP-1" */
+    float opacity;    /* <0 = unset (use global); 0.0–1.0 = override */
+    int   blur;       /* -1=unset, 0=disable, 1=enable */
 };
 
 struct nnwm_monitor_config
@@ -104,13 +106,21 @@ struct nnwm_config
     float titlebar_text_color[4];         /* unfocused text RGBA */
     float titlebar_focused_text_color[4]; /* focused text RGBA */
 
-    /* scenefx: corner radius and shadows (requires HAVE_SCENEFX build flag) */
+    /* scenefx: corner radius, shadows, blur, opacity (requires HAVE_SCENEFX build flag) */
     int   corner_radius;          /* pixels; 0 = disabled */
     bool  shadow_enabled;
     float shadow_blur_sigma;      /* Gaussian sigma; controls softness */
     float shadow_color[4];        /* RGBA */
     float shadow_offset_x;        /* pixels */
     float shadow_offset_y;        /* pixels */
+    float opacity;                /* window content opacity: 0.0–1.0 (default: 1.0) */
+    bool  blur_enabled;
+    int   blur_passes;            /* number of dual-kawase passes (default: 3) */
+    int   blur_radius;            /* blur radius in pixels (default: 5) */
+    float blur_noise;             /* noise to reduce banding (default: 0.0) */
+    float blur_brightness;        /* brightness adjustment (default: 1.0) */
+    float blur_contrast;          /* contrast adjustment (default: 1.0) */
+    float blur_saturation;        /* saturation adjustment (default: 1.0) */
 
     /* Monitor configuration */
     struct nnwm_monitor_config *monitor_configs;

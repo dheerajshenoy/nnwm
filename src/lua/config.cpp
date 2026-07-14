@@ -555,6 +555,8 @@ l_nnwm_rule(lua_State *L)
     r.fullscreen = -1;
     r.sticky     = -1;
     r.workspace  = -1;
+    r.opacity    = -1.0f;
+    r.blur       = -1;
 
     /* Match criteria */
     lua_getfield(L, 1, "app_id");
@@ -587,6 +589,17 @@ l_nnwm_rule(lua_State *L)
 
     lua_getfield(L, 2, "monitor");
     if (lua_isstring(L, -1)) r.monitor = strdup(lua_tostring(L, -1));
+    lua_pop(L, 1);
+
+    lua_getfield(L, 2, "opacity");
+    if (lua_isnumber(L, -1)) {
+        float v = (float)lua_tonumber(L, -1);
+        if (v >= 0.0f && v <= 1.0f) r.opacity = v;
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, 2, "blur");
+    if (lua_isboolean(L, -1)) r.blur = lua_toboolean(L, -1) ? 1 : 0;
     lua_pop(L, 1);
 
     return 0;
@@ -769,6 +782,24 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     for (int i = 0; i < 4; i++) { lua_pushnumber(L, cfg->shadow_color[i]); lua_rawseti(L, -2, i + 1); }
     lua_setfield(L, -2, "color");
     lua_setfield(L, -2, "shadow");
+    lua_pushnumber(L, cfg->opacity);
+    lua_setfield(L, -2, "opacity");
+    lua_newtable(L);
+    lua_pushboolean(L, cfg->blur_enabled);
+    lua_setfield(L, -2, "enabled");
+    lua_pushinteger(L, cfg->blur_passes);
+    lua_setfield(L, -2, "passes");
+    lua_pushinteger(L, cfg->blur_radius);
+    lua_setfield(L, -2, "radius");
+    lua_pushnumber(L, cfg->blur_noise);
+    lua_setfield(L, -2, "noise");
+    lua_pushnumber(L, cfg->blur_brightness);
+    lua_setfield(L, -2, "brightness");
+    lua_pushnumber(L, cfg->blur_contrast);
+    lua_setfield(L, -2, "contrast");
+    lua_pushnumber(L, cfg->blur_saturation);
+    lua_setfield(L, -2, "saturation");
+    lua_setfield(L, -2, "blur");
     lua_setfield(L, -2, "fx");
 
     /* monitors: empty table (user populates in config file) */
@@ -1009,6 +1040,18 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
             get_color_field(L, "color", cfg->shadow_color, dflt);
         }
         lua_pop(L, 1);
+        cfg->opacity = get_float_field(L, "opacity", cfg->opacity);
+        lua_getfield(L, -1, "blur");
+        if (lua_istable(L, -1)) {
+            cfg->blur_enabled      = get_bool_field(L,  "enabled",    cfg->blur_enabled);
+            cfg->blur_passes       = get_int_field(L,   "passes",     cfg->blur_passes);
+            cfg->blur_radius       = get_int_field(L,   "radius",     cfg->blur_radius);
+            cfg->blur_noise        = get_float_field(L, "noise",      cfg->blur_noise);
+            cfg->blur_brightness   = get_float_field(L, "brightness", cfg->blur_brightness);
+            cfg->blur_contrast     = get_float_field(L, "contrast",   cfg->blur_contrast);
+            cfg->blur_saturation   = get_float_field(L, "saturation", cfg->blur_saturation);
+        }
+        lua_pop(L, 1);
     }
     lua_pop(L, 1);
 
@@ -1203,6 +1246,14 @@ nnwm::config_defaults(void)
     cfg->shadow_color[3]   = 0.5f;
     cfg->shadow_offset_x   = 4.0f;
     cfg->shadow_offset_y   = 4.0f;
+    cfg->opacity           = 1.0f;
+    cfg->blur_enabled      = false;
+    cfg->blur_passes       = 3;
+    cfg->blur_radius       = 5;
+    cfg->blur_noise        = 0.0f;
+    cfg->blur_brightness   = 1.0f;
+    cfg->blur_contrast     = 1.0f;
+    cfg->blur_saturation   = 1.0f;
 
     cfg->inner_gap     = 0;
     cfg->outer_gap     = 0;

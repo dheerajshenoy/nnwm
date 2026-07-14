@@ -147,9 +147,9 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
     wlr_scene_node_set_position(&toplevel->scene_surface->node, bw, bw + th);
 
 #ifdef HAVE_SCENEFX
-    if (toplevel->border_bg) {
-        wlr_scene_node_set_position(&toplevel->border_bg->node, 0, 0);
-        wlr_scene_rect_set_size(toplevel->border_bg, width, height);
+    if (toplevel->fx_blur) {
+        wlr_scene_node_set_position(&toplevel->fx_blur->node, 0, 0);
+        wlr_scene_blur_set_size(toplevel->fx_blur, width, height);
     }
     if (toplevel->fx_shadow) {
         nnwm_config *cfg = toplevel->server->config;
@@ -176,6 +176,20 @@ set_corner_radius_recursive(struct wlr_scene_tree *tree, int radius)
                 wlr_scene_tree_from_node(child), radius);
     }
 }
+
+static void
+set_opacity_recursive(struct wlr_scene_tree *tree, float opacity)
+{
+    struct wlr_scene_node *child;
+    wl_list_for_each(child, &tree->children, link) {
+        if (child->type == WLR_SCENE_NODE_BUFFER)
+            wlr_scene_buffer_set_opacity(
+                wlr_scene_buffer_from_node(child), opacity);
+        else if (child->type == WLR_SCENE_NODE_TREE)
+            set_opacity_recursive(
+                wlr_scene_tree_from_node(child), opacity);
+    }
+}
 #endif
 
 void
@@ -184,27 +198,59 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
 #ifdef HAVE_SCENEFX
     nnwm_config *cfg = toplevel->server->config;
 
-    bool use_bg = (cfg->corner_radius > 0 && toplevel->border_bg);
-
-    /* When corner_radius > 0 use a single background rect for the border frame;
-     * otherwise use the 4 individual strip rects. */
-    for (int i = 0; i < 4; i++) {
-        if (toplevel->border[i])
-            wlr_scene_node_set_enabled(&toplevel->border[i]->node, !use_bg);
-    }
-    if (toplevel->border_bg) {
-        wlr_scene_node_set_enabled(&toplevel->border_bg->node, use_bg);
-        if (use_bg)
-            wlr_scene_rect_set_corner_radius(toplevel->border_bg, cfg->corner_radius);
-    }
+    /* Per-corner radii on the 4 border rects:
+     * top rect rounds its own two top corners; bottom rect rounds its two
+     * bottom corners; left/right strips have no corners to round (they fit
+     * flush between top and bottom). */
+    int r = cfg->corner_radius;
+    wlr_scene_rect_set_corner_radii(toplevel->border[0], corner_radii_top(r));
+    wlr_scene_rect_set_corner_radii(toplevel->border[1], corner_radii_bottom(r));
+    wlr_scene_rect_set_corner_radii(toplevel->border[2], corner_radii_none());
+    wlr_scene_rect_set_corner_radii(toplevel->border[3], corner_radii_none());
 
     /* Corner radius on titlebar buffer */
     if (toplevel->titlebar)
         wlr_scene_buffer_set_corner_radius(toplevel->titlebar, cfg->corner_radius);
 
-    /* Corner radius on all xdg surface buffers (recurse — subsurfaces are in child trees) */
+    /* Inner corner radius: surface sits inset by border_width, so its corners
+     * need a smaller radius to remain concentric with the outer border corners. */
+    int inner_r = cfg->corner_radius > cfg->border_width
+                  ? cfg->corner_radius - cfg->border_width : 0;
     if (toplevel->scene_surface)
-        set_corner_radius_recursive(toplevel->scene_surface, cfg->corner_radius);
+        set_corner_radius_recursive(toplevel->scene_surface, inner_r);
+
+    /* Per-window overrides take precedence over global config values */
+    float eff_opacity = (toplevel->rule_opacity >= 0.0f)
+                        ? toplevel->rule_opacity : cfg->opacity;
+    bool  eff_blur    = (toplevel->rule_blur    >= 0)
+                        ? (bool)toplevel->rule_blur : cfg->blur_enabled;
+
+    /* Window content opacity */
+    if (toplevel->scene_surface)
+        set_opacity_recursive(toplevel->scene_surface, eff_opacity);
+
+    /* Background blur */
+    if (eff_blur) {
+        wlr_scene_set_blur_data(toplevel->server->scene,
+            cfg->blur_passes, cfg->blur_radius,
+            cfg->blur_noise, cfg->blur_brightness,
+            cfg->blur_contrast, cfg->blur_saturation);
+        if (!toplevel->fx_blur) {
+            wlr_box geo = toplevel->xdg_toplevel->base->geometry;
+            int bw = cfg->border_width;
+            int th = cfg->titlebar_height;
+            int w  = geo.width  + 2 * bw;
+            int h  = geo.height + 2 * bw + th;
+            toplevel->fx_blur = wlr_scene_blur_create(toplevel->scene_tree, w, h);
+            wlr_scene_blur_set_corner_radius(toplevel->fx_blur, cfg->corner_radius);
+            wlr_scene_node_lower_to_bottom(&toplevel->fx_blur->node);
+        } else {
+            wlr_scene_blur_set_corner_radius(toplevel->fx_blur, cfg->corner_radius);
+        }
+    } else if (!eff_blur && toplevel->fx_blur) {
+        wlr_scene_node_destroy(&toplevel->fx_blur->node);
+        toplevel->fx_blur = nullptr;
+    }
 
     /* Shadow node */
     if (cfg->shadow_enabled && !toplevel->fx_shadow) {
@@ -699,8 +745,6 @@ focus_toplevel(nnwm_toplevel *toplevel)
                            : server->config->unfocused_color;
         for (int i = 0; i < 4; i++)
             wlr_scene_rect_set_color(tl->border[i], color);
-        if (tl->border_bg)
-            wlr_scene_rect_set_color(tl->border_bg, color);
         render_titlebar(tl, tl->titlebar_width, foc);
     }
 
@@ -734,8 +778,6 @@ unfocus_all_borders(nnwm_server *server)
     wl_list_for_each(tl, &server->toplevels, link) {
         for (int i = 0; i < 4; i++)
             wlr_scene_rect_set_color(tl->border[i], server->config->unfocused_color);
-        if (tl->border_bg)
-            wlr_scene_rect_set_color(tl->border_bg, server->config->unfocused_color);
         render_titlebar(tl, tl->titlebar_width, false);
     }
 }

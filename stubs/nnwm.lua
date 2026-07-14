@@ -67,10 +67,21 @@ MOD = {}
 ---@field offset_y?  number      Vertical shadow offset in pixels (default: 4.0)
 ---@field color?     nnwm.color  Shadow color (default: {0, 0, 0, 0.5})
 
+---@class nnwm.fx.blur
+---@field enabled?     boolean  Enable background blur behind windows (default: false)
+---@field passes?      integer  Number of dual-kawase blur passes; higher = softer (default: 3)
+---@field radius?      integer  Blur radius in pixels (default: 5)
+---@field noise?       number   Noise factor to reduce banding artifacts (default: 0.0)
+---@field brightness?  number   Brightness multiplier for blurred content (default: 1.0)
+---@field contrast?    number   Contrast multiplier for blurred content (default: 1.0)
+---@field saturation?  number   Saturation multiplier for blurred content (default: 1.0)
+
 ---@class nnwm.fx
 ---Only active when built with `USE_SCENEFX=ON` and running on real DRM hardware.
 ---@field corner_radius? integer      Window corner radius in pixels; 0 disables (default: 0)
+---@field opacity?       number       Window content opacity: 0.0 (invisible) – 1.0 (opaque) (default: 1.0)
 ---@field shadow?        nnwm.fx.shadow
+---@field blur?          nnwm.fx.blur
 
 ---@class nnwm_opts
 ---@field layout?             nnwm.layout
@@ -99,6 +110,8 @@ MOD = {}
 ---@field sticky     boolean? Make the window sticky (appears on all workspaces; tiles or floats as normal)
 ---@field workspace  integer? Assign to workspace 1–9
 ---@field monitor    string?  Assign to the output with this name (e.g. `"DP-1"`)
+---@field opacity    number?  Override global opacity for this window: 0.0 (invisible) – 1.0 (opaque). Requires `USE_SCENEFX=ON`.
+---@field blur       boolean? Override global blur setting for this window. Requires `USE_SCENEFX=ON`.
 
 ---@class nnwm_monitor_config
 ---@field name        string?   Output connector name, e.g. `"DP-1"`, `"eDP-1"`

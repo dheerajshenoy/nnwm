@@ -84,6 +84,8 @@ extern "C" {
 #  endif
 /* fx_renderer.h has no extern "C" guards — wrap it here */
 #  include <scenefx/render/fx_renderer/fx_renderer.h>
+/* clipped_region.h only uses wayland/wlroots primitives already included above */
+#  include <scenefx/types/fx/clipped_region.h>
 
 /* Forward-declare scenefx scene extension types and functions.
  * We cannot include scenefx/types/wlr_scene.h because it shares the include
@@ -92,6 +94,9 @@ extern "C" {
 struct wlr_scene_shadow {
     struct wlr_scene_node node;
     int corner_radius;
+};
+struct wlr_scene_blur {
+    struct wlr_scene_node node;
 };
 struct wlr_scene_shadow *wlr_scene_shadow_create(struct wlr_scene_tree *parent,
     int width, int height, int corner_radius, float blur_sigma,
@@ -106,8 +111,19 @@ void wlr_scene_shadow_set_color(struct wlr_scene_shadow *shadow,
     const float color[4]);
 void wlr_scene_rect_set_corner_radius(struct wlr_scene_rect *rect,
     int corner_radius);
+void wlr_scene_rect_set_corner_radii(struct wlr_scene_rect *rect,
+    struct fx_corner_radii corner_radii);
 void wlr_scene_buffer_set_corner_radius(struct wlr_scene_buffer *scene_buffer,
     int corner_radius);
+void wlr_scene_buffer_set_opacity(struct wlr_scene_buffer *scene_buffer,
+    float opacity);
+struct wlr_scene_blur *wlr_scene_blur_create(struct wlr_scene_tree *parent,
+    int width, int height);
+void wlr_scene_blur_set_size(struct wlr_scene_blur *blur, int width, int height);
+void wlr_scene_blur_set_corner_radius(struct wlr_scene_blur *blur,
+    int corner_radius);
+void wlr_scene_set_blur_data(struct wlr_scene *scene, int num_passes,
+    int radius, float noise, float brightness, float contrast, float saturation);
 #  ifdef __cplusplus
 }
 #  endif
@@ -271,14 +287,16 @@ struct nnwm_toplevel
     bool sticky;
     struct wlr_xdg_toplevel *xdg_toplevel;
     struct wlr_scene_tree *scene_tree;
-    struct wlr_scene_rect *border[4];      /* top, bottom, left, right (used when corner_radius == 0) */
-    struct wlr_scene_rect *border_bg;     /* single bg rect used when corner_radius > 0 */
+    struct wlr_scene_rect *border[4];      /* top, bottom, left, right */
+    float rule_opacity;  /* per-window override: <0 = use global cfg->opacity */
+    int   rule_blur;     /* per-window override: -1=global, 0=off, 1=on */
     struct wlr_scene_tree *scene_surface;
     struct nnwm_decoration *decoration; /* pending decoration, applied on initial commit */
     struct wlr_scene_buffer *titlebar;  /* server-side titlebar, nullptr if disabled */
     int                      titlebar_width; /* last rendered inner width (for title-change redraws) */
 #ifdef HAVE_SCENEFX
     struct wlr_scene_shadow *fx_shadow; /* scenefx shadow node, nullptr if disabled */
+    struct wlr_scene_blur  *fx_blur;    /* scenefx background blur node, nullptr if disabled */
 #endif
     struct wl_listener map;
     struct wl_listener unmap;
