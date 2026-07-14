@@ -53,15 +53,38 @@
   that open XDG popups no longer crashes the compositor. Previously
   `server_new_xdg_popup` asserted that the popup parent was an XDG surface;
   layer-shell clients such as waybar use a layer surface as the parent instead.
-  Now falls back to `wlr_layer_surface_v1_try_from_wlr_surface` and uses the
-  layer surface's scene tree as the parent, with a safe no-op if neither lookup
-  succeeds.
+  Now guards against a null parent, then falls back to
+  `wlr_layer_surface_v1_try_from_wlr_surface` and uses the layer surface's
+  scene tree as the parent, with a safe no-op if neither lookup succeeds.
 - **Move to monitor with same workspace index**: moving a window to a monitor
   that happened to be on the same workspace number (e.g. both on workspace 1)
   was silently ignored due to an `old_ws == new_ws` early return, leaving the
   window's `output` pointer pointing at the source monitor. Subsequent tiling or
   `toggle_float` would then tile the window back on the original monitor. The
   guard is now `dst == src`, which correctly handles the same-index case.
+- **SIGINT/SIGTERM crash when running nested**: pressing Ctrl+C on the console
+  while nnwm ran inside Sway (or any nested session) terminated the process
+  abruptly inside `epoll_wait` with no cleanup. Added `wl_event_loop_add_signal`
+  handlers for `SIGINT` and `SIGTERM` that call `wl_display_terminate()`,
+  allowing the event loop to exit cleanly and the normal shutdown path to run.
+- **Layer-shell popup not appearing (null parent)**: waybar's wifi module creates
+  an XDG popup with a null parent (screen-space positioner, allowed in newer
+  xdg-shell versions). The null parent caused a crash inside
+  `wlr_xdg_surface_try_from_wlr_surface`, and after guarding against null the
+  popup was silently discarded. Null-parent popups are now placed in the overlay
+  scene layer (which sits at global origin), so the positioner's screen-space
+  coordinates map directly to global coordinates. Output constraining uses the
+  focused output. All popups also now call `wlr_xdg_popup_unconstrain_from_box`
+  before scheduling their initial configure, preventing popups from being
+  clipped or pushed off-screen.
+- **Cursor warps to monitor center on monitor focus change**:
+  `nnwm.focus_monitor_next()` and `nnwm.focus_monitor_prev()` now warp the
+  cursor to the center of the newly focused monitor so the pointer and keyboard
+  focus stay in sync.
+- **Stale focus when switching to an empty monitor**: moving keyboard focus to a
+  monitor with no windows left the previously focused window on the old monitor
+  still holding keyboard focus. Both focus-monitor actions now call
+  `wlr_seat_keyboard_clear_focus` when no window is found on the target monitor.
 - **Tabbed layout floating window transparency**: floating windows in tabbed
   mode no longer appear transparent or blank. The tab bar is now raised to the
   top after floating windows, so floating windows remain visible above it.
