@@ -6,7 +6,15 @@ extern "C" {
 #include <sys/stat.h>
 #include <sys/inotify.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <unistd.h>
+}
+
+static int
+handle_signal(int /*sig*/, void *data)
+{
+    wl_display_terminate(static_cast<wl_display*>(data));
+    return 0;
 }
 
 static int
@@ -85,7 +93,10 @@ main(int argc, char *argv[])
     }
     /* The Wayland display is managed by libwayland. It handles accepting
      * clients from the Unix socket, managing Wayland globals, and so on. */
-    server.wl_display           = wl_display_create();
+    server.wl_display = wl_display_create();
+    struct wl_event_loop *loop = wl_display_get_event_loop(server.wl_display);
+    wl_event_loop_add_signal(loop, SIGINT,  handle_signal, server.wl_display);
+    wl_event_loop_add_signal(loop, SIGTERM, handle_signal, server.wl_display);
     /* The backend is a wlroots feature which abstracts the underlying input and
      * output hardware. The autocreate option will choose the most suitable
      * backend based on the current environment, such as opening an X11 window
@@ -334,8 +345,6 @@ main(int argc, char *argv[])
                                        server.config_path, IN_MODIFY);
             if (wd >= 0)
             {
-                struct wl_event_loop *loop
-                    = wl_display_get_event_loop(server.wl_display);
                 server.config_event_source = wl_event_loop_add_fd(
                     loop, server.config_inotify_fd, WL_EVENT_READABLE,
                     config_file_changed, &server);
