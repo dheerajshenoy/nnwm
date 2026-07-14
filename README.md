@@ -1,12 +1,14 @@
 # nnwm
 
-**no name Window Manager (nnWM)** is a lightweight, minimalistic tiling Wayland compositor built on [wlroots](https://gitlab.freedesktop.org/wlroots/wlroots).
+**No Name Window Manager (nnwm)** is a lightweight, minimalistic tiling Wayland compositor built on [wlroots](https://gitlab.freedesktop.org/wlroots/wlroots).
 
 Latest Version: 0.1.0
 
 ## Why ?
 
-Because **MangoWC** community downvoted my lua configuration support request, I decided to make my own tiling Wayland compositor with Lua configuration and hot-reload support.
+Because [**MangoWM**](https://github.com/mangowm/mango) community downvoted my lua configuration support request, I decided to make my own tiling Wayland compositor with Lua configuration and hot-reload support.
+
+P.S : MangoWM is awesome, and I love it, but I want to have my own compositor with Lua configuration support.
 
 ## Features
 
