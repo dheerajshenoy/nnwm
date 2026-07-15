@@ -443,6 +443,7 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     toplevel->titlebar = wlr_scene_buffer_create(toplevel->scene_tree, nullptr);
     wlr_scene_node_set_enabled(&toplevel->titlebar->node, false);
 #ifdef HAVE_SCENEFX
+    toplevel->border_bg = nullptr;
     toplevel->fx_shadow = nullptr;
     toplevel->fx_blur   = nullptr;
 #endif

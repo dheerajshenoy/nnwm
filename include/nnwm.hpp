@@ -295,6 +295,7 @@ struct nnwm_toplevel
     float rule_opacity;  /* per-window override: <0 = use global cfg->opacity */
     int   rule_blur;     /* per-window override: -1=global, 0=off, 1=on */
 #ifdef HAVE_SCENEFX
+    struct wlr_scene_rect *border_bg;    /* full-window rect behind content, for rounded corners */
     int   rule_anim_open_style;   /* -1=unset, else nnwm_open_style */
     int   rule_anim_close_style;  /* -1=unset, else nnwm_open_style */
     int   rule_no_anim;           /* -1=unset, 1=disable */

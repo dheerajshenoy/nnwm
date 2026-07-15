@@ -180,23 +180,33 @@ static int   lerpi(int   a, int   b, float t) { return a + (int)roundf((float)(b
 void
 update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
 {
-    int th = toplevel->server->config->titlebar_height;
+    nnwm_config *cfg = toplevel->server->config;
+    int th = cfg->titlebar_height;
+#ifdef HAVE_SCENEFX
+    /* Inset the 4 strips by corner_radius so they don't override the
+     * rounded corners provided by border_bg. */
+    int r  = cfg->corner_radius;
+    int tw = width  - 2 * r; if (tw < 0) tw = 0;
+    int sh = height - 2 * r; if (sh < 0) sh = 0;
+#else
+    int r = 0, tw = width, sh = height - 2 * bw;
+#endif
 
     /* border[0]: top */
-    wlr_scene_node_set_position(&toplevel->border[0]->node, 0, 0);
-    wlr_scene_rect_set_size(toplevel->border[0], width, bw);
+    wlr_scene_node_set_position(&toplevel->border[0]->node, r, 0);
+    wlr_scene_rect_set_size(toplevel->border[0], tw, bw);
 
     /* border[1]: bottom */
-    wlr_scene_node_set_position(&toplevel->border[1]->node, 0, height - bw);
-    wlr_scene_rect_set_size(toplevel->border[1], width, bw);
+    wlr_scene_node_set_position(&toplevel->border[1]->node, r, height - bw);
+    wlr_scene_rect_set_size(toplevel->border[1], tw, bw);
 
     /* border[2]: left */
-    wlr_scene_node_set_position(&toplevel->border[2]->node, 0, bw);
-    wlr_scene_rect_set_size(toplevel->border[2], bw, height - 2 * bw);
+    wlr_scene_node_set_position(&toplevel->border[2]->node, 0, r);
+    wlr_scene_rect_set_size(toplevel->border[2], bw, sh);
 
     /* border[3]: right */
-    wlr_scene_node_set_position(&toplevel->border[3]->node, width - bw, bw);
-    wlr_scene_rect_set_size(toplevel->border[3], bw, height - 2 * bw);
+    wlr_scene_node_set_position(&toplevel->border[3]->node, width - bw, r);
+    wlr_scene_rect_set_size(toplevel->border[3], bw, sh);
 
     /* titlebar sits between top border and content */
     if (toplevel->titlebar) {
@@ -209,12 +219,15 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
     wlr_scene_node_set_position(&toplevel->scene_surface->node, bw, bw + th);
 
 #ifdef HAVE_SCENEFX
+    if (toplevel->border_bg) {
+        wlr_scene_node_set_position(&toplevel->border_bg->node, 0, 0);
+        wlr_scene_rect_set_size(toplevel->border_bg, width, height);
+    }
     if (toplevel->fx_blur) {
         wlr_scene_node_set_position(&toplevel->fx_blur->node, 0, 0);
         wlr_scene_blur_set_size(toplevel->fx_blur, width, height);
     }
     if (toplevel->fx_shadow) {
-        nnwm_config *cfg = toplevel->server->config;
         wlr_scene_shadow_set_size(toplevel->fx_shadow, width, height);
         wlr_scene_node_set_position(&toplevel->fx_shadow->node,
             (int)cfg->shadow_offset_x, (int)cfg->shadow_offset_y);
@@ -448,6 +461,7 @@ tl_start_border_color(nnwm_toplevel *tl, const float to[4])
         for (int i = 0; i < 4; i++) tl->bcol_to[i] = to[i];
         tl->bcol_anim = false;
         for (int b = 0; b < 4; b++) wlr_scene_rect_set_color(tl->border[b], to);
+        if (tl->border_bg) wlr_scene_rect_set_color(tl->border_bg, to);
         return;
     }
     for (int i = 0; i < 4; i++)
@@ -502,6 +516,7 @@ animate_step_one(nnwm_server * /*server*/, nnwm_toplevel *tl, double now)
             col[i] = lerpf(tl->bcol_from[i], tl->bcol_to[i], t);
         for (int i = 0; i < 4; i++)
             wlr_scene_rect_set_color(tl->border[i], col);
+        if (tl->border_bg) wlr_scene_rect_set_color(tl->border_bg, col);
         if (t >= 1.0f) tl->bcol_anim = false;
         active = true;
     }
@@ -565,10 +580,16 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
      * bottom corners; left/right strips have no corners to round (they fit
      * flush between top and bottom). */
     int r = cfg->corner_radius;
-    wlr_scene_rect_set_corner_radii(toplevel->border[0], corner_radii_top(r));
-    wlr_scene_rect_set_corner_radii(toplevel->border[1], corner_radii_bottom(r));
-    wlr_scene_rect_set_corner_radii(toplevel->border[2], corner_radii_none());
-    wlr_scene_rect_set_corner_radii(toplevel->border[3], corner_radii_none());
+
+    /* border_bg: full-window rect that provides the correctly rounded outer
+     * corners. The 4 border strips are inset by r (see update_borders) so
+     * they never cover the corner areas that border_bg rounds. */
+    if (!toplevel->border_bg) {
+        toplevel->border_bg = wlr_scene_rect_create(
+            toplevel->scene_tree, 0, 0, toplevel->border[0]->color);
+        wlr_scene_node_lower_to_bottom(&toplevel->border_bg->node);
+    }
+    wlr_scene_rect_set_corner_radius(toplevel->border_bg, r);
 
     /* Corner radius on titlebar buffer */
     if (toplevel->titlebar)
