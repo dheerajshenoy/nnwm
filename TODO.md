@@ -93,4 +93,5 @@
 - [ ] Hardware-acceleration
 - [ ] Scratchpad
 - [ ] Multi workspace viewing at once (like dwm)
-- [ ] Don't show titlebar in tabbed mode (if activated)
+- [x] Don't show titlebar in tabbed layout mode (if activated)
+- [x] Don't show titlebar in fullscreen mode
