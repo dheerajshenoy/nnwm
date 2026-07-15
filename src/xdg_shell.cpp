@@ -6,7 +6,8 @@
 #include <cstring>
 #include <fnmatch.h>
 
-extern "C" {
+extern "C"
+{
 #include <wlr/types/wlr_layer_shell_v1.h>
 }
 
@@ -17,40 +18,56 @@ apply_window_rules(nnwm_server *server, nnwm_toplevel *toplevel)
 {
     const char *app_id = toplevel->xdg_toplevel->app_id;
     const char *title  = toplevel->xdg_toplevel->title;
-    auto *cfg = server->config;
+    auto *cfg          = server->config;
 
-    for (int i = 0; i < cfg->window_rule_count; i++) {
+    for (int i = 0; i < cfg->window_rule_count; i++)
+    {
         const auto &r = cfg->window_rules[i];
 
         bool match = true;
-        if (r.app_id) {
+        if (r.app_id)
+        {
             if (!app_id || fnmatch(r.app_id, app_id, 0) != 0)
                 match = false;
         }
-        if (match && r.title) {
+        if (match && r.title)
+        {
             if (!title || fnmatch(r.title, title, 0) != 0)
                 match = false;
         }
         /* Skip rules with no match criteria */
         if (!r.app_id && !r.title)
             match = false;
-        if (!match) continue;
+        if (!match)
+            continue;
 
-        if (r.floating   >= 0) toplevel->floating   = (bool)r.floating;
-        if (r.fullscreen >= 0) toplevel->fullscreen = (bool)r.fullscreen;
-        if (r.sticky     >= 0) toplevel->sticky = (bool)r.sticky;
-        if (r.workspace  >= 0) toplevel->workspace  = r.workspace;
-        if (r.opacity    >= 0) toplevel->rule_opacity = r.opacity;
-        if (r.blur       >= 0) toplevel->rule_blur    = r.blur;
+        if (r.floating >= 0)
+            toplevel->floating = (bool)r.floating;
+        if (r.fullscreen >= 0)
+            toplevel->fullscreen = (bool)r.fullscreen;
+        if (r.sticky >= 0)
+            toplevel->sticky = (bool)r.sticky;
+        if (r.workspace >= 0)
+            toplevel->workspace = r.workspace;
+        if (r.opacity >= 0)
+            toplevel->rule_opacity = r.opacity;
+        if (r.blur >= 0)
+            toplevel->rule_blur = r.blur;
 #ifdef HAVE_SCENEFX
-        if (r.anim_open_style  >= 0) toplevel->rule_anim_open_style  = r.anim_open_style;
-        if (r.anim_close_style >= 0) toplevel->rule_anim_close_style = r.anim_close_style;
-        if (r.no_anim          >= 0) toplevel->rule_no_anim          = r.no_anim;
+        if (r.anim_open_style >= 0)
+            toplevel->rule_anim_open_style = r.anim_open_style;
+        if (r.anim_close_style >= 0)
+            toplevel->rule_anim_close_style = r.anim_close_style;
+        if (r.no_anim >= 0)
+            toplevel->rule_no_anim = r.no_anim;
 #endif
-        if (r.monitor) {
+        if (r.monitor)
+        {
             nnwm_output *out;
-            wl_list_for_each(out, &server->outputs, link) {
-                if (strcmp(out->wlr_output->name, r.monitor) == 0) {
+            wl_list_for_each(out, &server->outputs, link)
+            {
+                if (strcmp(out->wlr_output->name, r.monitor) == 0)
+                {
                     toplevel->output    = out;
                     toplevel->workspace = out->active_workspace;
                     break;
@@ -76,7 +93,8 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
     /* Auto-float windows that declare a parent (dialogs, child frames).
      * A set parent means the client is a transient/dialog — it should float
      * centered rather than enter the tile list and break the layout.
-     * Window rules applied above can still override this with floating=false. */
+     * Window rules applied above can still override this with floating=false.
+     */
     if (!toplevel->floating && toplevel->xdg_toplevel->parent)
         toplevel->floating = true;
 
@@ -90,19 +108,25 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
         toplevel->output = server->focused_output;
     out = toplevel->output;
 
-    /* Center new floating windows (including auto-floated dialogs) on the output */
-    if (toplevel->floating && out && server->config->center_new_floating) {
+    /* Center new floating windows (including auto-floated dialogs) on the
+     * output */
+    if (toplevel->floating && out && server->config->center_new_floating)
+    {
         wlr_box *geo = &toplevel->xdg_toplevel->base->geometry;
-        int bw = server->config->border_width;
-        int th = server->config->titlebar_height;
+        int bw       = server->config->border_width;
+        int th       = server->config->titlebar_height;
         wlr_box area = out->usable_area;
-        if (geo->width > 0 && geo->height > 0) {
-            int fx = area.x + (area.width  - geo->width  - 2 * bw) / 2;
+        if (geo->width > 0 && geo->height > 0)
+        {
+            int fx = area.x + (area.width - geo->width - 2 * bw) / 2;
             int fy = area.y + (area.height - geo->height - 2 * bw - th) / 2;
-            if (fx < area.x) fx = area.x;
-            if (fy < area.y) fy = area.y;
+            if (fx < area.x)
+                fx = area.x;
+            if (fy < area.y)
+                fy = area.y;
             wlr_scene_node_set_position(&toplevel->scene_tree->node, fx, fy);
-            update_borders(toplevel, geo->width + 2 * bw, geo->height + 2 * bw + th, bw);
+            update_borders(toplevel, geo->width + 2 * bw,
+                           geo->height + 2 * bw + th, bw);
         }
     }
 
@@ -117,8 +141,7 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
 void
 xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
 {
-    nnwm_toplevel *toplevel
-        = wl_container_of(listener, toplevel, unmap);
+    nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, unmap);
 
     nnwm_server *server = toplevel->server;
 
@@ -132,8 +155,8 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
         reset_cursor_mode(toplevel->server);
     }
 
-    int          ws     = toplevel->workspace;
-    nnwm_output *out    = toplevel->output;
+    int ws           = toplevel->workspace;
+    nnwm_output *out = toplevel->output;
 
     bool was_focused = out && out->last_focused[ws] == toplevel;
     if (out && out->last_focused[ws] == toplevel)
@@ -143,7 +166,8 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
 
     /* For tiled windows, find the adjacent stack neighbor before removal. */
     nnwm_toplevel *stack_next = nullptr;
-    if (was_focused && out && !toplevel->floating) {
+    if (was_focused && out && !toplevel->floating)
+    {
         stack_next = ws_next(server, out, toplevel);
         if (!stack_next)
             stack_next = ws_prev(server, out, toplevel);
@@ -155,24 +179,31 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
         wl_list_insert(&server->dying_toplevels, &toplevel->dying_link);
 #endif
 
-    if (out) {
+    if (out)
+    {
         nnwm_toplevel *next = nullptr;
-        if (was_focused) {
+        if (was_focused)
+        {
             next = stack_next;
-            if (!next) next = out->prev_focused[ws];
-            if (!next) next = out->last_focused[ws];
-            if (!next) next = ws_first_float(server, out);
+            if (!next)
+                next = out->prev_focused[ws];
+            if (!next)
+                next = out->last_focused[ws];
+            if (!next)
+                next = ws_first_float(server, out);
         }
-        if (next) focus_toplevel(next);
-        else      wlr_seat_keyboard_clear_focus(server->seat);
+        if (next)
+            focus_toplevel(next);
+        else
+            wlr_seat_keyboard_clear_focus(server->seat);
         arrange_windows(server, out);
     }
 
     /* Restore pointer focus to whatever is now under the cursor. */
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
-    process_cursor_motion(server,
-        (uint32_t)(now.tv_sec * 1000 + now.tv_nsec / 1000000));
+    process_cursor_motion(
+        server, (uint32_t)(now.tv_sec * 1000 + now.tv_nsec / 1000000));
 }
 
 /* ---- Decoration handling ---- */
@@ -180,32 +211,34 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
 nnwm_toplevel *
 toplevel_from_deco(nnwm_decoration *deco)
 {
-    auto *tree = static_cast<wlr_scene_tree*>(deco->wlr_deco->toplevel->base->data);
+    auto *tree
+        = static_cast<wlr_scene_tree *>(deco->wlr_deco->toplevel->base->data);
     if (tree && tree->node.data)
-        return static_cast<nnwm_toplevel*>(tree->node.data);
+        return static_cast<nnwm_toplevel *>(tree->node.data);
     return nullptr;
 }
 
 void
 decoration_apply(nnwm_decoration *deco, bool client_side)
 {
-    auto mode = client_side
-        ? WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE
-        : WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE;
+    auto mode = client_side ? WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE
+                            : WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE;
     wlr_xdg_toplevel_decoration_v1_set_mode(deco->wlr_deco, mode);
 }
 
 void
 decoration_handle_request_mode(wl_listener *listener, void * /*data*/)
 {
-    nnwm_decoration  *deco    = wl_container_of(listener, deco, request_mode);
+    nnwm_decoration *deco    = wl_container_of(listener, deco, request_mode);
     wlr_xdg_toplevel *xdg_tl = deco->wlr_deco->toplevel;
-    nnwm_toplevel    *tl      = toplevel_from_deco(deco);
+    nnwm_toplevel *tl        = toplevel_from_deco(deco);
 
     /* Always keep a back-reference so server_apply_config can re-apply. */
-    if (tl) tl->decoration = deco;
+    if (tl)
+        tl->decoration = deco;
 
-    if (xdg_tl->base->initialized) {
+    if (xdg_tl->base->initialized)
+    {
         bool csd = tl ? tl->server->config->client_decorations : false;
         decoration_apply(deco, csd);
         return;
@@ -218,7 +251,7 @@ void
 decoration_handle_destroy(wl_listener *listener, void * /*data*/)
 {
     nnwm_decoration *deco = wl_container_of(listener, deco, destroy);
-    nnwm_toplevel   *tl   = toplevel_from_deco(deco);
+    nnwm_toplevel *tl     = toplevel_from_deco(deco);
     if (tl && tl->decoration == deco)
         tl->decoration = nullptr;
     wl_list_remove(&deco->request_mode.link);
@@ -231,8 +264,7 @@ decoration_handle_destroy(wl_listener *listener, void * /*data*/)
 void
 xdg_toplevel_commit(wl_listener *listener, void * /*data*/)
 {
-    nnwm_toplevel *toplevel
-        = wl_container_of(listener, toplevel, commit);
+    nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, commit);
 
     if (toplevel->xdg_toplevel->base->initial_commit)
     {
@@ -250,18 +282,18 @@ xdg_toplevel_commit(wl_listener *listener, void * /*data*/)
     if (toplevel->floating && toplevel->xdg_toplevel->base->surface->mapped)
     {
         nnwm_server *server = toplevel->server;
-        wlr_box *geo = &toplevel->xdg_toplevel->base->geometry;
-        int bw = server->config->border_width;
-        int th = server->config->titlebar_height;
-        update_borders(toplevel, geo->width + 2 * bw, geo->height + 2 * bw + th, bw);
+        wlr_box *geo        = &toplevel->xdg_toplevel->base->geometry;
+        int bw              = server->config->border_width;
+        int th              = server->config->titlebar_height;
+        update_borders(toplevel, geo->width + 2 * bw, geo->height + 2 * bw + th,
+                       bw);
     }
 }
 
 void
 handle_xdg_toplevel_destroy(wl_listener *listener, void * /*data*/)
 {
-    nnwm_toplevel *toplevel
-        = wl_container_of(listener, toplevel, destroy);
+    nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, destroy);
 
     /* Remove from dying list if still there */
 #ifdef HAVE_SCENEFX
@@ -286,8 +318,8 @@ handle_xdg_toplevel_destroy(wl_listener *listener, void * /*data*/)
 /* ---- Interactive move / resize ---- */
 
 void
-begin_interactive(nnwm_toplevel *toplevel,
-                  nnwm_cursor_mode mode, uint32_t edges)
+begin_interactive(nnwm_toplevel *toplevel, nnwm_cursor_mode mode,
+                  uint32_t edges)
 {
     nnwm_server *server = toplevel->server;
 
@@ -331,9 +363,11 @@ xdg_toplevel_request_move(wl_listener *listener, void * /*data*/)
 void
 xdg_toplevel_request_resize(wl_listener *listener, void *data)
 {
-    nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, request_resize);
-    if (toplevel->floating) {
-        auto *event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
+    nnwm_toplevel *toplevel
+        = wl_container_of(listener, toplevel, request_resize);
+    if (toplevel->floating)
+    {
+        auto *event = static_cast<wlr_xdg_toplevel_resize_event *>(data);
         begin_interactive(toplevel, NNWM_CURSOR_RESIZE, event->edges);
     }
 }
@@ -365,11 +399,22 @@ xdg_popup_commit(wl_listener *listener, void * /*data*/)
 {
     nnwm_popup *popup = wl_container_of(listener, popup, commit);
 
-    if (popup->xdg_popup->base->initial_commit) {
-        if (popup->output && popup->server && popup->parent_tree) {
+    if (popup->xdg_popup->base->initial_commit)
+    {
+        if (popup->output && popup->server && popup->parent_tree)
+        {
             wlr_box output_box;
-            wlr_output_layout_get_box(popup->server->output_layout,
-                                      popup->output, &output_box);
+            nnwm_output *out = nullptr;
+            wl_list_for_each(out, &popup->server->outputs, link)
+            {
+                if (out->wlr_output == popup->output)
+                    break;
+            }
+            if (out)
+                output_box = out->usable_area;
+            else
+                wlr_output_layout_get_box(popup->server->output_layout,
+                                          popup->output, &output_box);
             int px = 0, py = 0;
             wlr_scene_node_coords(&popup->parent_tree->node, &px, &py);
             wlr_box constraint = {
@@ -403,14 +448,14 @@ handle_xdg_popup_destroy(wl_listener *listener, void * /*data*/)
 void
 server_new_xdg_toplevel(wl_listener *listener, void *data)
 {
-    nnwm_server   *server      = wl_container_of(listener, server, new_xdg_toplevel);
-    wlr_xdg_toplevel *xdg_toplevel = static_cast<wlr_xdg_toplevel*>(data);
+    nnwm_server *server = wl_container_of(listener, server, new_xdg_toplevel);
+    wlr_xdg_toplevel *xdg_toplevel = static_cast<wlr_xdg_toplevel *>(data);
 
     nnwm_toplevel *toplevel = new nnwm_toplevel{};
-    toplevel->server          = server;
-    toplevel->xdg_toplevel    = xdg_toplevel;
-    toplevel->rule_opacity         = -1.0f;
-    toplevel->rule_blur            = -1;
+    toplevel->server        = server;
+    toplevel->xdg_toplevel  = xdg_toplevel;
+    toplevel->rule_opacity  = -1.0f;
+    toplevel->rule_blur     = -1;
 #ifdef HAVE_SCENEFX
     toplevel->rule_anim_open_style  = -1;
     toplevel->rule_anim_close_style = -1;
@@ -419,17 +464,19 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     toplevel->cur_x = toplevel->cur_y = toplevel->cur_w = toplevel->cur_h = 0;
 #ifdef HAVE_SCENEFX
     toplevel->geo_anim = toplevel->fade_anim = toplevel->bcol_anim = false;
-    toplevel->geo_duration_ms = toplevel->fade_duration_ms = toplevel->bcol_duration_ms = 0;
-    toplevel->geo_easing = toplevel->fade_easing = toplevel->bcol_easing = NNWM_EASE_OUT;
-    toplevel->dying    = false;
+    toplevel->geo_duration_ms        = toplevel->fade_duration_ms
+        = toplevel->bcol_duration_ms = 0;
+    toplevel->geo_easing = toplevel->fade_easing = toplevel->bcol_easing
+        = NNWM_EASE_OUT;
+    toplevel->dying = false;
     wl_list_init(&toplevel->dying_link);
 #endif
 
     toplevel->scene_tree = wlr_scene_tree_create(server->scene_windows);
     toplevel->scene_tree->node.data = toplevel;
 
-    toplevel->scene_surface = wlr_scene_xdg_surface_create(
-        toplevel->scene_tree, xdg_toplevel->base);
+    toplevel->scene_surface = wlr_scene_xdg_surface_create(toplevel->scene_tree,
+                                                           xdg_toplevel->base);
     toplevel->scene_surface->node.data = toplevel;
     xdg_toplevel->base->data           = toplevel->scene_surface;
 
@@ -459,7 +506,8 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     toplevel->destroy.notify = handle_xdg_toplevel_destroy;
     wl_signal_add(&xdg_toplevel->events.destroy, &toplevel->destroy);
 
-    toplevel->set_title.notify = [](wl_listener *listener, void *) {
+    toplevel->set_title.notify = [](wl_listener *listener, void *)
+    {
         nnwm_toplevel *tl = wl_container_of(listener, tl, set_title);
         if (tl->server->config->titlebar_height <= 0 || tl->titlebar_width <= 0)
             return;
@@ -485,31 +533,38 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
 void
 server_new_xdg_popup(wl_listener *listener, void *data)
 {
-    nnwm_server    *server    = wl_container_of(listener, server, new_xdg_popup);
-    wlr_xdg_popup *xdg_popup = static_cast<wlr_xdg_popup*>(data);
+    nnwm_server *server      = wl_container_of(listener, server, new_xdg_popup);
+    wlr_xdg_popup *xdg_popup = static_cast<wlr_xdg_popup *>(data);
 
     nnwm_popup *popup = new nnwm_popup{};
-    popup->xdg_popup = xdg_popup;
-    popup->server    = server;
+    popup->xdg_popup  = xdg_popup;
+    popup->server     = server;
 
     wlr_scene_tree *parent_tree = nullptr;
 
-    if (xdg_popup->parent) {
-        wlr_xdg_surface *xdg_parent =
-            wlr_xdg_surface_try_from_wlr_surface(xdg_popup->parent);
-        if (xdg_parent) {
-            parent_tree = static_cast<wlr_scene_tree*>(xdg_parent->data);
+    if (xdg_popup->parent)
+    {
+        wlr_xdg_surface *xdg_parent
+            = wlr_xdg_surface_try_from_wlr_surface(xdg_popup->parent);
+        if (xdg_parent)
+        {
+            parent_tree = static_cast<wlr_scene_tree *>(xdg_parent->data);
             /* Inherit output from the owning toplevel */
-            if (parent_tree && parent_tree->node.data) {
-                auto *tl = static_cast<nnwm_toplevel*>(parent_tree->node.data);
+            if (parent_tree && parent_tree->node.data)
+            {
+                auto *tl = static_cast<nnwm_toplevel *>(parent_tree->node.data);
                 if (tl && tl->output)
                     popup->output = tl->output->wlr_output;
             }
-        } else {
-            wlr_layer_surface_v1 *layer_parent =
-                wlr_layer_surface_v1_try_from_wlr_surface(xdg_popup->parent);
-            if (layer_parent) {
-                auto *ls = static_cast<nnwm_layer_surface*>(layer_parent->data);
+        }
+        else
+        {
+            wlr_layer_surface_v1 *layer_parent
+                = wlr_layer_surface_v1_try_from_wlr_surface(xdg_popup->parent);
+            if (layer_parent)
+            {
+                auto *ls
+                    = static_cast<nnwm_layer_surface *>(layer_parent->data);
                 parent_tree   = ls->scene->tree;
                 popup->output = layer_parent->output;
             }
@@ -519,15 +574,18 @@ server_new_xdg_popup(wl_listener *listener, void *data)
     /* Null-parent popup: positioner uses output-local coordinates.
      * Create an intermediate scene tree offset to the output's global
      * origin so positioner coordinates map to the correct screen position. */
-    if (!parent_tree) {
+    if (!parent_tree)
+    {
         nnwm_output *out = server->focused_output;
         popup->output    = out ? out->wlr_output : nullptr;
 
         wlr_scene_tree *offset_tree = wlr_scene_tree_create(
             server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY]);
-        if (out) {
+        if (out)
+        {
             wlr_box area;
-            wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
+            wlr_output_layout_get_box(server->output_layout, out->wlr_output,
+                                      &area);
             wlr_scene_node_set_position(&offset_tree->node, area.x, area.y);
         }
         popup->offset_tree = offset_tree;
@@ -535,7 +593,8 @@ server_new_xdg_popup(wl_listener *listener, void *data)
     }
 
     popup->parent_tree = parent_tree;
-    xdg_popup->base->data = wlr_scene_xdg_surface_create(parent_tree, xdg_popup->base);
+    xdg_popup->base->data
+        = wlr_scene_xdg_surface_create(parent_tree, xdg_popup->base);
 
     popup->commit.notify = xdg_popup_commit;
     wl_signal_add(&xdg_popup->base->surface->events.commit, &popup->commit);
@@ -547,10 +606,10 @@ server_new_xdg_popup(wl_listener *listener, void *data)
 void
 server_new_decoration(wl_listener * /*listener*/, void *data)
 {
-    auto *wlr_deco = static_cast<wlr_xdg_toplevel_decoration_v1*>(data);
+    auto *wlr_deco = static_cast<wlr_xdg_toplevel_decoration_v1 *>(data);
 
-    auto *deco          = new nnwm_decoration{};
-    deco->wlr_deco      = wlr_deco;
+    auto *deco     = new nnwm_decoration{};
+    deco->wlr_deco = wlr_deco;
 
     deco->request_mode.notify = decoration_handle_request_mode;
     wl_signal_add(&wlr_deco->events.request_mode, &deco->request_mode);
