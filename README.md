@@ -1,5 +1,9 @@
 # nnwm
 
+<p style="text-align:center">
+<img src="./resources/logo/banner.png" width="100%">
+</p>
+
 **No Name Window Manager (nnwm)** is a lightweight, minimalistic tiling Wayland compositor built on [wlroots](https://gitlab.freedesktop.org/wlroots/wlroots).
 
 Latest Version: 0.1.0
