@@ -224,8 +224,9 @@ nnwm::swap::left(nnwm_server *server)
     nnwm_output *out = server->focused_output;
     if (!out) return;
     nnwm_toplevel *cur   = get_focused_toplevel(server);
+    if (!cur || cur->floating) return;
     nnwm_toplevel *first = ws_first(server, out);
-    if (!cur || cur == first)
+    if (cur == first)
         return;
     wl_list_remove(&cur->link);
     wl_list_insert(first->link.prev, &cur->link);
@@ -239,8 +240,9 @@ nnwm::swap::right(nnwm_server *server)
     nnwm_output *out    = server->focused_output;
     if (!out) return;
     nnwm_toplevel *cur    = get_focused_toplevel(server);
+    if (!cur || cur->floating) return;
     nnwm_toplevel *master = ws_first(server, out);
-    if (!cur || !master)
+    if (!master)
         return;
     if (cur != master) {
         wl_list_remove(&cur->link);
@@ -262,7 +264,7 @@ nnwm::swap::next(nnwm_server *server)
     nnwm_output *out = server->focused_output;
     if (!out) return;
     nnwm_toplevel *cur = get_focused_toplevel(server);
-    if (!cur) return;
+    if (!cur || cur->floating) return;
     nnwm_toplevel *next = ws_next(server, out, cur);
     if (next) {
         wl_list_remove(&cur->link);
@@ -283,7 +285,7 @@ nnwm::swap::prev(nnwm_server *server)
     nnwm_output *out = server->focused_output;
     if (!out) return;
     nnwm_toplevel *cur = get_focused_toplevel(server);
-    if (!cur) return;
+    if (!cur || cur->floating) return;
     nnwm_toplevel *prev = ws_prev(server, out, cur);
     if (prev) {
         wl_list_remove(&cur->link);
@@ -304,8 +306,9 @@ nnwm::swap::master(nnwm_server *server)
     nnwm_output *out = server->focused_output;
     if (!out) return;
     nnwm_toplevel *cur    = get_focused_toplevel(server);
+    if (!cur || cur->floating) return;
     nnwm_toplevel *master = ws_first(server, out);
-    if (!cur || !master || cur == master) return;
+    if (!master || cur == master) return;
 
     struct wl_list *before_cur = cur->link.prev;
     bool adjacent = (before_cur == &master->link);
@@ -328,6 +331,8 @@ nnwm::cycle(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out || ws_count(server, out) < 2) return;
+    nnwm_toplevel *focused = get_focused_toplevel(server);
+    if (focused && focused->floating) return;
     nnwm_toplevel *last  = ws_last(server, out);
     nnwm_toplevel *first = ws_first(server, out);
     if (!last || last == first)
@@ -548,6 +553,7 @@ nnwm::window::toggle_float(nnwm_server *server)
     if (!tl)
         return;
 
+    bool was_floating = tl->floating;
     tl->floating = !tl->floating;
     nnwm_output *out = tl->output;
 
@@ -562,6 +568,18 @@ nnwm::window::toggle_float(nnwm_server *server)
     }
 
     arrange_windows(server, out);
+
+#ifdef HAVE_SCENEFX
+    /* Float→tile: snap to the tiled position immediately. Animating from the
+     * old floating position to the tile slot is disorienting and unnecessary. */
+    if (was_floating && !tl->floating && tl->geo_anim) {
+        tl->geo_anim = false;
+        wlr_scene_node_set_position(&tl->scene_tree->node, tl->geo_to_x, tl->geo_to_y);
+        update_borders(tl, tl->geo_to_w, tl->geo_to_h, tl->geo_bw);
+        tl->cur_x = tl->geo_to_x; tl->cur_y = tl->geo_to_y;
+        tl->cur_w = tl->geo_to_w; tl->cur_h = tl->geo_to_h;
+    }
+#endif
 }
 
 void
