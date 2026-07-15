@@ -47,6 +47,11 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
         if (tl->titlebar)
             wlr_scene_node_set_enabled(&tl->titlebar->node, false);
         wlr_scene_node_set_position(&tl->scene_surface->node, 0, 0);
+
+        if (server->config->fx.corner_radius > 0.0f)
+        {
+            /* Disable Round corners for fullscreen windows */
+        }
     }
 
     arrange_windows(server, out);
@@ -448,12 +453,13 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
 
 #ifdef HAVE_SCENEFX
     /* Workspace animation */
-    if (server->config->anim_enabled && server->config->anim_duration_ms > 0)
+    if (server->config->fx.animation.enabled
+        && server->config->fx.animation.duration_ms > 0)
     {
         nnwm_config *cfg       = server->config;
-        nnwm_ws_style ws_style = cfg->anim_ws_style;
-        int ws_dur             = eff_duration(cfg, cfg->anim_ws_duration_ms);
-        nnwm_easing ws_ease    = eff_easing(cfg, cfg->anim_ws_easing);
+        nnwm_ws_style ws_style = cfg->fx.animation.ws_style;
+        int ws_dur = eff_duration(cfg, cfg->fx.animation.ws_duration_ms);
+        nnwm_easing ws_ease = eff_easing(cfg, cfg->fx.animation.ws_easing);
 
         if (ws_style == nnwm_ws_style::NONE)
         {
@@ -466,7 +472,7 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
                 if (tl->output != out || tl->sticky)
                     continue;
                 float op = (tl->rule_opacity >= 0.0f) ? tl->rule_opacity
-                                                      : cfg->opacity;
+                                                      : cfg->fx.opacity;
                 if (tl->workspace == old_ws)
                 {
                     tl_start_fade(tl, op, 0.0f, ws_dur, ws_ease);
@@ -655,9 +661,9 @@ void
 nnwm::layout::master_ratio_grow(nnwm_server *server)
 {
     nnwm_config *cfg = server->config;
-    cfg->master_ratio += cfg->master_ratio_step;
-    if (cfg->master_ratio > cfg->master_ratio_max)
-        cfg->master_ratio = cfg->master_ratio_max;
+    cfg->layout.master_ratio += cfg->layout.master_ratio_step;
+    if (cfg->layout.master_ratio > cfg->layout.master_ratio_max)
+        cfg->layout.master_ratio = cfg->layout.master_ratio_max;
     arrange_all_outputs(server);
 }
 
@@ -665,9 +671,9 @@ void
 nnwm::layout::master_ratio_shrink(nnwm_server *server)
 {
     nnwm_config *cfg = server->config;
-    cfg->master_ratio -= cfg->master_ratio_step;
-    if (cfg->master_ratio < cfg->master_ratio_min)
-        cfg->master_ratio = cfg->master_ratio_min;
+    cfg->layout.master_ratio -= cfg->layout.master_ratio_step;
+    if (cfg->layout.master_ratio < cfg->layout.master_ratio_min)
+        cfg->layout.master_ratio = cfg->layout.master_ratio_min;
     arrange_all_outputs(server);
 }
 
@@ -746,7 +752,7 @@ nnwm::layout::toggle_vertical_tile(nnwm_server *server)
     nnwm_output *out = server->focused_output;
     if (!out)
         return;
-    int ws = out->active_workspace;
+    int ws               = out->active_workspace;
     out->layout_mode[ws] = (out->layout_mode[ws] == nnwm_layout_mode::VTILE)
                                ? nnwm_layout_mode::HTILE
                                : nnwm_layout_mode::VTILE;
@@ -947,11 +953,11 @@ apply_keymap(wlr_keyboard *wlr_keyboard, nnwm_config *cfg)
     struct xkb_keymap *keymap   = xkb_keymap_new_from_names(
         context, nullptr, XKB_KEYMAP_COMPILE_NO_FLAGS);
 
-    if (cfg->xkb_options && cfg->xkb_options[0])
+    if (cfg->keyboard.xkb_options && cfg->keyboard.xkb_options[0])
     {
         /* Apply XKB options from config */
         xkb_rule_names names = {};
-        names.options        = cfg->xkb_options;
+        names.options        = cfg->keyboard.xkb_options;
         keymap = xkb_keymap_new_from_names(context, &names,
                                            XKB_KEYMAP_COMPILE_NO_FLAGS);
     }
@@ -960,8 +966,8 @@ apply_keymap(wlr_keyboard *wlr_keyboard, nnwm_config *cfg)
     xkb_keymap_unref(keymap);
     xkb_context_unref(context);
 
-    wlr_keyboard_set_repeat_info(wlr_keyboard, cfg->keyboard_repeat_rate,
-                                 cfg->keyboard_repeat_delay);
+    wlr_keyboard_set_repeat_info(wlr_keyboard, cfg->keyboard.repeat_rate,
+                                 cfg->keyboard.repeat_delay);
 }
 
 void
@@ -994,17 +1000,17 @@ server_new_pointer(nnwm_server *server, wlr_input_device *device)
     {
         libinput_device *li = wlr_libinput_get_device_handle(device);
 
-        if (server->config->touchpad_tap_to_click
+        if (server->config->touchpad.tap_to_click
             && libinput_device_config_tap_get_finger_count(li) > 0)
             libinput_device_config_tap_set_enabled(li,
                                                    LIBINPUT_CONFIG_TAP_ENABLED);
 
-        if (server->config->touchpad_natural_scroll
+        if (server->config->touchpad.natural_scroll
             && libinput_device_config_tap_get_finger_count(li) > 0
             && libinput_device_config_scroll_has_natural_scroll(li))
             libinput_device_config_scroll_set_natural_scroll_enabled(li, true);
 
-        if (server->config->touchpad_disable_while_typing
+        if (server->config->touchpad.disable_while_typing
             && libinput_device_config_dwt_is_available(li))
             libinput_device_config_dwt_set_enabled(li,
                                                    LIBINPUT_CONFIG_DWT_ENABLED);

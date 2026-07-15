@@ -73,7 +73,7 @@ void
 render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused)
 {
     nnwm_config *cfg = tl->server->config;
-    int h            = cfg->titlebar_height;
+    int h            = cfg->titlebar.height;
     if (h <= 0 || !tl->titlebar || inner_width <= 0)
         return;
 
@@ -87,7 +87,7 @@ render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused)
 
     /* Background */
     const float *bg
-        = focused ? cfg->titlebar_focused_bg_color : cfg->titlebar_bg_color;
+        = focused ? cfg->titlebar.focused_bg_color : cfg->titlebar.bg_color;
     cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
     cairo_paint(cr);
 
@@ -97,7 +97,7 @@ render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused)
     {
         PangoLayout *layout = pango_cairo_create_layout(cr);
         PangoFontDescription *fd
-            = pango_font_description_from_string(cfg->titlebar_font);
+            = pango_font_description_from_string(cfg->titlebar.font);
         const char *existing_family = pango_font_description_get_family(fd);
         char fallback_family[256];
         snprintf(fallback_family, sizeof(fallback_family),
@@ -113,9 +113,9 @@ render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused)
         pango_layout_set_width(layout, (inner_width - 2 * pad) * PANGO_SCALE);
 
         PangoAlignment align = PANGO_ALIGN_CENTER;
-        if (cfg->titlebar_text_align == 0)
+        if (cfg->titlebar.text_align == 0)
             align = PANGO_ALIGN_LEFT;
-        else if (cfg->titlebar_text_align == 2)
+        else if (cfg->titlebar.text_align == 2)
             align = PANGO_ALIGN_RIGHT;
         pango_layout_set_alignment(layout, align);
 
@@ -123,8 +123,8 @@ render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused)
         pango_layout_get_size(layout, &pw, &ph);
         double ty = (h - ph / (double)PANGO_SCALE) / 2.0;
 
-        const float *tc = focused ? cfg->titlebar_focused_text_color
-                                  : cfg->titlebar_text_color;
+        const float *tc = focused ? cfg->titlebar.focused_text_color
+                                  : cfg->titlebar.text_color;
         cairo_set_source_rgba(cr, tc[0], tc[1], tc[2], tc[3]);
         cairo_move_to(cr, pad, ty);
         pango_cairo_show_layout(cr, layout);
@@ -235,11 +235,11 @@ void
 update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
 {
     nnwm_config *cfg = toplevel->server->config;
-    int th           = cfg->titlebar_height;
+    int th           = cfg->titlebar.height;
 #ifdef HAVE_SCENEFX
     /* Inset the 4 strips by corner_radius so they don't override the
      * rounded corners provided by border_bg. */
-    int r  = cfg->corner_radius;
+    int r  = cfg->fx.corner_radius;
     int tw = width - 2 * r;
     if (tw < 0)
         tw = 0;
@@ -292,8 +292,8 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
     {
         wlr_scene_shadow_set_size(toplevel->fx_shadow, width, height);
         wlr_scene_node_set_position(&toplevel->fx_shadow->node,
-                                    (int)cfg->shadow_offset_x,
-                                    (int)cfg->shadow_offset_y);
+                                    (int)cfg->fx.shadow_offset_x,
+                                    (int)cfg->fx.shadow_offset_y);
     }
 #endif
 }
@@ -305,7 +305,7 @@ tl_set_geometry(nnwm_toplevel *tl, int x, int y, int w, int h, int bw)
 {
     nnwm_config *cfg = tl->server->config;
 #ifdef HAVE_SCENEFX
-    bool do_anim = cfg->anim_enabled && cfg->anim_duration_ms > 0;
+    bool do_anim = cfg->fx.animation.enabled && cfg->fx.animation.duration_ms > 0;
     bool first   = (tl->cur_w == 0 && tl->cur_h == 0);
     bool changed = (x != tl->cur_x || y != tl->cur_y || w != tl->cur_w
                     || h != tl->cur_h);
@@ -329,7 +329,7 @@ tl_set_geometry(nnwm_toplevel *tl, int x, int y, int w, int h, int bw)
                       : tl->rule_anim_open_style >= 0
                             ? static_cast<nnwm_open_style>(
                                   tl->rule_anim_open_style)
-                            : cfg->anim_open_style;
+                            : cfg->fx.animation.open_style;
             int sw = (int)(w * 0.95f), sh = (int)(h * 0.95f);
             switch (open_style)
             {
@@ -377,7 +377,7 @@ tl_set_geometry(nnwm_toplevel *tl, int x, int y, int w, int h, int bw)
         else
         {
             /* Skip geo animation if layout anim is disabled */
-            if (cfg->anim_layout_style == nnwm_layout_anim::NONE)
+            if (cfg->fx.animation.layout_style == nnwm_layout_anim::NONE)
             {
                 tl->geo_anim = false;
                 tl->cur_x    = x;
@@ -398,8 +398,8 @@ tl_set_geometry(nnwm_toplevel *tl, int x, int y, int w, int h, int bw)
         tl->geo_then_hide   = false;
         /* Bake layout easing/duration; tl_open_anim() will override for first
          * layout */
-        tl->geo_duration_ms = eff_duration(cfg, cfg->anim_layout_duration_ms);
-        tl->geo_easing      = eff_easing(cfg, cfg->anim_layout_easing);
+        tl->geo_duration_ms = eff_duration(cfg, cfg->fx.animation.layout_duration_ms);
+        tl->geo_easing      = eff_easing(cfg, cfg->fx.animation.layout_easing);
         wlr_scene_node_set_position(&tl->scene_tree->node, tl->geo_from_x,
                                     tl->geo_from_y);
         update_borders(tl, tl->geo_from_w, tl->geo_from_h, bw);
@@ -430,7 +430,7 @@ tl_start_fade(nnwm_toplevel *tl, float from, float to, int duration_ms,
     tl->fade_to          = to;
     tl->fade_duration_ms = duration_ms;
     tl->fade_easing      = easing;
-    if (tl->server->config->anim_enabled && duration_ms > 0)
+    if (tl->server->config->fx.animation.enabled && duration_ms > 0)
     {
         tl->fade_anim = true;
         tl->fade_t0   = anim_now();
@@ -447,7 +447,7 @@ void
 tl_open_anim(nnwm_toplevel *tl)
 {
     nnwm_config *cfg = tl->server->config;
-    if (!cfg->anim_enabled)
+    if (!cfg->fx.animation.enabled)
         return;
 
     nnwm_open_style open_style
@@ -455,12 +455,12 @@ tl_open_anim(nnwm_toplevel *tl)
               ? nnwm_open_style::NONE
               : tl->rule_anim_open_style >= 0
                     ? static_cast<nnwm_open_style>(tl->rule_anim_open_style)
-                    : cfg->anim_open_style;
-    int dur          = eff_duration(cfg, cfg->anim_open_duration_ms);
-    nnwm_easing ease = eff_easing(cfg, cfg->anim_open_easing);
+                    : cfg->fx.animation.open_style;
+    int dur          = eff_duration(cfg, cfg->fx.animation.open_duration_ms);
+    nnwm_easing ease = eff_easing(cfg, cfg->fx.animation.open_easing);
 
     float target_op
-        = (tl->rule_opacity >= 0.0f) ? tl->rule_opacity : cfg->opacity;
+        = (tl->rule_opacity >= 0.0f) ? tl->rule_opacity : cfg->fx.opacity;
 
     bool do_fade = (open_style != nnwm_open_style::SCALE
                     && open_style != nnwm_open_style::NONE);
@@ -516,7 +516,7 @@ void
 tl_close_anim(nnwm_toplevel *tl)
 {
     nnwm_config *cfg = tl->server->config;
-    if (!cfg->anim_enabled || cfg->anim_duration_ms <= 0)
+    if (!cfg->fx.animation.enabled || cfg->fx.animation.duration_ms <= 0)
     {
         tl->dying = false;
         return;
@@ -527,11 +527,11 @@ tl_close_anim(nnwm_toplevel *tl)
               ? nnwm_open_style::NONE
               : tl->rule_anim_close_style >= 0
                     ? static_cast<nnwm_open_style>(tl->rule_anim_close_style)
-                    : cfg->anim_close_style;
-    int dur          = eff_duration(cfg, cfg->anim_close_duration_ms);
-    nnwm_easing ease = eff_easing(cfg, cfg->anim_close_easing);
+                    : cfg->fx.animation.close_style;
+    int dur          = eff_duration(cfg, cfg->fx.animation.close_duration_ms);
+    nnwm_easing ease = eff_easing(cfg, cfg->fx.animation.close_easing);
 
-    float cur_op = (tl->rule_opacity >= 0.0f) ? tl->rule_opacity : cfg->opacity;
+    float cur_op = (tl->rule_opacity >= 0.0f) ? tl->rule_opacity : cfg->fx.opacity;
 
     bool do_fade = (close_style != nnwm_open_style::SCALE
                     && close_style != nnwm_open_style::NONE);
@@ -591,9 +591,9 @@ void
 tl_start_border_color(nnwm_toplevel *tl, const float to[4])
 {
     nnwm_config *cfg    = tl->server->config;
-    nnwm_focus_style fs = cfg->anim_focus_style;
+    nnwm_focus_style fs = cfg->fx.animation.focus_style;
 
-    if (!cfg->anim_enabled || fs == nnwm_focus_style::NONE)
+    if (!cfg->fx.animation.enabled || fs == nnwm_focus_style::NONE)
     {
         for (int i = 0; i < 4; i++)
             tl->bcol_to[i] = to[i];
@@ -609,8 +609,8 @@ tl_start_border_color(nnwm_toplevel *tl, const float to[4])
             = tl->bcol_anim ? tl->bcol_to[i] : tl->border[0]->color[i];
     for (int i = 0; i < 4; i++)
         tl->bcol_to[i] = to[i];
-    tl->bcol_duration_ms = eff_duration(cfg, cfg->anim_focus_duration_ms);
-    tl->bcol_easing      = eff_easing(cfg, cfg->anim_focus_easing);
+    tl->bcol_duration_ms = eff_duration(cfg, cfg->fx.animation.focus_duration_ms);
+    tl->bcol_easing      = eff_easing(cfg, cfg->fx.animation.focus_easing);
     tl->bcol_anim        = true;
     tl->bcol_t0          = anim_now();
 }
@@ -738,7 +738,7 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
      * top rect rounds its own two top corners; bottom rect rounds its two
      * bottom corners; left/right strips have no corners to round (they fit
      * flush between top and bottom). */
-    int r = cfg->corner_radius;
+    int r = cfg->fx.corner_radius;
 
     /* border_bg: full-window rect that provides the correctly rounded outer
      * corners. The 4 border strips are inset by r (see update_borders) so
@@ -754,13 +754,13 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
     /* Corner radius on titlebar buffer */
     if (toplevel->titlebar)
         wlr_scene_buffer_set_corner_radius(toplevel->titlebar,
-                                           cfg->corner_radius);
+                                           cfg->fx.corner_radius);
 
     /* Inner corner radius: surface sits inset by border_width, so its corners
      * need a smaller radius to remain concentric with the outer border corners.
      */
-    int inner_r = cfg->corner_radius > cfg->border_width
-                      ? cfg->corner_radius - cfg->border_width
+    int inner_r = cfg->fx.corner_radius > cfg->border.width
+                      ? cfg->fx.corner_radius - cfg->border.width
                       : 0;
     if (toplevel->scene_surface)
         set_corner_radius_recursive(toplevel->scene_surface, inner_r);
@@ -768,9 +768,9 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
     /* Per-window overrides take precedence over global config values */
     float eff_opacity = (toplevel->rule_opacity >= 0.0f)
                             ? toplevel->rule_opacity
-                            : cfg->opacity;
+                            : cfg->fx.opacity;
     bool eff_blur     = (toplevel->rule_blur >= 0) ? (bool)toplevel->rule_blur
-                                                   : cfg->blur_enabled;
+                                                   : cfg->fx.blur_enabled;
 
     /* Window content opacity */
     if (toplevel->scene_surface)
@@ -779,27 +779,27 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
     /* Background blur */
     if (eff_blur)
     {
-        wlr_scene_set_blur_data(toplevel->server->scene, cfg->blur_passes,
-                                cfg->blur_radius, cfg->blur_noise,
-                                cfg->blur_brightness, cfg->blur_contrast,
-                                cfg->blur_saturation);
+        wlr_scene_set_blur_data(toplevel->server->scene, cfg->fx.blur_passes,
+                                cfg->fx.blur_radius, cfg->fx.blur_noise,
+                                cfg->fx.blur_brightness, cfg->fx.blur_contrast,
+                                cfg->fx.blur_saturation);
         if (!toplevel->fx_blur)
         {
             wlr_box geo = toplevel->xdg_toplevel->base->geometry;
-            int bw      = cfg->border_width;
-            int th      = cfg->titlebar_height;
+            int bw      = cfg->border.width;
+            int th      = cfg->titlebar.height;
             int w       = geo.width + 2 * bw;
             int h       = geo.height + 2 * bw + th;
             toplevel->fx_blur
                 = wlr_scene_blur_create(toplevel->scene_tree, w, h);
             wlr_scene_blur_set_corner_radius(toplevel->fx_blur,
-                                             cfg->corner_radius);
+                                             cfg->fx.corner_radius);
             wlr_scene_node_lower_to_bottom(&toplevel->fx_blur->node);
         }
         else
         {
             wlr_scene_blur_set_corner_radius(toplevel->fx_blur,
-                                             cfg->corner_radius);
+                                             cfg->fx.corner_radius);
         }
     }
     else if (!eff_blur && toplevel->fx_blur)
@@ -809,24 +809,24 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
     }
 
     /* Shadow node */
-    if (cfg->shadow_enabled && !toplevel->fx_shadow)
+    if (cfg->fx.shadow_enabled && !toplevel->fx_shadow)
     {
         wlr_box geo         = toplevel->xdg_toplevel->base->geometry;
-        int bw              = cfg->border_width;
-        int th              = cfg->titlebar_height;
+        int bw              = cfg->border.width;
+        int th              = cfg->titlebar.height;
         int w               = geo.width + 2 * bw;
         int h               = geo.height + 2 * bw + th;
         toplevel->fx_shadow = wlr_scene_shadow_create(
-            toplevel->scene_tree, w, h, cfg->corner_radius,
-            cfg->shadow_blur_sigma, cfg->shadow_color);
+            toplevel->scene_tree, w, h, cfg->fx.corner_radius,
+            cfg->fx.shadow_blur_sigma, cfg->fx.shadow_color);
         wlr_scene_node_set_position(&toplevel->fx_shadow->node,
-                                    (int)cfg->shadow_offset_x,
-                                    (int)cfg->shadow_offset_y);
+                                    (int)cfg->fx.shadow_offset_x,
+                                    (int)cfg->fx.shadow_offset_y);
         wlr_scene_node_lower_to_bottom(&toplevel->fx_shadow->node);
     }
     else if (toplevel->fx_shadow)
     {
-        if (!cfg->shadow_enabled)
+        if (!cfg->fx.shadow_enabled)
         {
             wlr_scene_node_destroy(&toplevel->fx_shadow->node);
             toplevel->fx_shadow = nullptr;
@@ -834,13 +834,13 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
         else
         {
             wlr_scene_shadow_set_corner_radius(toplevel->fx_shadow,
-                                               cfg->corner_radius);
+                                               cfg->fx.corner_radius);
             wlr_scene_shadow_set_blur_sigma(toplevel->fx_shadow,
-                                            cfg->shadow_blur_sigma);
-            wlr_scene_shadow_set_color(toplevel->fx_shadow, cfg->shadow_color);
+                                            cfg->fx.shadow_blur_sigma);
+            wlr_scene_shadow_set_color(toplevel->fx_shadow, cfg->fx.shadow_color);
             wlr_scene_node_set_position(&toplevel->fx_shadow->node,
-                                        (int)cfg->shadow_offset_x,
-                                        (int)cfg->shadow_offset_y);
+                                        (int)cfg->fx.shadow_offset_x,
+                                        (int)cfg->fx.shadow_offset_y);
         }
     }
 #else
@@ -881,7 +881,7 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
         tb->data, CAIRO_FORMAT_ARGB32, width, height, tb->stride);
     cairo_t *cr = cairo_create(surf);
 
-    const float *dflt_bg = cfg->titlebar_bg_color;
+    const float *dflt_bg = cfg->titlebar.bg_color;
     cairo_set_source_rgba(cr, dflt_bg[0], dflt_bg[1], dflt_bg[2], dflt_bg[3]);
     cairo_paint(cr);
 
@@ -898,7 +898,7 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
         int w        = (int)((long)(i + 1) * width / n) - x;
 
         const float *bg
-            = focused ? cfg->titlebar_focused_bg_color : cfg->titlebar_bg_color;
+            = focused ? cfg->titlebar.focused_bg_color : cfg->titlebar.bg_color;
         cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
         cairo_rectangle(cr, x, 0, w, height);
         cairo_fill(cr);
@@ -916,7 +916,7 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
         {
             PangoLayout *layout      = pango_cairo_create_layout(cr);
             PangoFontDescription *fd = pango_font_description_from_string(
-                cfg->titlebar_font ? cfg->titlebar_font : "Sans 10");
+                cfg->titlebar.font ? cfg->titlebar.font : "Sans 10");
             const char *fam = pango_font_description_get_family(fd);
             char fallback[256];
             std::snprintf(fallback, sizeof(fallback),
@@ -936,8 +936,8 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
             pango_layout_get_size(layout, &pw, &ph);
             double ty = (height - ph / (double)PANGO_SCALE) / 2.0;
 
-            const float *tc = focused ? cfg->titlebar_focused_text_color
-                                      : cfg->titlebar_text_color;
+            const float *tc = focused ? cfg->titlebar.focused_text_color
+                                      : cfg->titlebar.text_color;
             cairo_set_source_rgba(cr, tc[0], tc[1], tc[2], tc[3]);
             cairo_move_to(cr, x + pad, ty);
             pango_cairo_show_layout(cr, layout);
@@ -1118,9 +1118,9 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
     {
         int n     = ws_count(server, out);
         bool solo = (n == 1);
-        int bw    = (solo && cfg->smart_borders) ? 0 : cfg->border_width;
-        int og    = (solo && cfg->smart_gaps) ? 0 : cfg->outer_gap;
-        int tab_h = cfg->titlebar_height > 0 ? cfg->titlebar_height : 24;
+        int bw    = (solo && cfg->border.smart) ? 0 : cfg->border.width;
+        int og    = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
+        int tab_h = cfg->titlebar.height > 0 ? cfg->titlebar.height : 24;
 
         /* Use last_focused[ws] so the visible window survives layer-shell focus
          * steals (e.g. rofi). Validate it is still a tiled window on this
@@ -1183,10 +1183,10 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         if (out->tab_bar)
             wlr_scene_node_set_enabled(&out->tab_bar->node, false);
 
-        int og = cfg->outer_gap;
-        int ig = cfg->inner_gap;
-        int bw = cfg->border_width;
-        int th = cfg->titlebar_height;
+        int og = cfg->gap.outer;
+        int ig = cfg->gap.inner;
+        int bw = cfg->border.width;
+        int th = cfg->titlebar.height;
         float cw_frac
             = cfg->scroll_column_width > 0.0f ? cfg->scroll_column_width : 0.5f;
         int col_w = (int)(area.width * cw_frac);
@@ -1253,10 +1253,10 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         if (out->tab_bar)
             wlr_scene_node_set_enabled(&out->tab_bar->node, false);
 
-        int og = cfg->outer_gap;
-        int ig = cfg->inner_gap;
-        int bw = cfg->border_width;
-        int th = cfg->titlebar_height;
+        int og = cfg->gap.outer;
+        int ig = cfg->gap.inner;
+        int bw = cfg->border.width;
+        int th = cfg->titlebar.height;
         float rh_frac
             = cfg->scroll_row_height > 0.0f ? cfg->scroll_row_height : 0.5f;
         int row_h = (int)(area.height * rh_frac);
@@ -1330,10 +1330,10 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
     int n = ws_count(server, out);
 
     bool solo = (n == 1);
-    int bw    = (solo && cfg->smart_borders) ? 0 : cfg->border_width;
-    int ig    = (solo && cfg->smart_gaps) ? 0 : cfg->inner_gap;
-    int og    = (solo && cfg->smart_gaps) ? 0 : cfg->outer_gap;
-    int th    = cfg->titlebar_height;
+    int bw    = (solo && cfg->border.smart) ? 0 : cfg->border.width;
+    int ig    = (solo && cfg->gap.smart) ? 0 : cfg->gap.inner;
+    int og    = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
+    int th    = cfg->titlebar.height;
 
     int x0 = area.x + og;
     int y0 = area.y + og;
@@ -1364,7 +1364,7 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         }
         else if (n > 1)
         {
-            int mh = (int)(H * cfg->master_ratio);
+            int mh = (int)(H * cfg->layout.master_ratio);
             int sh = H - mh - ig;
             int ns = n - 1;
             int sw = (W - (ns - 1) * ig) / ns;
@@ -1433,7 +1433,7 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
     }
     else if (n > 1)
     {
-        int mw = (int)(W * cfg->master_ratio);
+        int mw = (int)(W * cfg->layout.master_ratio);
         int sw = W - mw - ig;
         int ns = n - 1;
         int sh = (H - (ns - 1) * ig) / ns;
@@ -1524,8 +1524,8 @@ focus_toplevel(nnwm_toplevel *toplevel)
     wl_list_for_each(tl, &server->toplevels, link)
     {
         bool foc     = (tl == toplevel);
-        float *color = foc ? server->config->focused_color
-                           : server->config->unfocused_color;
+        float *color = foc ? server->config->border.focused_color
+                           : server->config->border.unfocused_color;
 #ifdef HAVE_SCENEFX
         tl_start_border_color(tl, color);
 #else
@@ -1567,11 +1567,11 @@ unfocus_all_borders(nnwm_server *server)
     wl_list_for_each(tl, &server->toplevels, link)
     {
 #ifdef HAVE_SCENEFX
-        tl_start_border_color(tl, server->config->unfocused_color);
+        tl_start_border_color(tl, server->config->border.unfocused_color);
 #else
         for (int b = 0; b < 4; b++)
             wlr_scene_rect_set_color(tl->border[b],
-                                     server->config->unfocused_color);
+                                     server->config->border.unfocused_color);
 #endif
         render_titlebar(tl, tl->titlebar_width, false);
     }
@@ -1614,8 +1614,8 @@ show_config_error(nnwm_server *server, const char *message)
         cairo_paint(cr);
 
         PangoLayout *layout      = pango_cairo_create_layout(cr);
-        const char *font         = server->config->titlebar_font
-                                       ? server->config->titlebar_font
+        const char *font         = server->config->titlebar.font
+                                       ? server->config->titlebar.font
                                        : "Sans 10";
         PangoFontDescription *fd = pango_font_description_from_string(font);
         pango_layout_set_font_description(layout, fd);

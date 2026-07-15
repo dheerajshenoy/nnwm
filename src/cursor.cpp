@@ -49,8 +49,8 @@ tab_toplevel_at(nnwm_server *server, double lx, double ly)
         int ws = o->active_workspace;
         if (o->layout_mode[ws] != nnwm_layout_mode::TABBED)
             continue;
-        int tab_h           = o->server->config->titlebar_height > 0
-                                  ? o->server->config->titlebar_height
+        int tab_h           = o->server->config->titlebar.height > 0
+                                  ? o->server->config->titlebar.height
                                   : 24;
         const wlr_box &area = o->usable_area;
         if (lx >= area.x && lx < area.x + area.width && ly >= area.y
@@ -167,8 +167,8 @@ process_cursor_resize(nnwm_server *server)
 
     int new_width  = new_right - new_left;
     int new_height = new_bottom - new_top;
-    int bw         = toplevel->server->config->border_width;
-    int th         = toplevel->server->config->titlebar_height;
+    int bw         = toplevel->server->config->border.width;
+    int th         = toplevel->server->config->titlebar.height;
     wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, new_width - 2 * bw,
                               new_height - 2 * bw - th);
     update_borders(toplevel, new_width, new_height, bw);

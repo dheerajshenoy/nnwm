@@ -120,10 +120,10 @@ void tl_open_anim(struct nnwm_toplevel *tl);
 void tl_close_anim(struct nnwm_toplevel *tl);
 
 static inline nnwm_easing eff_easing(nnwm_config *cfg, int type_easing) {
-    return type_easing >= 0 ? (nnwm_easing)type_easing : cfg->anim_easing;
+    return type_easing >= 0 ? (nnwm_easing)type_easing : cfg->fx.animation.easing;
 }
 static inline int eff_duration(nnwm_config *cfg, int type_duration) {
-    return type_duration > 0 ? type_duration : cfg->anim_duration_ms;
+    return type_duration > 0 ? type_duration : cfg->fx.animation.duration_ms;
 }
 #endif /* HAVE_SCENEFX */
 

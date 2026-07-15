@@ -115,8 +115,8 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
     if (toplevel->floating && out && server->config->center_new_floating)
     {
         wlr_box *geo = &toplevel->xdg_toplevel->base->geometry;
-        int bw       = server->config->border_width;
-        int th       = server->config->titlebar_height;
+        int bw       = server->config->border.width;
+        int th       = server->config->titlebar.height;
         wlr_box area = out->usable_area;
         if (geo->width > 0 && geo->height > 0)
         {
@@ -285,8 +285,8 @@ xdg_toplevel_commit(wl_listener *listener, void * /*data*/)
     {
         nnwm_server *server = toplevel->server;
         wlr_box *geo        = &toplevel->xdg_toplevel->base->geometry;
-        int bw              = server->config->border_width;
-        int th              = server->config->titlebar_height;
+        int bw              = server->config->border.width;
+        int th              = server->config->titlebar.height;
         update_borders(toplevel, geo->width + 2 * bw, geo->height + 2 * bw + th,
                        bw);
     }
@@ -498,7 +498,7 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
      * rects when it commits at a larger size than currently expected. */
     for (int i = 0; i < 4; i++)
         toplevel->border[i] = wlr_scene_rect_create(
-            toplevel->scene_tree, 0, 0, server->config->unfocused_color);
+            toplevel->scene_tree, 0, 0, server->config->border.unfocused_color);
 
     toplevel->titlebar = wlr_scene_buffer_create(toplevel->scene_tree, nullptr);
     wlr_scene_node_set_enabled(&toplevel->titlebar->node, false);
@@ -522,7 +522,7 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     toplevel->set_title.notify = [](wl_listener *listener, void *)
     {
         nnwm_toplevel *tl = wl_container_of(listener, tl, set_title);
-        if (tl->server->config->titlebar_height <= 0 || tl->titlebar_width <= 0)
+        if (tl->server->config->titlebar.height <= 0 || tl->titlebar_width <= 0)
             return;
         wlr_surface *fs = tl->server->seat->keyboard_state.focused_surface;
         render_titlebar(tl, tl->titlebar_width,

@@ -103,26 +103,38 @@ struct nnwm_monitor_config
 struct nnwm_config
 {
     /* Layout */
-    float master_ratio;
-    float master_ratio_step;
-    float master_ratio_min;
-    float master_ratio_max;
+    struct layout
+    {
+        float master_ratio;
+        float master_ratio_step;
+        float master_ratio_min;
+        float master_ratio_max;
+    } layout;
 
     /* Gaps */
-    int inner_gap;
-    int outer_gap;
-    bool smart_gaps;
-    bool smart_borders;
+    struct gap
+    {
+        int inner;
+        int outer;
+        bool smart; /* true = disable gaps when only one window is visible */
+    } gap;
 
     /* Borders */
-    int border_width;
-    float focused_color[4];
-    float unfocused_color[4];
+    struct border
+    {
+        int width;
+        float focused_color[4];
+        float unfocused_color[4];
+        bool smart;
+    } border;
 
     /* Keyboard */
-    int keyboard_repeat_rate;
-    int keyboard_repeat_delay;
-    char *xkb_options;
+    struct keyboard
+    {
+        int repeat_rate;
+        int repeat_delay;
+        char *xkb_options;
+    } keyboard;
 
     /* Cursor */
     char *cursor_theme;
@@ -132,9 +144,12 @@ struct nnwm_config
     char *seat_name;
 
     /* Input (libinput) */
-    bool touchpad_tap_to_click;
-    bool touchpad_natural_scroll;
-    bool touchpad_disable_while_typing;
+    struct touchpad
+    {
+        bool tap_to_click;
+        bool natural_scroll;
+        bool disable_while_typing;
+    } touchpad;
 
     /* Focus */
     bool focus_follows_mouse;
@@ -154,61 +169,74 @@ struct nnwm_config
                                 (no titlebar) */
 
     /* Titlebar (server-side, drawn by compositor) */
-    int titlebar_height;     /* pixels; 0 = disabled */
-    char *titlebar_font;     /* pango font description, e.g. "Sans Bold 10" */
-    int titlebar_text_align; /* 0 = left, 1 = center, 2 = right */
-    float titlebar_bg_color[4];           /* unfocused background RGBA */
-    float titlebar_focused_bg_color[4];   /* focused background RGBA */
-    float titlebar_text_color[4];         /* unfocused text RGBA */
-    float titlebar_focused_text_color[4]; /* focused text RGBA */
+    struct titlebar
+    {
+        int height;
+        char *font;
+        int text_align;              /* 0 = left, 1 = center, 2 = right */
+        float bg_color[4];           /* unfocused background RGBA */
+        float focused_bg_color[4];   /* focused background RGBA */
+        float text_color[4];         /* unfocused text RGBA */
+        float focused_text_color[4]; /* focused text RGBA */
+    } titlebar;
 
-    /* scenefx: corner radius, shadows, blur, opacity (requires HAVE_SCENEFX
-     * build flag) */
-    int corner_radius; /* pixels; 0 = disabled */
-    bool shadow_enabled;
-    float shadow_blur_sigma; /* Gaussian sigma; controls softness */
-    float shadow_color[4];   /* RGBA */
-    float shadow_offset_x;   /* pixels */
-    float shadow_offset_y;   /* pixels */
-    float opacity; /* window content opacity: 0.0–1.0 (default: 1.0) */
-    bool blur_enabled;
-    int blur_passes;       /* number of dual-kawase passes (default: 3) */
-    int blur_radius;       /* blur radius in pixels (default: 5) */
-    float blur_noise;      /* noise to reduce banding (default: 0.0) */
-    float blur_brightness; /* brightness adjustment (default: 1.0) */
-    float blur_contrast;   /* contrast adjustment (default: 1.0) */
-    float blur_saturation; /* saturation adjustment (default: 1.0) */
+    struct fx
+    {
+        /* scenefx: corner radius, shadows, blur, opacity (requires HAVE_SCENEFX
+         * build flag) */
+        int corner_radius; /* pixels; 0 = disabled */
+        bool shadow_enabled;
+        float shadow_blur_sigma; /* Gaussian sigma; controls softness */
+        float shadow_color[4];   /* RGBA */
+        float shadow_offset_x;   /* pixels */
+        float shadow_offset_y;   /* pixels */
+        float opacity; /* window content opacity: 0.0–1.0 (default: 1.0) */
+        bool blur_enabled;
+        int blur_passes;       /* number of dual-kawase passes (default: 3) */
+        int blur_radius;       /* blur radius in pixels (default: 5) */
+        float blur_noise;      /* noise to reduce banding (default: 0.0) */
+        float blur_brightness; /* brightness adjustment (default: 1.0) */
+        float blur_contrast;   /* contrast adjustment (default: 1.0) */
+        float blur_saturation; /* saturation adjustment (default: 1.0) */
 
 #ifdef HAVE_SCENEFX
-    /* Animation */
-    bool anim_enabled;
-    int anim_duration_ms;
-    nnwm_easing anim_easing; /* global default easing */
-    nnwm_open_style anim_open_style;
-    nnwm_open_style anim_close_style;
-    nnwm_ws_style anim_ws_style;
-    nnwm_layout_anim anim_layout_style;
-    nnwm_focus_style anim_focus_style;
-    /* Per-type easing (-1 = inherit global) */
-    int anim_open_easing;
-    int anim_close_easing;
-    int anim_ws_easing;
-    int anim_layout_easing;
-    int anim_focus_easing;
-    /* Per-type duration in ms (0 = inherit global) */
-    int anim_open_duration_ms;
-    int anim_close_duration_ms;
-    int anim_ws_duration_ms;
-    int anim_layout_duration_ms;
-    int anim_focus_duration_ms;
+        /* Animation */
+        struct animation
+        {
+            bool enabled;
+            int duration_ms;
+            nnwm_easing easing; /* global default easing */
+            nnwm_open_style open_style;
+            nnwm_open_style close_style;
+            nnwm_ws_style ws_style;
+            nnwm_layout_anim layout_style;
+            nnwm_focus_style focus_style;
+
+            /* Per-type easing (-1 = inherit global) */
+            int open_easing;
+            int close_easing;
+            int ws_easing;
+            int layout_easing;
+            int focus_easing;
+
+            /* Per-type duration in ms (0 = inherit global) */
+            int open_duration_ms;
+            int close_duration_ms;
+            int ws_duration_ms;
+            int layout_duration_ms;
+            int focus_duration_ms;
+        } animation;
+    } fx;
+#else
+    } fx;
 #endif /* HAVE_SCENEFX */
 
     /* Monitor configuration */
-    struct nnwm_monitor_config *monitor_configs;
+    nnwm_monitor_config *monitor_configs;
     int monitor_config_count;
 
     /* Window rules */
-    struct nnwm_window_rule *window_rules;
+    nnwm_window_rule *window_rules;
     int window_rule_count;
 };
 

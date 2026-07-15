@@ -353,8 +353,8 @@ server_apply_config(nnwm_server *server)
     wl_list_for_each(tl, &server->toplevels, link)
     {
         float *color = (tl->xdg_toplevel->base->surface == focused_surface)
-                           ? server->config->focused_color
-                           : server->config->unfocused_color;
+                           ? server->config->border.focused_color
+                           : server->config->border.unfocused_color;
         for (int i = 0; i < 4; i++)
             wlr_scene_rect_set_color(tl->border[i], color);
     }
@@ -382,8 +382,8 @@ server_apply_config(nnwm_server *server)
     {
         apply_keymap(kb->wlr_keyboard, server->config);
         wlr_keyboard_set_repeat_info(kb->wlr_keyboard,
-                                     server->config->keyboard_repeat_rate,
-                                     server->config->keyboard_repeat_delay);
+                                     server->config->keyboard.repeat_rate,
+                                     server->config->keyboard.repeat_delay);
     }
 }
 

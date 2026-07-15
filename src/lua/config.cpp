@@ -796,13 +796,13 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "new_window_master");
     lua_pushboolean(L, cfg->center_new_floating);
     lua_setfield(L, -2, "center_new_floating");
-    lua_pushnumber(L, cfg->master_ratio);
+    lua_pushnumber(L, cfg->layout.master_ratio);
     lua_setfield(L, -2, "master_ratio");
-    lua_pushnumber(L, cfg->master_ratio_step);
+    lua_pushnumber(L, cfg->layout.master_ratio_step);
     lua_setfield(L, -2, "master_ratio_step");
-    lua_pushnumber(L, cfg->master_ratio_min);
+    lua_pushnumber(L, cfg->layout.master_ratio_min);
     lua_setfield(L, -2, "master_ratio_min");
-    lua_pushnumber(L, cfg->master_ratio_max);
+    lua_pushnumber(L, cfg->layout.master_ratio_max);
     lua_setfield(L, -2, "master_ratio_max");
     lua_pushnumber(L, cfg->scroll_column_width);
     lua_setfield(L, -2, "scroll_column_width");
@@ -812,31 +812,31 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
 
     /* gaps sub-table */
     lua_newtable(L);
-    lua_pushinteger(L, cfg->inner_gap);
+    lua_pushinteger(L, cfg->gap.inner);
     lua_setfield(L, -2, "inner");
-    lua_pushinteger(L, cfg->outer_gap);
+    lua_pushinteger(L, cfg->gap.outer);
     lua_setfield(L, -2, "outer");
-    lua_pushboolean(L, cfg->smart_gaps);
+    lua_pushboolean(L, cfg->gap.smart);
     lua_setfield(L, -2, "smart");
     lua_setfield(L, -2, "gaps");
 
     /* border sub-table */
     lua_newtable(L);
-    lua_pushinteger(L, cfg->border_width);
+    lua_pushinteger(L, cfg->border.width);
     lua_setfield(L, -2, "width");
-    lua_pushboolean(L, cfg->smart_borders);
+    lua_pushboolean(L, cfg->border.smart);
     lua_setfield(L, -2, "smart");
     lua_newtable(L);
     for (int i = 0; i < 4; i++)
     {
-        lua_pushnumber(L, cfg->focused_color[i]);
+        lua_pushnumber(L, cfg->border.focused_color[i]);
         lua_rawseti(L, -2, i + 1);
     }
     lua_setfield(L, -2, "focused_color");
     lua_newtable(L);
     for (int i = 0; i < 4; i++)
     {
-        lua_pushnumber(L, cfg->unfocused_color[i]);
+        lua_pushnumber(L, cfg->border.unfocused_color[i]);
         lua_rawseti(L, -2, i + 1);
     }
     lua_setfield(L, -2, "unfocused_color");
@@ -844,11 +844,11 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
 
     /* keyboard sub-table */
     lua_newtable(L);
-    lua_pushinteger(L, cfg->keyboard_repeat_rate);
+    lua_pushinteger(L, cfg->keyboard.repeat_rate);
     lua_setfield(L, -2, "repeat_rate");
-    lua_pushinteger(L, cfg->keyboard_repeat_delay);
+    lua_pushinteger(L, cfg->keyboard.repeat_delay);
     lua_setfield(L, -2, "repeat_delay");
-    lua_pushstring(L, cfg->xkb_options ? cfg->xkb_options : "");
+    lua_pushstring(L, cfg->keyboard.xkb_options ? cfg->keyboard.xkb_options : "");
     lua_setfield(L, -2, "xkb_options");
     lua_setfield(L, -2, "keyboard");
 
@@ -857,11 +857,11 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
 
     /* touchpad sub-table */
     lua_newtable(L);
-    lua_pushboolean(L, cfg->touchpad_tap_to_click);
+    lua_pushboolean(L, cfg->touchpad.tap_to_click);
     lua_setfield(L, -2, "tap_to_click");
-    lua_pushboolean(L, cfg->touchpad_natural_scroll);
+    lua_pushboolean(L, cfg->touchpad.natural_scroll);
     lua_setfield(L, -2, "natural_scroll");
-    lua_pushboolean(L, cfg->touchpad_disable_while_typing);
+    lua_pushboolean(L, cfg->touchpad.disable_while_typing);
     lua_setfield(L, -2, "disable_while_typing");
     lua_setfield(L, -2, "touchpad");
 
@@ -880,39 +880,39 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
 
     /* titlebar sub-table */
     lua_newtable(L);
-    lua_pushboolean(L, cfg->titlebar_height > 0);
+    lua_pushboolean(L, cfg->titlebar.height > 0);
     lua_setfield(L, -2, "enabled");
-    lua_pushinteger(L, cfg->titlebar_height > 0 ? cfg->titlebar_height : 20);
+    lua_pushinteger(L, cfg->titlebar.height > 0 ? cfg->titlebar.height : 20);
     lua_setfield(L, -2, "height");
-    lua_pushstring(L, cfg->titlebar_font ? cfg->titlebar_font : "Sans 10");
+    lua_pushstring(L, cfg->titlebar.font ? cfg->titlebar.font : "Sans 10");
     lua_setfield(L, -2, "font");
-    lua_pushinteger(L, cfg->titlebar_text_align);
+    lua_pushinteger(L, cfg->titlebar.text_align);
     lua_setfield(L, -2, "text_align");
     lua_newtable(L);
     for (int i = 0; i < 4; i++)
     {
-        lua_pushnumber(L, cfg->titlebar_bg_color[i]);
+        lua_pushnumber(L, cfg->titlebar.bg_color[i]);
         lua_rawseti(L, -2, i + 1);
     }
     lua_setfield(L, -2, "bg_color");
     lua_newtable(L);
     for (int i = 0; i < 4; i++)
     {
-        lua_pushnumber(L, cfg->titlebar_focused_bg_color[i]);
+        lua_pushnumber(L, cfg->titlebar.focused_bg_color[i]);
         lua_rawseti(L, -2, i + 1);
     }
     lua_setfield(L, -2, "focused_bg_color");
     lua_newtable(L);
     for (int i = 0; i < 4; i++)
     {
-        lua_pushnumber(L, cfg->titlebar_text_color[i]);
+        lua_pushnumber(L, cfg->titlebar.text_color[i]);
         lua_rawseti(L, -2, i + 1);
     }
     lua_setfield(L, -2, "text_color");
     lua_newtable(L);
     for (int i = 0; i < 4; i++)
     {
-        lua_pushnumber(L, cfg->titlebar_focused_text_color[i]);
+        lua_pushnumber(L, cfg->titlebar.focused_text_color[i]);
         lua_rawseti(L, -2, i + 1);
     }
     lua_setfield(L, -2, "focused_text_color");
@@ -920,55 +920,55 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
 
     /* fx sub-table (scenefx: corner radius and shadows) */
     lua_newtable(L);
-    lua_pushinteger(L, cfg->corner_radius);
+    lua_pushinteger(L, cfg->fx.corner_radius);
     lua_setfield(L, -2, "corner_radius");
     lua_newtable(L);
-    lua_pushboolean(L, cfg->shadow_enabled);
+    lua_pushboolean(L, cfg->fx.shadow_enabled);
     lua_setfield(L, -2, "enabled");
-    lua_pushnumber(L, cfg->shadow_blur_sigma);
+    lua_pushnumber(L, cfg->fx.shadow_blur_sigma);
     lua_setfield(L, -2, "blur_sigma");
-    lua_pushnumber(L, cfg->shadow_offset_x);
+    lua_pushnumber(L, cfg->fx.shadow_offset_x);
     lua_setfield(L, -2, "offset_x");
-    lua_pushnumber(L, cfg->shadow_offset_y);
+    lua_pushnumber(L, cfg->fx.shadow_offset_y);
     lua_setfield(L, -2, "offset_y");
     lua_newtable(L);
     for (int i = 0; i < 4; i++)
     {
-        lua_pushnumber(L, cfg->shadow_color[i]);
+        lua_pushnumber(L, cfg->fx.shadow_color[i]);
         lua_rawseti(L, -2, i + 1);
     }
     lua_setfield(L, -2, "color");
     lua_setfield(L, -2, "shadow");
-    lua_pushnumber(L, cfg->opacity);
+    lua_pushnumber(L, cfg->fx.opacity);
     lua_setfield(L, -2, "opacity");
     lua_newtable(L);
-    lua_pushboolean(L, cfg->blur_enabled);
+    lua_pushboolean(L, cfg->fx.blur_enabled);
     lua_setfield(L, -2, "enabled");
-    lua_pushinteger(L, cfg->blur_passes);
+    lua_pushinteger(L, cfg->fx.blur_passes);
     lua_setfield(L, -2, "passes");
-    lua_pushinteger(L, cfg->blur_radius);
+    lua_pushinteger(L, cfg->fx.blur_radius);
     lua_setfield(L, -2, "radius");
-    lua_pushnumber(L, cfg->blur_noise);
+    lua_pushnumber(L, cfg->fx.blur_noise);
     lua_setfield(L, -2, "noise");
-    lua_pushnumber(L, cfg->blur_brightness);
+    lua_pushnumber(L, cfg->fx.blur_brightness);
     lua_setfield(L, -2, "brightness");
-    lua_pushnumber(L, cfg->blur_contrast);
+    lua_pushnumber(L, cfg->fx.blur_contrast);
     lua_setfield(L, -2, "contrast");
-    lua_pushnumber(L, cfg->blur_saturation);
+    lua_pushnumber(L, cfg->fx.blur_saturation);
     lua_setfield(L, -2, "saturation");
     lua_setfield(L, -2, "blur");
 #ifdef HAVE_SCENEFX
     /* animations sub-table (nested inside fx) */
     lua_newtable(L);
-    lua_pushboolean(L, cfg->anim_enabled);
+    lua_pushboolean(L, cfg->fx.animation.enabled);
     lua_setfield(L, -2, "enabled");
-    lua_pushinteger(L, cfg->anim_duration_ms);
+    lua_pushinteger(L, cfg->fx.animation.duration_ms);
     lua_setfield(L, -2, "duration");
     /* global easing string */
     {
         const char *easing_names[] = {"ease_out",    "linear", "ease_in",
                                       "ease_in_out", "bounce", "elastic"};
-        lua_pushstring(L, easing_names[static_cast<int>(cfg->anim_easing)]);
+        lua_pushstring(L, easing_names[static_cast<int>(cfg->fx.animation.easing)]);
         lua_setfield(L, -2, "easing");
     }
     /* open sub-table */
@@ -977,16 +977,16 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         const char *open_names[]
             = {"fade_scale", "fade",       "scale",       "slide_up",
                "slide_down", "slide_left", "slide_right", "none"};
-        lua_pushstring(L, open_names[static_cast<int>(cfg->anim_open_style)]);
+        lua_pushstring(L, open_names[static_cast<int>(cfg->fx.animation.open_style)]);
         lua_setfield(L, -2, "style");
     }
-    lua_pushinteger(L, cfg->anim_open_duration_ms);
+    lua_pushinteger(L, cfg->fx.animation.open_duration_ms);
     lua_setfield(L, -2, "duration");
-    if (cfg->anim_open_easing >= 0)
+    if (cfg->fx.animation.open_easing >= 0)
     {
         const char *easing_names[] = {"ease_out",    "linear", "ease_in",
                                       "ease_in_out", "bounce", "elastic"};
-        lua_pushstring(L, easing_names[cfg->anim_open_easing]);
+        lua_pushstring(L, easing_names[cfg->fx.animation.open_easing]);
     }
     else
     {
@@ -1000,16 +1000,16 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         const char *open_names[]
             = {"fade_scale", "fade",       "scale",       "slide_up",
                "slide_down", "slide_left", "slide_right", "none"};
-        lua_pushstring(L, open_names[static_cast<int>(cfg->anim_close_style)]);
+        lua_pushstring(L, open_names[static_cast<int>(cfg->fx.animation.close_style)]);
         lua_setfield(L, -2, "style");
     }
-    lua_pushinteger(L, cfg->anim_close_duration_ms);
+    lua_pushinteger(L, cfg->fx.animation.close_duration_ms);
     lua_setfield(L, -2, "duration");
-    if (cfg->anim_close_easing >= 0)
+    if (cfg->fx.animation.close_easing >= 0)
     {
         const char *easing_names[] = {"ease_out",    "linear", "ease_in",
                                       "ease_in_out", "bounce", "elastic"};
-        lua_pushstring(L, easing_names[cfg->anim_close_easing]);
+        lua_pushstring(L, easing_names[cfg->fx.animation.close_easing]);
     }
     else
     {
@@ -1021,16 +1021,16 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_newtable(L);
     {
         const char *ws_names[] = {"slide", "fade", "none"};
-        lua_pushstring(L, ws_names[static_cast<int>(cfg->anim_ws_style)]);
+        lua_pushstring(L, ws_names[static_cast<int>(cfg->fx.animation.ws_style)]);
         lua_setfield(L, -2, "style");
     }
-    lua_pushinteger(L, cfg->anim_ws_duration_ms);
+    lua_pushinteger(L, cfg->fx.animation.ws_duration_ms);
     lua_setfield(L, -2, "duration");
-    if (cfg->anim_ws_easing >= 0)
+    if (cfg->fx.animation.ws_easing >= 0)
     {
         const char *easing_names[] = {"ease_out",    "linear", "ease_in",
                                       "ease_in_out", "bounce", "elastic"};
-        lua_pushstring(L, easing_names[cfg->anim_ws_easing]);
+        lua_pushstring(L, easing_names[cfg->fx.animation.ws_easing]);
     }
     else
     {
@@ -1040,17 +1040,17 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "workspace");
     /* layout sub-table */
     lua_newtable(L);
-    lua_pushstring(L, cfg->anim_layout_style == nnwm_layout_anim::TWEEN
+    lua_pushstring(L, cfg->fx.animation.layout_style == nnwm_layout_anim::TWEEN
                           ? "tween"
                           : "none");
     lua_setfield(L, -2, "style");
-    lua_pushinteger(L, cfg->anim_layout_duration_ms);
+    lua_pushinteger(L, cfg->fx.animation.layout_duration_ms);
     lua_setfield(L, -2, "duration");
-    if (cfg->anim_layout_easing >= 0)
+    if (cfg->fx.animation.layout_easing >= 0)
     {
         const char *easing_names[] = {"ease_out",    "linear", "ease_in",
                                       "ease_in_out", "bounce", "elastic"};
-        lua_pushstring(L, easing_names[cfg->anim_layout_easing]);
+        lua_pushstring(L, easing_names[cfg->fx.animation.layout_easing]);
     }
     else
     {
@@ -1060,17 +1060,17 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "layout");
     /* focus sub-table */
     lua_newtable(L);
-    lua_pushstring(L, cfg->anim_focus_style == nnwm_focus_style::CROSSFADE
+    lua_pushstring(L, cfg->fx.animation.focus_style == nnwm_focus_style::CROSSFADE
                           ? "crossfade"
                           : "none");
     lua_setfield(L, -2, "style");
-    lua_pushinteger(L, cfg->anim_focus_duration_ms);
+    lua_pushinteger(L, cfg->fx.animation.focus_duration_ms);
     lua_setfield(L, -2, "duration");
-    if (cfg->anim_focus_easing >= 0)
+    if (cfg->fx.animation.focus_easing >= 0)
     {
         const char *easing_names[] = {"ease_out",    "linear", "ease_in",
                                       "ease_in_out", "bounce", "elastic"};
-        lua_pushstring(L, easing_names[cfg->anim_focus_easing]);
+        lua_pushstring(L, easing_names[cfg->fx.animation.focus_easing]);
     }
     else
     {
@@ -1262,14 +1262,14 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
             = get_bool_field(L, "new_window_master", cfg->new_window_master);
         cfg->center_new_floating = get_bool_field(L, "center_new_floating",
                                                   cfg->center_new_floating);
-        cfg->master_ratio
-            = get_float_field(L, "master_ratio", cfg->master_ratio);
-        cfg->master_ratio_step
-            = get_float_field(L, "master_ratio_step", cfg->master_ratio_step);
-        cfg->master_ratio_min
-            = get_float_field(L, "master_ratio_min", cfg->master_ratio_min);
-        cfg->master_ratio_max
-            = get_float_field(L, "master_ratio_max", cfg->master_ratio_max);
+        cfg->layout.master_ratio
+            = get_float_field(L, "master_ratio", cfg->layout.master_ratio);
+        cfg->layout.master_ratio_step
+            = get_float_field(L, "master_ratio_step", cfg->layout.master_ratio_step);
+        cfg->layout.master_ratio_min
+            = get_float_field(L, "master_ratio_min", cfg->layout.master_ratio_min);
+        cfg->layout.master_ratio_max
+            = get_float_field(L, "master_ratio_max", cfg->layout.master_ratio_max);
         cfg->scroll_column_width = get_float_field(L, "scroll_column_width",
                                                    cfg->scroll_column_width);
         cfg->scroll_row_height = get_float_field(L, "scroll_row_height",
@@ -1280,48 +1280,48 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     lua_getfield(L, -1, "gaps");
     if (lua_istable(L, -1))
     {
-        cfg->inner_gap  = get_int_field(L, "inner", cfg->inner_gap);
-        cfg->outer_gap  = get_int_field(L, "outer", cfg->outer_gap);
-        cfg->smart_gaps = get_bool_field(L, "smart", cfg->smart_gaps);
+        cfg->gap.inner  = get_int_field(L, "inner", cfg->gap.inner);
+        cfg->gap.outer  = get_int_field(L, "outer", cfg->gap.outer);
+        cfg->gap.smart = get_bool_field(L, "smart", cfg->gap.smart);
     }
     lua_pop(L, 1);
 
     lua_getfield(L, -1, "border");
     if (lua_istable(L, -1))
     {
-        cfg->border_width  = get_int_field(L, "width", cfg->border_width);
-        cfg->smart_borders = get_bool_field(L, "smart", cfg->smart_borders);
-        float dflt_foc[4]  = {cfg->focused_color[0], cfg->focused_color[1],
-                              cfg->focused_color[2], cfg->focused_color[3]};
-        get_color_field(L, "focused_color", cfg->focused_color, dflt_foc);
-        float dflt_unf[4] = {cfg->unfocused_color[0], cfg->unfocused_color[1],
-                             cfg->unfocused_color[2], cfg->unfocused_color[3]};
-        get_color_field(L, "unfocused_color", cfg->unfocused_color, dflt_unf);
+        cfg->border.width  = get_int_field(L, "width", cfg->border.width);
+        cfg->border.smart = get_bool_field(L, "smart", cfg->border.smart);
+        float dflt_foc[4]  = {cfg->border.focused_color[0], cfg->border.focused_color[1],
+                              cfg->border.focused_color[2], cfg->border.focused_color[3]};
+        get_color_field(L, "focused_color", cfg->border.focused_color, dflt_foc);
+        float dflt_unf[4] = {cfg->border.unfocused_color[0], cfg->border.unfocused_color[1],
+                             cfg->border.unfocused_color[2], cfg->border.unfocused_color[3]};
+        get_color_field(L, "unfocused_color", cfg->border.unfocused_color, dflt_unf);
     }
     lua_pop(L, 1);
 
     lua_getfield(L, -1, "keyboard");
     if (lua_istable(L, -1))
     {
-        cfg->keyboard_repeat_rate
-            = get_int_field(L, "repeat_rate", cfg->keyboard_repeat_rate);
-        cfg->keyboard_repeat_delay
-            = get_int_field(L, "repeat_delay", cfg->keyboard_repeat_delay);
-        char *s = get_string_field(L, "xkb_options", cfg->xkb_options);
-        free(cfg->xkb_options);
-        cfg->xkb_options = s;
+        cfg->keyboard.repeat_rate
+            = get_int_field(L, "repeat_rate", cfg->keyboard.repeat_rate);
+        cfg->keyboard.repeat_delay
+            = get_int_field(L, "repeat_delay", cfg->keyboard.repeat_delay);
+        char *s = get_string_field(L, "xkb_options", cfg->keyboard.xkb_options);
+        free(cfg->keyboard.xkb_options);
+        cfg->keyboard.xkb_options = s;
     }
     lua_pop(L, 1);
 
     lua_getfield(L, -1, "touchpad");
     if (lua_istable(L, -1))
     {
-        cfg->touchpad_tap_to_click
-            = get_bool_field(L, "tap_to_click", cfg->touchpad_tap_to_click);
-        cfg->touchpad_natural_scroll
-            = get_bool_field(L, "natural_scroll", cfg->touchpad_natural_scroll);
-        cfg->touchpad_disable_while_typing = get_bool_field(
-            L, "disable_while_typing", cfg->touchpad_disable_while_typing);
+        cfg->touchpad.tap_to_click
+            = get_bool_field(L, "tap_to_click", cfg->touchpad.tap_to_click);
+        cfg->touchpad.natural_scroll
+            = get_bool_field(L, "natural_scroll", cfg->touchpad.natural_scroll);
+        cfg->touchpad.disable_while_typing = get_bool_field(
+            L, "disable_while_typing", cfg->touchpad.disable_while_typing);
     }
     lua_pop(L, 1);
 
@@ -1344,43 +1344,43 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     if (lua_istable(L, -1))
     {
         bool tb_enabled
-            = get_bool_field(L, "enabled", cfg->titlebar_height > 0);
+            = get_bool_field(L, "enabled", cfg->titlebar.height > 0);
         if (!tb_enabled)
         {
-            cfg->titlebar_height = 0;
+            cfg->titlebar.height = 0;
         }
         else
         {
             int h = get_int_field(
                 L, "height",
-                cfg->titlebar_height > 0 ? cfg->titlebar_height : 20);
-            cfg->titlebar_height = h > 0 ? h : 20;
+                cfg->titlebar.height > 0 ? cfg->titlebar.height : 20);
+            cfg->titlebar.height = h > 0 ? h : 20;
         }
-        cfg->titlebar_text_align
-            = get_int_field(L, "text_align", cfg->titlebar_text_align);
-        char *tf = get_string_field(L, "font", cfg->titlebar_font);
-        free(cfg->titlebar_font);
-        cfg->titlebar_font = tf;
+        cfg->titlebar.text_align
+            = get_int_field(L, "text_align", cfg->titlebar.text_align);
+        char *tf = get_string_field(L, "font", cfg->titlebar.font);
+        free(cfg->titlebar.font);
+        cfg->titlebar.font = tf;
         float dflt_tbg[4]
-            = {cfg->titlebar_bg_color[0], cfg->titlebar_bg_color[1],
-               cfg->titlebar_bg_color[2], cfg->titlebar_bg_color[3]};
-        get_color_field(L, "bg_color", cfg->titlebar_bg_color, dflt_tbg);
-        float dflt_tfbg[4] = {cfg->titlebar_focused_bg_color[0],
-                              cfg->titlebar_focused_bg_color[1],
-                              cfg->titlebar_focused_bg_color[2],
-                              cfg->titlebar_focused_bg_color[3]};
-        get_color_field(L, "focused_bg_color", cfg->titlebar_focused_bg_color,
+            = {cfg->titlebar.bg_color[0], cfg->titlebar.bg_color[1],
+               cfg->titlebar.bg_color[2], cfg->titlebar.bg_color[3]};
+        get_color_field(L, "bg_color", cfg->titlebar.bg_color, dflt_tbg);
+        float dflt_tfbg[4] = {cfg->titlebar.focused_bg_color[0],
+                              cfg->titlebar.focused_bg_color[1],
+                              cfg->titlebar.focused_bg_color[2],
+                              cfg->titlebar.focused_bg_color[3]};
+        get_color_field(L, "focused_bg_color", cfg->titlebar.focused_bg_color,
                         dflt_tfbg);
         float dflt_ttc[4]
-            = {cfg->titlebar_text_color[0], cfg->titlebar_text_color[1],
-               cfg->titlebar_text_color[2], cfg->titlebar_text_color[3]};
-        get_color_field(L, "text_color", cfg->titlebar_text_color, dflt_ttc);
-        float dflt_tftc[4] = {cfg->titlebar_focused_text_color[0],
-                              cfg->titlebar_focused_text_color[1],
-                              cfg->titlebar_focused_text_color[2],
-                              cfg->titlebar_focused_text_color[3]};
+            = {cfg->titlebar.text_color[0], cfg->titlebar.text_color[1],
+               cfg->titlebar.text_color[2], cfg->titlebar.text_color[3]};
+        get_color_field(L, "text_color", cfg->titlebar.text_color, dflt_ttc);
+        float dflt_tftc[4] = {cfg->titlebar.focused_text_color[0],
+                              cfg->titlebar.focused_text_color[1],
+                              cfg->titlebar.focused_text_color[2],
+                              cfg->titlebar.focused_text_color[3]};
         get_color_field(L, "focused_text_color",
-                        cfg->titlebar_focused_text_color, dflt_tftc);
+                        cfg->titlebar.focused_text_color, dflt_tftc);
     }
     lua_pop(L, 1);
 
@@ -1391,53 +1391,53 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     lua_getfield(L, -1, "fx");
     if (lua_istable(L, -1))
     {
-        cfg->corner_radius
-            = get_int_field(L, "corner_radius", cfg->corner_radius);
+        cfg->fx.corner_radius
+            = get_int_field(L, "corner_radius", cfg->fx.corner_radius);
         lua_getfield(L, -1, "shadow");
         if (lua_istable(L, -1))
         {
-            cfg->shadow_enabled
-                = get_bool_field(L, "enabled", cfg->shadow_enabled);
-            cfg->shadow_blur_sigma
-                = get_float_field(L, "blur_sigma", cfg->shadow_blur_sigma);
-            cfg->shadow_offset_x
-                = get_float_field(L, "offset_x", cfg->shadow_offset_x);
-            cfg->shadow_offset_y
-                = get_float_field(L, "offset_y", cfg->shadow_offset_y);
-            float dflt[4] = {cfg->shadow_color[0], cfg->shadow_color[1],
-                             cfg->shadow_color[2], cfg->shadow_color[3]};
-            get_color_field(L, "color", cfg->shadow_color, dflt);
+            cfg->fx.shadow_enabled
+                = get_bool_field(L, "enabled", cfg->fx.shadow_enabled);
+            cfg->fx.shadow_blur_sigma
+                = get_float_field(L, "blur_sigma", cfg->fx.shadow_blur_sigma);
+            cfg->fx.shadow_offset_x
+                = get_float_field(L, "offset_x", cfg->fx.shadow_offset_x);
+            cfg->fx.shadow_offset_y
+                = get_float_field(L, "offset_y", cfg->fx.shadow_offset_y);
+            float dflt[4] = {cfg->fx.shadow_color[0], cfg->fx.shadow_color[1],
+                             cfg->fx.shadow_color[2], cfg->fx.shadow_color[3]};
+            get_color_field(L, "color", cfg->fx.shadow_color, dflt);
         }
         lua_pop(L, 1);
-        cfg->opacity = get_float_field(L, "opacity", cfg->opacity);
+        cfg->fx.opacity = get_float_field(L, "opacity", cfg->fx.opacity);
         lua_getfield(L, -1, "blur");
         if (lua_istable(L, -1))
         {
-            cfg->blur_enabled = get_bool_field(L, "enabled", cfg->blur_enabled);
-            cfg->blur_passes  = get_int_field(L, "passes", cfg->blur_passes);
-            cfg->blur_radius  = get_int_field(L, "radius", cfg->blur_radius);
-            cfg->blur_noise   = get_float_field(L, "noise", cfg->blur_noise);
-            cfg->blur_brightness
-                = get_float_field(L, "brightness", cfg->blur_brightness);
-            cfg->blur_contrast
-                = get_float_field(L, "contrast", cfg->blur_contrast);
-            cfg->blur_saturation
-                = get_float_field(L, "saturation", cfg->blur_saturation);
+            cfg->fx.blur_enabled = get_bool_field(L, "enabled", cfg->fx.blur_enabled);
+            cfg->fx.blur_passes  = get_int_field(L, "passes", cfg->fx.blur_passes);
+            cfg->fx.blur_radius  = get_int_field(L, "radius", cfg->fx.blur_radius);
+            cfg->fx.blur_noise   = get_float_field(L, "noise", cfg->fx.blur_noise);
+            cfg->fx.blur_brightness
+                = get_float_field(L, "brightness", cfg->fx.blur_brightness);
+            cfg->fx.blur_contrast
+                = get_float_field(L, "contrast", cfg->fx.blur_contrast);
+            cfg->fx.blur_saturation
+                = get_float_field(L, "saturation", cfg->fx.blur_saturation);
         }
         lua_pop(L, 1);
 #ifdef HAVE_SCENEFX
         lua_getfield(L, -1, "animations");
         if (lua_istable(L, -1))
         {
-            cfg->anim_enabled = get_bool_field(L, "enabled", cfg->anim_enabled);
-            cfg->anim_duration_ms
-                = get_int_field(L, "duration", cfg->anim_duration_ms);
+            cfg->fx.animation.enabled = get_bool_field(L, "enabled", cfg->fx.animation.enabled);
+            cfg->fx.animation.duration_ms
+                = get_int_field(L, "duration", cfg->fx.animation.duration_ms);
             /* global easing */
             {
                 char *s = get_string_field(L, "easing", nullptr);
                 if (s)
                 {
-                    cfg->anim_easing = parse_easing(s, cfg->anim_easing);
+                    cfg->fx.animation.easing = parse_easing(s, cfg->fx.animation.easing);
                     free(s);
                 }
             }
@@ -1448,17 +1448,17 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 char *s = get_string_field(L, "style", nullptr);
                 if (s)
                 {
-                    cfg->anim_open_style
-                        = parse_open_style(s, cfg->anim_open_style);
+                    cfg->fx.animation.open_style
+                        = parse_open_style(s, cfg->fx.animation.open_style);
                     free(s);
                 }
-                cfg->anim_open_duration_ms
-                    = get_int_field(L, "duration", cfg->anim_open_duration_ms);
+                cfg->fx.animation.open_duration_ms
+                    = get_int_field(L, "duration", cfg->fx.animation.open_duration_ms);
                 char *e = get_string_field(L, "easing", nullptr);
                 if (e)
                 {
-                    cfg->anim_open_easing
-                        = static_cast<int>(parse_easing(e, cfg->anim_easing));
+                    cfg->fx.animation.open_easing
+                        = static_cast<int>(parse_easing(e, cfg->fx.animation.easing));
                     free(e);
                 }
             }
@@ -1470,17 +1470,17 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 char *s = get_string_field(L, "style", nullptr);
                 if (s)
                 {
-                    cfg->anim_close_style
-                        = parse_open_style(s, cfg->anim_close_style);
+                    cfg->fx.animation.close_style
+                        = parse_open_style(s, cfg->fx.animation.close_style);
                     free(s);
                 }
-                cfg->anim_close_duration_ms
-                    = get_int_field(L, "duration", cfg->anim_close_duration_ms);
+                cfg->fx.animation.close_duration_ms
+                    = get_int_field(L, "duration", cfg->fx.animation.close_duration_ms);
                 char *e = get_string_field(L, "easing", nullptr);
                 if (e)
                 {
-                    cfg->anim_close_easing
-                        = static_cast<int>(parse_easing(e, cfg->anim_easing));
+                    cfg->fx.animation.close_easing
+                        = static_cast<int>(parse_easing(e, cfg->fx.animation.easing));
                     free(e);
                 }
             }
@@ -1493,20 +1493,20 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 if (s)
                 {
                     if (strcmp(s, "slide") == 0)
-                        cfg->anim_ws_style = nnwm_ws_style::SLIDE;
+                        cfg->fx.animation.ws_style = nnwm_ws_style::SLIDE;
                     else if (strcmp(s, "fade") == 0)
-                        cfg->anim_ws_style = nnwm_ws_style::FADE;
+                        cfg->fx.animation.ws_style = nnwm_ws_style::FADE;
                     else if (strcmp(s, "none") == 0)
-                        cfg->anim_ws_style = nnwm_ws_style::NONE;
+                        cfg->fx.animation.ws_style = nnwm_ws_style::NONE;
                     free(s);
                 }
-                cfg->anim_ws_duration_ms
-                    = get_int_field(L, "duration", cfg->anim_ws_duration_ms);
+                cfg->fx.animation.ws_duration_ms
+                    = get_int_field(L, "duration", cfg->fx.animation.ws_duration_ms);
                 char *e = get_string_field(L, "easing", nullptr);
                 if (e)
                 {
-                    cfg->anim_ws_easing
-                        = static_cast<int>(parse_easing(e, cfg->anim_easing));
+                    cfg->fx.animation.ws_easing
+                        = static_cast<int>(parse_easing(e, cfg->fx.animation.easing));
                     free(e);
                 }
             }
@@ -1519,18 +1519,18 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 if (s)
                 {
                     if (strcmp(s, "tween") == 0)
-                        cfg->anim_layout_style = nnwm_layout_anim::TWEEN;
+                        cfg->fx.animation.layout_style = nnwm_layout_anim::TWEEN;
                     else if (strcmp(s, "none") == 0)
-                        cfg->anim_layout_style = nnwm_layout_anim::NONE;
+                        cfg->fx.animation.layout_style = nnwm_layout_anim::NONE;
                     free(s);
                 }
-                cfg->anim_layout_duration_ms = get_int_field(
-                    L, "duration", cfg->anim_layout_duration_ms);
+                cfg->fx.animation.layout_duration_ms = get_int_field(
+                    L, "duration", cfg->fx.animation.layout_duration_ms);
                 char *e = get_string_field(L, "easing", nullptr);
                 if (e)
                 {
-                    cfg->anim_layout_easing
-                        = static_cast<int>(parse_easing(e, cfg->anim_easing));
+                    cfg->fx.animation.layout_easing
+                        = static_cast<int>(parse_easing(e, cfg->fx.animation.easing));
                     free(e);
                 }
             }
@@ -1543,18 +1543,18 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 if (s)
                 {
                     if (strcmp(s, "crossfade") == 0)
-                        cfg->anim_focus_style = nnwm_focus_style::CROSSFADE;
+                        cfg->fx.animation.focus_style = nnwm_focus_style::CROSSFADE;
                     else if (strcmp(s, "none") == 0)
-                        cfg->anim_focus_style = nnwm_focus_style::NONE;
+                        cfg->fx.animation.focus_style = nnwm_focus_style::NONE;
                     free(s);
                 }
-                cfg->anim_focus_duration_ms
-                    = get_int_field(L, "duration", cfg->anim_focus_duration_ms);
+                cfg->fx.animation.focus_duration_ms
+                    = get_int_field(L, "duration", cfg->fx.animation.focus_duration_ms);
                 char *e = get_string_field(L, "easing", nullptr);
                 if (e)
                 {
-                    cfg->anim_focus_easing
-                        = static_cast<int>(parse_easing(e, cfg->anim_easing));
+                    cfg->fx.animation.focus_easing
+                        = static_cast<int>(parse_easing(e, cfg->fx.animation.easing));
                     free(e);
                 }
             }
@@ -1755,102 +1755,102 @@ nnwm::config_defaults(void)
 {
     auto *cfg = new nnwm_config{};
 
-    cfg->master_ratio        = 0.55f;
-    cfg->master_ratio_step   = 0.05f;
-    cfg->master_ratio_min    = 0.1f;
-    cfg->master_ratio_max    = 0.9f;
+    cfg->layout.master_ratio        = 0.55f;
+    cfg->layout.master_ratio_step   = 0.05f;
+    cfg->layout.master_ratio_min    = 0.1f;
+    cfg->layout.master_ratio_max    = 0.9f;
     cfg->scroll_column_width = 0.5f;
     cfg->scroll_row_height   = 0.5f;
 
-    cfg->corner_radius     = 0;
-    cfg->shadow_enabled    = false;
-    cfg->shadow_blur_sigma = 10.0f;
-    cfg->shadow_color[0]   = 0.0f;
-    cfg->shadow_color[1]   = 0.0f;
-    cfg->shadow_color[2]   = 0.0f;
-    cfg->shadow_color[3]   = 0.5f;
-    cfg->shadow_offset_x   = 4.0f;
-    cfg->shadow_offset_y   = 4.0f;
-    cfg->opacity           = 1.0f;
-    cfg->blur_enabled      = false;
-    cfg->blur_passes       = 3;
-    cfg->blur_radius       = 5;
-    cfg->blur_noise        = 0.0f;
-    cfg->blur_brightness   = 1.0f;
-    cfg->blur_contrast     = 1.0f;
-    cfg->blur_saturation   = 1.0f;
+    cfg->fx.corner_radius     = 0;
+    cfg->fx.shadow_enabled    = false;
+    cfg->fx.shadow_blur_sigma = 10.0f;
+    cfg->fx.shadow_color[0]   = 0.0f;
+    cfg->fx.shadow_color[1]   = 0.0f;
+    cfg->fx.shadow_color[2]   = 0.0f;
+    cfg->fx.shadow_color[3]   = 0.5f;
+    cfg->fx.shadow_offset_x   = 4.0f;
+    cfg->fx.shadow_offset_y   = 4.0f;
+    cfg->fx.opacity           = 1.0f;
+    cfg->fx.blur_enabled      = false;
+    cfg->fx.blur_passes       = 3;
+    cfg->fx.blur_radius       = 5;
+    cfg->fx.blur_noise        = 0.0f;
+    cfg->fx.blur_brightness   = 1.0f;
+    cfg->fx.blur_contrast     = 1.0f;
+    cfg->fx.blur_saturation   = 1.0f;
 
-    cfg->inner_gap     = 0;
-    cfg->outer_gap     = 0;
-    cfg->smart_gaps    = false;
-    cfg->smart_borders = false;
+    cfg->gap.inner     = 0;
+    cfg->gap.outer     = 0;
+    cfg->gap.smart    = false;
+    cfg->border.smart = false;
 
-    cfg->border_width       = 2;
-    cfg->focused_color[0]   = 0.3f;
-    cfg->focused_color[1]   = 0.5f;
-    cfg->focused_color[2]   = 0.8f;
-    cfg->focused_color[3]   = 1.0f;
-    cfg->unfocused_color[0] = 0.15f;
-    cfg->unfocused_color[1] = 0.15f;
-    cfg->unfocused_color[2] = 0.15f;
-    cfg->unfocused_color[3] = 1.0f;
+    cfg->border.width       = 2;
+    cfg->border.focused_color[0]   = 0.3f;
+    cfg->border.focused_color[1]   = 0.5f;
+    cfg->border.focused_color[2]   = 0.8f;
+    cfg->border.focused_color[3]   = 1.0f;
+    cfg->border.unfocused_color[0] = 0.15f;
+    cfg->border.unfocused_color[1] = 0.15f;
+    cfg->border.unfocused_color[2] = 0.15f;
+    cfg->border.unfocused_color[3] = 1.0f;
 
-    cfg->keyboard_repeat_rate  = 25;
-    cfg->keyboard_repeat_delay = 600;
-    cfg->xkb_options           = strdup("");
+    cfg->keyboard.repeat_rate  = 25;
+    cfg->keyboard.repeat_delay = 600;
+    cfg->keyboard.xkb_options           = strdup("");
 
     cfg->cursor_theme = strdup("default");
     cfg->cursor_size  = 24;
     cfg->seat_name    = strdup("seat0");
 
-    cfg->touchpad_tap_to_click         = true;
-    cfg->touchpad_natural_scroll       = true;
-    cfg->touchpad_disable_while_typing = true;
+    cfg->touchpad.tap_to_click         = true;
+    cfg->touchpad.natural_scroll       = true;
+    cfg->touchpad.disable_while_typing = true;
 
     cfg->focus_follows_mouse = false;
     cfg->new_window_master   = true;
     cfg->center_new_floating = true;
     cfg->client_decorations  = false;
 
-    cfg->titlebar_height                = 0;
-    cfg->titlebar_font                  = strdup("Sans 10");
-    cfg->titlebar_text_align            = 1; /* center */
-    cfg->titlebar_bg_color[0]           = 0.2f;
-    cfg->titlebar_bg_color[1]           = 0.2f;
-    cfg->titlebar_bg_color[2]           = 0.2f;
-    cfg->titlebar_bg_color[3]           = 1.0f;
-    cfg->titlebar_focused_bg_color[0]   = 0.25f;
-    cfg->titlebar_focused_bg_color[1]   = 0.35f;
-    cfg->titlebar_focused_bg_color[2]   = 0.55f;
-    cfg->titlebar_focused_bg_color[3]   = 1.0f;
-    cfg->titlebar_text_color[0]         = 1.0f;
-    cfg->titlebar_text_color[1]         = 1.0f;
-    cfg->titlebar_text_color[2]         = 1.0f;
-    cfg->titlebar_text_color[3]         = 1.0f;
-    cfg->titlebar_focused_text_color[0] = 1.0f;
-    cfg->titlebar_focused_text_color[1] = 1.0f;
-    cfg->titlebar_focused_text_color[2] = 1.0f;
-    cfg->titlebar_focused_text_color[3] = 1.0f;
+    cfg->titlebar.height                = 0;
+    cfg->titlebar.font                  = strdup("Sans 10");
+    cfg->titlebar.text_align            = 1; /* center */
+    cfg->titlebar.bg_color[0]           = 0.2f;
+    cfg->titlebar.bg_color[1]           = 0.2f;
+    cfg->titlebar.bg_color[2]           = 0.2f;
+    cfg->titlebar.bg_color[3]           = 1.0f;
+    cfg->titlebar.focused_bg_color[0]   = 0.25f;
+    cfg->titlebar.focused_bg_color[1]   = 0.35f;
+    cfg->titlebar.focused_bg_color[2]   = 0.55f;
+    cfg->titlebar.focused_bg_color[3]   = 1.0f;
+    cfg->titlebar.text_color[0]         = 1.0f;
+    cfg->titlebar.text_color[1]         = 1.0f;
+    cfg->titlebar.text_color[2]         = 1.0f;
+    cfg->titlebar.text_color[3]         = 1.0f;
+    cfg->titlebar.focused_text_color[0] = 1.0f;
+    cfg->titlebar.focused_text_color[1] = 1.0f;
+    cfg->titlebar.focused_text_color[2] = 1.0f;
+    cfg->titlebar.focused_text_color[3] = 1.0f;
 
 #ifdef HAVE_SCENEFX
-    cfg->anim_enabled            = true;
-    cfg->anim_duration_ms        = 250;
-    cfg->anim_easing             = nnwm_easing::OUT;
-    cfg->anim_open_style         = nnwm_open_style::FADE_SCALE;
-    cfg->anim_close_style        = nnwm_open_style::FADE;
-    cfg->anim_ws_style           = nnwm_ws_style::SLIDE;
-    cfg->anim_layout_style       = nnwm_layout_anim::TWEEN;
-    cfg->anim_focus_style        = nnwm_focus_style::CROSSFADE;
-    cfg->anim_open_easing        = -1; /* inherit global */
-    cfg->anim_close_easing       = -1;
-    cfg->anim_ws_easing          = -1;
-    cfg->anim_layout_easing      = -1;
-    cfg->anim_focus_easing       = -1;
-    cfg->anim_open_duration_ms   = 0; /* inherit global */
-    cfg->anim_close_duration_ms  = 0;
-    cfg->anim_ws_duration_ms     = 0;
-    cfg->anim_layout_duration_ms = 0;
-    cfg->anim_focus_duration_ms  = 0;
+    cfg->fx.animation.enabled            = true;
+    cfg->fx.animation.duration_ms        = 250;
+    cfg->fx.animation.easing             = nnwm_easing::OUT;
+    cfg->fx.animation.open_style         = nnwm_open_style::FADE_SCALE;
+    cfg->fx.animation.close_style        = nnwm_open_style::FADE;
+    cfg->fx.animation.ws_style           = nnwm_ws_style::SLIDE;
+    cfg->fx.animation.layout_style       = nnwm_layout_anim::TWEEN;
+    cfg->fx.animation.focus_style        = nnwm_focus_style::CROSSFADE;
+    cfg->fx.animation.open_easing        = -1; /* inherit global */
+    cfg->fx.animation.close_easing       = -1;
+    cfg->fx.animation.ws_easing          = -1;
+    cfg->fx.animation.layout_easing      = -1;
+    cfg->fx.animation.focus_easing       = -1;
+    cfg->fx.animation.open_duration_ms   = 0; /* inherit global */
+    cfg->fx.animation.close_duration_ms  = 0;
+    cfg->fx.animation.ws_duration_ms     = 0;
+    cfg->fx.animation.layout_duration_ms = 0;
+    cfg->fx.animation.focus_duration_ms  = 0;
 #endif /* HAVE_SCENEFX */
 
     cfg->monitor_configs      = nullptr;
@@ -1869,8 +1869,8 @@ nnwm::config_free(struct nnwm_config *cfg)
         return;
     free(cfg->cursor_theme);
     free(cfg->seat_name);
-    free(cfg->xkb_options);
-    free(cfg->titlebar_font);
+    free(cfg->keyboard.xkb_options);
+    free(cfg->titlebar.font);
     for (int i = 0; i < cfg->monitor_config_count; i++)
     {
         auto &mc = cfg->monitor_configs[i];
