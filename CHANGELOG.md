@@ -413,3 +413,16 @@
   promotes it to master (not second position), and swapping the master backward
   now demotes it to last (not second-to-last). Wrap-around direction matches
   `focus_next`/`focus_prev`.
+- **Popup submenu appears at wrong position**: submenus (popup-of-popup, e.g.
+  the waybar wifi module's right-click submenu) were placed at the left edge of
+  the monitor instead of next to the parent menu entry. The root cause was that
+  `wlr_xdg_popup_unconstrain_from_box` expects the constraint box in the root
+  surface's coordinate space (the toplevel or layer surface that anchors the
+  entire popup chain), but the constraint was computed relative to the immediate
+  parent popup's scene tree. For sub-popups this produced a badly offset
+  constraint box that caused the flip/slide algorithm to push the submenu to the
+  output's left edge. Fixed by introducing a `root_tree` field on `nnwm_popup`
+  (set by walking up the xdg popup ancestor chain to the owning toplevel or layer
+  surface) and using `root_tree` for coordinate calculation in
+  `wlr_xdg_popup_unconstrain_from_box`. The scene parenting (`parent_tree`)
+  is unchanged.
