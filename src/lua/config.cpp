@@ -126,17 +126,17 @@ parse_easing(const char *s, nnwm_easing dflt)
     if (!s)
         return dflt;
     if (strcmp(s, "linear") == 0)
-        return NNWM_EASE_LINEAR;
+        return nnwm_easing::LINEAR;
     if (strcmp(s, "ease_in") == 0)
-        return NNWM_EASE_IN;
+        return nnwm_easing::IN;
     if (strcmp(s, "ease_out") == 0)
-        return NNWM_EASE_OUT;
+        return nnwm_easing::OUT;
     if (strcmp(s, "ease_in_out") == 0)
-        return NNWM_EASE_IN_OUT;
+        return nnwm_easing::IN_OUT;
     if (strcmp(s, "bounce") == 0)
-        return NNWM_EASE_BOUNCE;
+        return nnwm_easing::BOUNCE;
     if (strcmp(s, "elastic") == 0)
-        return NNWM_EASE_ELASTIC;
+        return nnwm_easing::ELASTIC;
     return dflt;
 }
 
@@ -146,21 +146,21 @@ parse_open_style(const char *s, nnwm_open_style dflt)
     if (!s)
         return dflt;
     if (strcmp(s, "fade_scale") == 0)
-        return NNWM_OPEN_FADE_SCALE;
+        return nnwm_open_style::FADE_SCALE;
     if (strcmp(s, "fade") == 0)
-        return NNWM_OPEN_FADE;
+        return nnwm_open_style::FADE;
     if (strcmp(s, "scale") == 0)
-        return NNWM_OPEN_SCALE;
+        return nnwm_open_style::SCALE;
     if (strcmp(s, "slide_up") == 0)
-        return NNWM_OPEN_SLIDE_UP;
+        return nnwm_open_style::SLIDE_UP;
     if (strcmp(s, "slide_down") == 0)
-        return NNWM_OPEN_SLIDE_DOWN;
+        return nnwm_open_style::SLIDE_DOWN;
     if (strcmp(s, "slide_left") == 0)
-        return NNWM_OPEN_SLIDE_LEFT;
+        return nnwm_open_style::SLIDE_LEFT;
     if (strcmp(s, "slide_right") == 0)
-        return NNWM_OPEN_SLIDE_RIGHT;
+        return nnwm_open_style::SLIDE_RIGHT;
     if (strcmp(s, "none") == 0)
-        return NNWM_OPEN_NONE;
+        return nnwm_open_style::NONE;
     return dflt;
 }
 #endif /* HAVE_SCENEFX */
@@ -968,7 +968,7 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     {
         const char *easing_names[] = {"ease_out",    "linear", "ease_in",
                                       "ease_in_out", "bounce", "elastic"};
-        lua_pushstring(L, easing_names[cfg->anim_easing]);
+        lua_pushstring(L, easing_names[static_cast<int>(cfg->anim_easing)]);
         lua_setfield(L, -2, "easing");
     }
     /* open sub-table */
@@ -977,7 +977,7 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         const char *open_names[]
             = {"fade_scale", "fade",       "scale",       "slide_up",
                "slide_down", "slide_left", "slide_right", "none"};
-        lua_pushstring(L, open_names[cfg->anim_open_style]);
+        lua_pushstring(L, open_names[static_cast<int>(cfg->anim_open_style)]);
         lua_setfield(L, -2, "style");
     }
     lua_pushinteger(L, cfg->anim_open_duration_ms);
@@ -1000,7 +1000,7 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         const char *open_names[]
             = {"fade_scale", "fade",       "scale",       "slide_up",
                "slide_down", "slide_left", "slide_right", "none"};
-        lua_pushstring(L, open_names[cfg->anim_close_style]);
+        lua_pushstring(L, open_names[static_cast<int>(cfg->anim_close_style)]);
         lua_setfield(L, -2, "style");
     }
     lua_pushinteger(L, cfg->anim_close_duration_ms);
@@ -1021,7 +1021,7 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_newtable(L);
     {
         const char *ws_names[] = {"slide", "fade", "none"};
-        lua_pushstring(L, ws_names[cfg->anim_ws_style]);
+        lua_pushstring(L, ws_names[static_cast<int>(cfg->anim_ws_style)]);
         lua_setfield(L, -2, "style");
     }
     lua_pushinteger(L, cfg->anim_ws_duration_ms);
@@ -1040,8 +1040,9 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "workspace");
     /* layout sub-table */
     lua_newtable(L);
-    lua_pushstring(L, cfg->anim_layout_style == NNWM_LAYOUT_TWEEN ? "tween"
-                                                                  : "none");
+    lua_pushstring(L, cfg->anim_layout_style == nnwm_layout_anim::TWEEN
+                          ? "tween"
+                          : "none");
     lua_setfield(L, -2, "style");
     lua_pushinteger(L, cfg->anim_layout_duration_ms);
     lua_setfield(L, -2, "duration");
@@ -1059,7 +1060,7 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "layout");
     /* focus sub-table */
     lua_newtable(L);
-    lua_pushstring(L, cfg->anim_focus_style == NNWM_FOCUS_CROSSFADE
+    lua_pushstring(L, cfg->anim_focus_style == nnwm_focus_style::CROSSFADE
                           ? "crossfade"
                           : "none");
     lua_setfield(L, -2, "style");
@@ -1457,7 +1458,7 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 if (e)
                 {
                     cfg->anim_open_easing
-                        = (int)parse_easing(e, cfg->anim_easing);
+                        = static_cast<int>(parse_easing(e, cfg->anim_easing));
                     free(e);
                 }
             }
@@ -1479,7 +1480,7 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 if (e)
                 {
                     cfg->anim_close_easing
-                        = (int)parse_easing(e, cfg->anim_easing);
+                        = static_cast<int>(parse_easing(e, cfg->anim_easing));
                     free(e);
                 }
             }
@@ -1492,11 +1493,11 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 if (s)
                 {
                     if (strcmp(s, "slide") == 0)
-                        cfg->anim_ws_style = NNWM_WS_SLIDE;
+                        cfg->anim_ws_style = nnwm_ws_style::SLIDE;
                     else if (strcmp(s, "fade") == 0)
-                        cfg->anim_ws_style = NNWM_WS_FADE;
+                        cfg->anim_ws_style = nnwm_ws_style::FADE;
                     else if (strcmp(s, "none") == 0)
-                        cfg->anim_ws_style = NNWM_WS_NONE;
+                        cfg->anim_ws_style = nnwm_ws_style::NONE;
                     free(s);
                 }
                 cfg->anim_ws_duration_ms
@@ -1505,7 +1506,7 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 if (e)
                 {
                     cfg->anim_ws_easing
-                        = (int)parse_easing(e, cfg->anim_easing);
+                        = static_cast<int>(parse_easing(e, cfg->anim_easing));
                     free(e);
                 }
             }
@@ -1518,9 +1519,9 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 if (s)
                 {
                     if (strcmp(s, "tween") == 0)
-                        cfg->anim_layout_style = NNWM_LAYOUT_TWEEN;
+                        cfg->anim_layout_style = nnwm_layout_anim::TWEEN;
                     else if (strcmp(s, "none") == 0)
-                        cfg->anim_layout_style = NNWM_LAYOUT_ANIM_NONE;
+                        cfg->anim_layout_style = nnwm_layout_anim::NONE;
                     free(s);
                 }
                 cfg->anim_layout_duration_ms = get_int_field(
@@ -1529,7 +1530,7 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 if (e)
                 {
                     cfg->anim_layout_easing
-                        = (int)parse_easing(e, cfg->anim_easing);
+                        = static_cast<int>(parse_easing(e, cfg->anim_easing));
                     free(e);
                 }
             }
@@ -1542,9 +1543,9 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 if (s)
                 {
                     if (strcmp(s, "crossfade") == 0)
-                        cfg->anim_focus_style = NNWM_FOCUS_CROSSFADE;
+                        cfg->anim_focus_style = nnwm_focus_style::CROSSFADE;
                     else if (strcmp(s, "none") == 0)
-                        cfg->anim_focus_style = NNWM_FOCUS_NONE;
+                        cfg->anim_focus_style = nnwm_focus_style::NONE;
                     free(s);
                 }
                 cfg->anim_focus_duration_ms
@@ -1553,7 +1554,7 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 if (e)
                 {
                     cfg->anim_focus_easing
-                        = (int)parse_easing(e, cfg->anim_easing);
+                        = static_cast<int>(parse_easing(e, cfg->anim_easing));
                     free(e);
                 }
             }
@@ -1834,12 +1835,12 @@ nnwm::config_defaults(void)
 #ifdef HAVE_SCENEFX
     cfg->anim_enabled            = true;
     cfg->anim_duration_ms        = 250;
-    cfg->anim_easing             = NNWM_EASE_OUT;
-    cfg->anim_open_style         = NNWM_OPEN_FADE_SCALE;
-    cfg->anim_close_style        = NNWM_OPEN_FADE;
-    cfg->anim_ws_style           = NNWM_WS_SLIDE;
-    cfg->anim_layout_style       = NNWM_LAYOUT_TWEEN;
-    cfg->anim_focus_style        = NNWM_FOCUS_CROSSFADE;
+    cfg->anim_easing             = nnwm_easing::OUT;
+    cfg->anim_open_style         = nnwm_open_style::FADE_SCALE;
+    cfg->anim_close_style        = nnwm_open_style::FADE;
+    cfg->anim_ws_style           = nnwm_ws_style::SLIDE;
+    cfg->anim_layout_style       = nnwm_layout_anim::TWEEN;
+    cfg->anim_focus_style        = nnwm_focus_style::CROSSFADE;
     cfg->anim_open_easing        = -1; /* inherit global */
     cfg->anim_close_easing       = -1;
     cfg->anim_ws_easing          = -1;

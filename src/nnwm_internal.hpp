@@ -63,7 +63,7 @@ struct nnwm_toplevel *desktop_toplevel_at(struct nnwm_server *server,
                                           double *sx, double *sy);
 void reset_cursor_mode(struct nnwm_server *server);
 void begin_interactive(struct nnwm_toplevel *toplevel,
-                       enum nnwm_cursor_mode mode, uint32_t edges);
+                       nnwm_cursor_mode mode, uint32_t edges);
 void process_cursor_motion(struct nnwm_server *server, uint32_t time,
                            bool real_motion = false);
 

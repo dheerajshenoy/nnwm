@@ -328,7 +328,7 @@ begin_interactive(nnwm_toplevel *toplevel, nnwm_cursor_mode mode,
     server->grabbed_toplevel = toplevel;
     server->cursor_mode      = mode;
 
-    if (mode == NNWM_CURSOR_MOVE)
+    if (mode == nnwm_cursor_mode::MOVE)
     {
         server->grab_x = server->cursor->x - toplevel->scene_tree->node.x;
         server->grab_y = server->cursor->y - toplevel->scene_tree->node.y;
@@ -359,7 +359,7 @@ xdg_toplevel_request_move(wl_listener *listener, void * /*data*/)
 {
     nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, request_move);
     if (toplevel->floating)
-        begin_interactive(toplevel, NNWM_CURSOR_MOVE, 0);
+        begin_interactive(toplevel, nnwm_cursor_mode::MOVE, 0);
 }
 
 void
@@ -370,7 +370,7 @@ xdg_toplevel_request_resize(wl_listener *listener, void *data)
     if (toplevel->floating)
     {
         auto *event = static_cast<wlr_xdg_toplevel_resize_event *>(data);
-        begin_interactive(toplevel, NNWM_CURSOR_RESIZE, event->edges);
+        begin_interactive(toplevel, nnwm_cursor_mode::RESIZE, event->edges);
     }
 }
 
@@ -480,7 +480,7 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     toplevel->geo_duration_ms        = toplevel->fade_duration_ms
         = toplevel->bcol_duration_ms = 0;
     toplevel->geo_easing = toplevel->fade_easing = toplevel->bcol_easing
-        = NNWM_EASE_OUT;
+        = nnwm_easing::OUT;
     toplevel->dying = false;
     wl_list_init(&toplevel->dying_link);
 #endif

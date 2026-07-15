@@ -165,11 +165,11 @@ struct nnwm_lua_keybinding
 struct nnwm_decoration; /* forward declaration — defined below nnwm_toplevel */
 
 /* For brevity's sake, struct members are annotated where they are used. */
-enum nnwm_cursor_mode
+enum class nnwm_cursor_mode
 {
-    NNWM_CURSOR_PASSTHROUGH,
-    NNWM_CURSOR_MOVE,
-    NNWM_CURSOR_RESIZE,
+    PASSTHROUGH,
+    MOVE,
+    RESIZE,
 };
 
 struct nnwm_server
@@ -217,7 +217,7 @@ struct nnwm_server
     struct wl_listener pointer_focus_change;
     struct wl_listener request_set_selection;
     struct wl_list keyboards;
-    enum nnwm_cursor_mode cursor_mode;
+    nnwm_cursor_mode cursor_mode;
     struct nnwm_toplevel *grabbed_toplevel;
     double grab_x, grab_y;
     struct wlr_box grab_geobox;

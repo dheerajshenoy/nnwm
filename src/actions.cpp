@@ -455,11 +455,11 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
         int ws_dur             = eff_duration(cfg, cfg->anim_ws_duration_ms);
         nnwm_easing ws_ease    = eff_easing(cfg, cfg->anim_ws_easing);
 
-        if (ws_style == NNWM_WS_NONE)
+        if (ws_style == nnwm_ws_style::NONE)
         {
             /* No animation — nothing extra to do */
         }
-        else if (ws_style == NNWM_WS_FADE)
+        else if (ws_style == nnwm_ws_style::FADE)
         {
             wl_list_for_each(tl, &server->toplevels, link)
             {
@@ -481,7 +481,7 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
         }
         else
         {
-            /* NNWM_WS_SLIDE — default behavior */
+            /* nnwm_ws_style::SLIDE — default behavior */
             wlr_box area;
             wlr_output_layout_get_box(server->output_layout, out->wlr_output,
                                       &area);

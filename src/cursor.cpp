@@ -93,7 +93,7 @@ tab_toplevel_at(nnwm_server *server, double lx, double ly)
 void
 reset_cursor_mode(nnwm_server *server)
 {
-    server->cursor_mode      = NNWM_CURSOR_PASSTHROUGH;
+    server->cursor_mode      = nnwm_cursor_mode::PASSTHROUGH;
     server->grabbed_toplevel = nullptr;
 }
 
@@ -182,12 +182,12 @@ process_cursor_resize(nnwm_server *server)
 void
 process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
 {
-    if (server->cursor_mode == NNWM_CURSOR_MOVE)
+    if (server->cursor_mode == nnwm_cursor_mode::MOVE)
     {
         process_cursor_move(server);
         return;
     }
-    else if (server->cursor_mode == NNWM_CURSOR_RESIZE)
+    else if (server->cursor_mode == nnwm_cursor_mode::RESIZE)
     {
         process_cursor_resize(server);
         return;
@@ -315,7 +315,7 @@ server_cursor_button(wl_listener *listener, void *data)
 
     if (event->state == WL_POINTER_BUTTON_STATE_RELEASED)
     {
-        if (server->cursor_mode != NNWM_CURSOR_PASSTHROUGH)
+        if (server->cursor_mode != nnwm_cursor_mode::PASSTHROUGH)
         {
             /* Ending a compositor move/resize — don't forward to the window;
              * it never received the matching press either. */
@@ -360,9 +360,9 @@ server_cursor_button(wl_listener *listener, void *data)
         }
         focus_toplevel(toplevel);
         if (event->button == BTN_LEFT)
-            begin_interactive(toplevel, NNWM_CURSOR_MOVE, 0);
+            begin_interactive(toplevel, nnwm_cursor_mode::MOVE, 0);
         else if (event->button == BTN_RIGHT)
-            begin_interactive(toplevel, NNWM_CURSOR_RESIZE,
+            begin_interactive(toplevel, nnwm_cursor_mode::RESIZE,
                               WLR_EDGE_BOTTOM | WLR_EDGE_RIGHT);
         return; /* press not forwarded to the window */
     }

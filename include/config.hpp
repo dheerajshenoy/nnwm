@@ -13,46 +13,46 @@ extern "C"
 #endif
 
 #ifdef HAVE_SCENEFX
-typedef enum nnwm_easing
+enum class nnwm_easing
 {
-    NNWM_EASE_OUT = 0,
-    NNWM_EASE_LINEAR,
-    NNWM_EASE_IN,
-    NNWM_EASE_IN_OUT,
-    NNWM_EASE_BOUNCE,
-    NNWM_EASE_ELASTIC,
-} nnwm_easing;
+    OUT = 0,
+    LINEAR,
+    IN,
+    IN_OUT,
+    BOUNCE,
+    ELASTIC,
+};
 
-typedef enum nnwm_open_style
+enum class nnwm_open_style
 {
-    NNWM_OPEN_FADE_SCALE = 0,
-    NNWM_OPEN_FADE,
-    NNWM_OPEN_SCALE,
-    NNWM_OPEN_SLIDE_UP,
-    NNWM_OPEN_SLIDE_DOWN,
-    NNWM_OPEN_SLIDE_LEFT,
-    NNWM_OPEN_SLIDE_RIGHT,
-    NNWM_OPEN_NONE,
-} nnwm_open_style;
+    FADE_SCALE = 0,
+    FADE,
+    SCALE,
+    SLIDE_UP,
+    SLIDE_DOWN,
+    SLIDE_LEFT,
+    SLIDE_RIGHT,
+    NONE,
+};
 
-typedef enum nnwm_ws_style
+enum class nnwm_ws_style
 {
-    NNWM_WS_SLIDE = 0,
-    NNWM_WS_FADE,
-    NNWM_WS_NONE,
-} nnwm_ws_style;
+    SLIDE = 0,
+    FADE,
+    NONE,
+};
 
-typedef enum nnwm_layout_anim
+enum class nnwm_layout_anim
 {
-    NNWM_LAYOUT_TWEEN = 0,
-    NNWM_LAYOUT_ANIM_NONE,
-} nnwm_layout_anim;
+    TWEEN = 0,
+    NONE,
+};
 
-typedef enum nnwm_focus_style
+enum class nnwm_focus_style
 {
-    NNWM_FOCUS_CROSSFADE = 0,
-    NNWM_FOCUS_NONE,
-} nnwm_focus_style;
+    CROSSFADE = 0,
+    NONE,
+};
 #endif /* HAVE_SCENEFX */
 
 struct nnwm_window_rule

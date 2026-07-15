@@ -162,20 +162,20 @@ apply_easing(nnwm_easing e, float t)
 {
     switch (e)
     {
-        case NNWM_EASE_LINEAR:
+        case nnwm_easing::LINEAR:
             return t;
-        case NNWM_EASE_IN:
+        case nnwm_easing::IN:
             return t * t * t;
         default:
-        case NNWM_EASE_OUT:
+        case nnwm_easing::OUT:
         {
             float f = 1.0f - t;
             return 1.0f - f * f * f;
         }
-        case NNWM_EASE_IN_OUT:
+        case nnwm_easing::IN_OUT:
             return t < 0.5f ? 4.0f * t * t * t
                             : 1.0f - powf(-2.0f * t + 2.0f, 3.0f) * 0.5f;
-        case NNWM_EASE_BOUNCE:
+        case nnwm_easing::BOUNCE:
         {
             const float n1 = 7.5625f, d1 = 2.75f;
             if (t < 1.0f / d1)
@@ -195,7 +195,7 @@ apply_easing(nnwm_easing e, float t)
                 return n1 * t * t + 0.984375f;
             }
         }
-        case NNWM_EASE_ELASTIC:
+        case nnwm_easing::ELASTIC:
         {
             const float c4 = (2.0f * (float)M_PI) / 3.0f;
             if (t <= 0.0f)
@@ -323,47 +323,50 @@ tl_set_geometry(nnwm_toplevel *tl, int x, int y, int w, int h, int bw)
             /* First layout: open style determines the from-position.
              * tl_open_anim() will override duration/easing for the open anim;
              * for non-first layouts we use the layout easing/duration. */
-            int open_style = tl->rule_no_anim == 1 ? NNWM_OPEN_NONE
-                             : tl->rule_anim_open_style >= 0
-                                 ? tl->rule_anim_open_style
-                                 : (int)cfg->anim_open_style;
+            nnwm_open_style open_style
+                = tl->rule_no_anim == 1
+                      ? nnwm_open_style::NONE
+                      : tl->rule_anim_open_style >= 0
+                            ? static_cast<nnwm_open_style>(
+                                  tl->rule_anim_open_style)
+                            : cfg->anim_open_style;
             int sw = (int)(w * 0.95f), sh = (int)(h * 0.95f);
-            switch ((nnwm_open_style)open_style)
+            switch (open_style)
             {
                 default:
-                case NNWM_OPEN_FADE_SCALE:
-                case NNWM_OPEN_SCALE:
+                case nnwm_open_style::FADE_SCALE:
+                case nnwm_open_style::SCALE:
                     tl->geo_from_x = x + (w - sw) / 2;
                     tl->geo_from_y = y + (h - sh) / 2;
                     tl->geo_from_w = sw;
                     tl->geo_from_h = sh;
                     break;
-                case NNWM_OPEN_SLIDE_UP:
+                case nnwm_open_style::SLIDE_UP:
                     tl->geo_from_x = x;
                     tl->geo_from_y = y + h;
                     tl->geo_from_w = w;
                     tl->geo_from_h = h;
                     break;
-                case NNWM_OPEN_SLIDE_DOWN:
+                case nnwm_open_style::SLIDE_DOWN:
                     tl->geo_from_x = x;
                     tl->geo_from_y = y - h;
                     tl->geo_from_w = w;
                     tl->geo_from_h = h;
                     break;
-                case NNWM_OPEN_SLIDE_LEFT:
+                case nnwm_open_style::SLIDE_LEFT:
                     tl->geo_from_x = x + w;
                     tl->geo_from_y = y;
                     tl->geo_from_w = w;
                     tl->geo_from_h = h;
                     break;
-                case NNWM_OPEN_SLIDE_RIGHT:
+                case nnwm_open_style::SLIDE_RIGHT:
                     tl->geo_from_x = x - w;
                     tl->geo_from_y = y;
                     tl->geo_from_w = w;
                     tl->geo_from_h = h;
                     break;
-                case NNWM_OPEN_FADE:
-                case NNWM_OPEN_NONE:
+                case nnwm_open_style::FADE:
+                case nnwm_open_style::NONE:
                     tl->geo_from_x = x;
                     tl->geo_from_y = y;
                     tl->geo_from_w = w;
@@ -374,7 +377,7 @@ tl_set_geometry(nnwm_toplevel *tl, int x, int y, int w, int h, int bw)
         else
         {
             /* Skip geo animation if layout anim is disabled */
-            if (cfg->anim_layout_style == NNWM_LAYOUT_ANIM_NONE)
+            if (cfg->anim_layout_style == nnwm_layout_anim::NONE)
             {
                 tl->geo_anim = false;
                 tl->cur_x    = x;
@@ -447,22 +450,24 @@ tl_open_anim(nnwm_toplevel *tl)
     if (!cfg->anim_enabled)
         return;
 
-    int open_style   = tl->rule_no_anim == 1 ? NNWM_OPEN_NONE
-                       : tl->rule_anim_open_style >= 0
-                           ? tl->rule_anim_open_style
-                           : (int)cfg->anim_open_style;
+    nnwm_open_style open_style
+        = tl->rule_no_anim == 1
+              ? nnwm_open_style::NONE
+              : tl->rule_anim_open_style >= 0
+                    ? static_cast<nnwm_open_style>(tl->rule_anim_open_style)
+                    : cfg->anim_open_style;
     int dur          = eff_duration(cfg, cfg->anim_open_duration_ms);
     nnwm_easing ease = eff_easing(cfg, cfg->anim_open_easing);
 
     float target_op
         = (tl->rule_opacity >= 0.0f) ? tl->rule_opacity : cfg->opacity;
 
-    bool do_fade
-        = (open_style != NNWM_OPEN_SCALE && open_style != NNWM_OPEN_NONE);
-    bool do_scale
-        = (open_style == NNWM_OPEN_FADE_SCALE || open_style == NNWM_OPEN_SCALE);
-    bool do_slide = (open_style >= NNWM_OPEN_SLIDE_UP
-                     && open_style <= NNWM_OPEN_SLIDE_RIGHT);
+    bool do_fade = (open_style != nnwm_open_style::SCALE
+                    && open_style != nnwm_open_style::NONE);
+    bool do_scale = (open_style == nnwm_open_style::FADE_SCALE
+                     || open_style == nnwm_open_style::SCALE);
+    bool do_slide = (open_style >= nnwm_open_style::SLIDE_UP
+                     && open_style <= nnwm_open_style::SLIDE_RIGHT);
 
     if (do_fade)
         tl_start_fade(tl, 0.0f, target_op, dur, ease);
@@ -472,7 +477,7 @@ tl_open_anim(nnwm_toplevel *tl)
         set_opacity_recursive(tl->scene_surface, target_op);
     }
 
-    if (open_style == NNWM_OPEN_NONE)
+    if (open_style == nnwm_open_style::NONE)
     {
         tl->geo_anim = false;
         /* Apply target position immediately */
@@ -517,19 +522,21 @@ tl_close_anim(nnwm_toplevel *tl)
         return;
     }
 
-    int close_style  = tl->rule_no_anim == 1 ? NNWM_OPEN_NONE
-                       : tl->rule_anim_close_style >= 0
-                           ? tl->rule_anim_close_style
-                           : (int)cfg->anim_close_style;
+    nnwm_open_style close_style
+        = tl->rule_no_anim == 1
+              ? nnwm_open_style::NONE
+              : tl->rule_anim_close_style >= 0
+                    ? static_cast<nnwm_open_style>(tl->rule_anim_close_style)
+                    : cfg->anim_close_style;
     int dur          = eff_duration(cfg, cfg->anim_close_duration_ms);
     nnwm_easing ease = eff_easing(cfg, cfg->anim_close_easing);
 
     float cur_op = (tl->rule_opacity >= 0.0f) ? tl->rule_opacity : cfg->opacity;
 
-    bool do_fade
-        = (close_style != NNWM_OPEN_SCALE && close_style != NNWM_OPEN_NONE);
-    bool do_slide = (close_style >= NNWM_OPEN_SLIDE_UP
-                     && close_style <= NNWM_OPEN_SLIDE_RIGHT);
+    bool do_fade = (close_style != nnwm_open_style::SCALE
+                    && close_style != nnwm_open_style::NONE);
+    bool do_slide = (close_style >= nnwm_open_style::SLIDE_UP
+                     && close_style <= nnwm_open_style::SLIDE_RIGHT);
 
     if (do_fade)
         tl_start_fade(tl, cur_op, 0.0f, dur, ease);
@@ -538,18 +545,18 @@ tl_close_anim(nnwm_toplevel *tl)
     {
         int dx = 0, dy = 0;
         int w = tl->cur_w, h = tl->cur_h;
-        switch ((nnwm_open_style)close_style)
+        switch (close_style)
         {
-            case NNWM_OPEN_SLIDE_UP:
+            case nnwm_open_style::SLIDE_UP:
                 dy = -h;
                 break;
-            case NNWM_OPEN_SLIDE_DOWN:
+            case nnwm_open_style::SLIDE_DOWN:
                 dy = +h;
                 break;
-            case NNWM_OPEN_SLIDE_LEFT:
+            case nnwm_open_style::SLIDE_LEFT:
                 dx = -w;
                 break;
-            case NNWM_OPEN_SLIDE_RIGHT:
+            case nnwm_open_style::SLIDE_RIGHT:
                 dx = +w;
                 break;
             default:
@@ -570,7 +577,7 @@ tl_close_anim(nnwm_toplevel *tl)
         tl->geo_then_hide   = false;
     }
 
-    if (close_style == NNWM_OPEN_NONE)
+    if (close_style == nnwm_open_style::NONE)
     {
         tl->dying = false;
     }
@@ -586,7 +593,7 @@ tl_start_border_color(nnwm_toplevel *tl, const float to[4])
     nnwm_config *cfg    = tl->server->config;
     nnwm_focus_style fs = cfg->anim_focus_style;
 
-    if (!cfg->anim_enabled || fs == NNWM_FOCUS_NONE)
+    if (!cfg->anim_enabled || fs == nnwm_focus_style::NONE)
     {
         for (int i = 0; i < 4; i++)
             tl->bcol_to[i] = to[i];
