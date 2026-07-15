@@ -721,12 +721,13 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         wl_list_for_each(tl, &server->toplevels, link) {
             if (!WS_TILED(tl, out)) continue;
             wlr_scene_node_set_enabled(&tl->scene_tree->node, tl == active);
-            if (tl->titlebar)
-                wlr_scene_node_set_enabled(&tl->titlebar->node, false);
             wlr_xdg_toplevel_set_size(tl->xdg_toplevel, cw - 2 * bw, ch - 2 * bw);
             tl_set_geometry(tl, cx, cy, cw, ch, bw);
-            /* Override scene_surface position: no per-window titlebar offset */
+            /* Override scene_surface position: no per-window titlebar offset.
+             * Must happen after tl_set_geometry which re-enables the titlebar. */
             wlr_scene_node_set_position(&tl->scene_surface->node, bw, bw);
+            if (tl->titlebar)
+                wlr_scene_node_set_enabled(&tl->titlebar->node, false);
         }
 
         if (n > 0) {
