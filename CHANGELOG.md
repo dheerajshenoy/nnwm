@@ -56,6 +56,12 @@
 - **Sloppy focus improvement**: `focus_follows_mouse` now uses enter/leave
   surface events rather than polling cursor motion, making focus transfers more
   reliable and eliminating spurious refocuses during window rearrangement.
+- **Titlebar hidden in tabbed layout**: per-window titlebars are suppressed when
+  the workspace is in tabbed mode. The shared tab bar already provides window
+  titles; showing individual titlebars was redundant and wasted vertical space.
+- **Titlebar hidden in fullscreen**: entering fullscreen now hides the titlebar
+  and removes its vertical offset, giving the window the full output area.
+  Exiting fullscreen restores the titlebar through the normal layout path.
 - **scenefx rounded corners**: when `nnwm.opt.fx.corner_radius` is set, window
   borders are now drawn with correct rounded outer corners. The top border rect
   rounds its two top corners; the bottom rect rounds its two bottom corners;
