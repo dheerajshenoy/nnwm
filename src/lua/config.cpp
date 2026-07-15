@@ -855,10 +855,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_pushnumber(L, cfg->blur_saturation);
     lua_setfield(L, -2, "saturation");
     lua_setfield(L, -2, "blur");
-    lua_setfield(L, -2, "fx");
-
 #ifdef HAVE_SCENEFX
-    /* animation sub-table */
+    /* animations sub-table (nested inside fx) */
     lua_newtable(L);
     lua_pushboolean(L, cfg->anim_enabled);
     lua_setfield(L, -2, "enabled");
@@ -949,8 +947,9 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     }
     lua_setfield(L, -2, "easing");
     lua_setfield(L, -2, "focus");
-    lua_setfield(L, -2, "animation");
+    lua_setfield(L, -2, "animations");
 #endif /* HAVE_SCENEFX */
+    lua_setfield(L, -2, "fx");
 
     /* monitors: empty table (user populates in config file) */
     lua_newtable(L);
@@ -1203,12 +1202,9 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
             cfg->blur_saturation   = get_float_field(L, "saturation", cfg->blur_saturation);
         }
         lua_pop(L, 1);
-    }
-    lua_pop(L, 1);
-
 #ifdef HAVE_SCENEFX
-    lua_getfield(L, -1, "animation");
-    if (lua_istable(L, -1)) {
+        lua_getfield(L, -1, "animations");
+        if (lua_istable(L, -1)) {
         cfg->anim_enabled     = get_bool_field(L, "enabled",  cfg->anim_enabled);
         cfg->anim_duration_ms = get_int_field(L,  "duration", cfg->anim_duration_ms);
         /* global easing */
@@ -1279,9 +1275,11 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
             if (e) { cfg->anim_focus_easing = (int)parse_easing(e, cfg->anim_easing); free(e); }
         }
         lua_pop(L, 1);
-    }
-    lua_pop(L, 1);
+        }
+        lua_pop(L, 1); /* pop animations or nil */
 #endif /* HAVE_SCENEFX */
+    }
+    lua_pop(L, 1); /* pop fx or nil */
 
     lua_pop(L, 2); /* pop opt and nnwm */
 

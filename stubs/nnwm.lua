@@ -78,10 +78,11 @@ MOD = {}
 
 ---@class nnwm.fx
 ---Only active when built with `USE_SCENEFX=ON` and running on real DRM hardware.
----@field corner_radius? integer      Window corner radius in pixels; 0 disables (default: 0)
----@field opacity?       number       Window content opacity: 0.0 (invisible) – 1.0 (opaque) (default: 1.0)
+---@field corner_radius? integer        Window corner radius in pixels; 0 disables (default: 0)
+---@field opacity?       number         Window content opacity: 0.0 (invisible) – 1.0 (opaque) (default: 1.0)
 ---@field shadow?        nnwm.fx.shadow
 ---@field blur?          nnwm.fx.blur
+---@field animations?    nnwm.animations  Animation settings (sceneFX only)
 
 ---@class nnwm_anim_type_config
 ---@field style?    string   Style for this animation type (depends on type)
@@ -107,7 +108,6 @@ MOD = {}
 ---@field mouse?              nnwm.mouse
 ---@field titlebar?           nnwm.titlebar
 ---@field fx?                 nnwm.fx
----@field animations?         nnwm.animations
 ---@field client_decorations? boolean
 ---@field seat_name?          string
 ---@field monitors?           nnwm_monitor_config[]
