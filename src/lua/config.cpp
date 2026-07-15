@@ -920,8 +920,12 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
 
     /* fx sub-table (scenefx: corner radius and shadows) */
     lua_newtable(L);
-    lua_pushinteger(L, cfg->fx.corner_radius);
-    lua_setfield(L, -2, "corner_radius");
+    lua_newtable(L);
+    lua_pushinteger(L, cfg->fx.rounding.radius);
+    lua_setfield(L, -2, "radius");
+    lua_pushboolean(L, cfg->fx.rounding.smart);
+    lua_setfield(L, -2, "smart");
+    lua_setfield(L, -2, "rounding");
     lua_newtable(L);
     lua_pushboolean(L, cfg->fx.shadow_enabled);
     lua_setfield(L, -2, "enabled");
@@ -1391,8 +1395,15 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     lua_getfield(L, -1, "fx");
     if (lua_istable(L, -1))
     {
-        cfg->fx.corner_radius
-            = get_int_field(L, "corner_radius", cfg->fx.corner_radius);
+        lua_getfield(L, -1, "rounding");
+        if (lua_istable(L, -1))
+        {
+            cfg->fx.rounding.radius
+                = get_int_field(L, "radius", cfg->fx.rounding.radius);
+            cfg->fx.rounding.smart
+                = get_bool_field(L, "smart", cfg->fx.rounding.smart);
+            lua_pop(L, 1);
+        }
         lua_getfield(L, -1, "shadow");
         if (lua_istable(L, -1))
         {
@@ -1762,7 +1773,8 @@ nnwm::config_defaults(void)
     cfg->scroll_column_width = 0.5f;
     cfg->scroll_row_height   = 0.5f;
 
-    cfg->fx.corner_radius     = 0;
+    cfg->fx.rounding.radius = 0;
+    cfg->fx.rounding.smart  = false;
     cfg->fx.shadow_enabled    = false;
     cfg->fx.shadow_blur_sigma = 10.0f;
     cfg->fx.shadow_color[0]   = 0.0f;

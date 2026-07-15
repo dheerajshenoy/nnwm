@@ -239,7 +239,7 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
 #ifdef HAVE_SCENEFX
     /* Inset the 4 strips by corner_radius so they don't override the
      * rounded corners provided by border_bg. */
-    int r  = cfg->fx.corner_radius;
+    int r  = cfg->fx.rounding.radius;
     int tw = width - 2 * r;
     if (tw < 0)
         tw = 0;
@@ -734,8 +734,13 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
 #ifdef HAVE_SCENEFX
     nnwm_config *cfg = toplevel->server->config;
 
-    /* Fullscreen windows have no borders or rounding */
-    int r = toplevel->fullscreen ? 0 : cfg->fx.corner_radius;
+    /* Fullscreen windows have no borders or rounding; smart corner radius
+     * collapses to 0 when only one window is tiled on this output. */
+    int r = cfg->fx.rounding.radius;
+    if (toplevel->fullscreen)
+        r = 0;
+    else if (cfg->fx.rounding.smart && toplevel->output)
+        r = (ws_count(toplevel->server, toplevel->output) == 1) ? 0 : r;
 
     /* border_bg: full-window rect that provides the correctly rounded outer
      * corners. The 4 border strips are inset by r (see update_borders) so

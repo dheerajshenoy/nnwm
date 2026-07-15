@@ -184,7 +184,12 @@ struct nnwm_config
     {
         /* scenefx: corner radius, shadows, blur, opacity (requires HAVE_SCENEFX
          * build flag) */
-        int corner_radius; /* pixels; 0 = disabled */
+        struct rounding
+        {
+            int radius; /* pixels; 0 = disabled */
+            bool smart; /* true = collapse corner radius when only one window
+                           is visible */
+        } rounding;
         bool shadow_enabled;
         float shadow_blur_sigma; /* Gaussian sigma; controls softness */
         float shadow_color[4];   /* RGBA */
