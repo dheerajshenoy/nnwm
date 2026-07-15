@@ -86,14 +86,17 @@
 - [ ] Fake fullscreen mode
 - lua helper functions
     - [x] device_name
-- [ ] Styles of animation
-    - [ ] Ease-out
-    - [ ] Ease-in
-    - [ ] Ease-in-out
+- Styles of animation
+    - [x] ease-out
+    - [x] ease-in
+    - [x] ease-in-out
+    - [x] fade
+    - [x] linear
+    - [x] bounce
 - [ ] Hardware-acceleration
 - [ ] Scratchpad
 - [ ] Multi workspace viewing at once (like dwm)
 - [x] Don't show titlebar in tabbed layout mode (if activated)
 - [x] Don't show titlebar in fullscreen mode
 - [ ] Firefox wierd behavior with window border and scaling
-- [ ] Popup menu appears outside viewport
+- [x] Popup menu appears outside viewport
