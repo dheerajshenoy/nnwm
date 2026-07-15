@@ -13,7 +13,8 @@ extern "C"
 #endif
 
 #ifdef HAVE_SCENEFX
-typedef enum nnwm_easing {
+typedef enum nnwm_easing
+{
     NNWM_EASE_OUT = 0,
     NNWM_EASE_LINEAR,
     NNWM_EASE_IN,
@@ -22,7 +23,8 @@ typedef enum nnwm_easing {
     NNWM_EASE_ELASTIC,
 } nnwm_easing;
 
-typedef enum nnwm_open_style {
+typedef enum nnwm_open_style
+{
     NNWM_OPEN_FADE_SCALE = 0,
     NNWM_OPEN_FADE,
     NNWM_OPEN_SCALE,
@@ -33,18 +35,21 @@ typedef enum nnwm_open_style {
     NNWM_OPEN_NONE,
 } nnwm_open_style;
 
-typedef enum nnwm_ws_style {
+typedef enum nnwm_ws_style
+{
     NNWM_WS_SLIDE = 0,
     NNWM_WS_FADE,
     NNWM_WS_NONE,
 } nnwm_ws_style;
 
-typedef enum nnwm_layout_anim {
+typedef enum nnwm_layout_anim
+{
     NNWM_LAYOUT_TWEEN = 0,
     NNWM_LAYOUT_ANIM_NONE,
 } nnwm_layout_anim;
 
-typedef enum nnwm_focus_style {
+typedef enum nnwm_focus_style
+{
     NNWM_FOCUS_CROSSFADE = 0,
     NNWM_FOCUS_NONE,
 } nnwm_focus_style;
@@ -57,19 +62,19 @@ struct nnwm_window_rule
     char *title;  /* fnmatch glob */
 
     /* Actions — -1 / NULL = unset (don't apply) */
-    int   floating;        /* -1=unset, 0=false, 1=true */
-    int   fullscreen;      /* -1=unset, 0=false, 1=true */
-    int   fake_fullscreen; /* -1=unset, 0=false, 1=true */
-    int   sticky;          /* -1=unset, 0=false, 1=true */
-    int   workspace;  /* -1=unset, 0-8 = workspace index */
-    char *monitor;    /* NULL=unset, output name e.g. "DP-1" */
-    float opacity;    /* <0 = unset (use global); 0.0–1.0 = override */
-    int   blur;       /* -1=unset, 0=disable, 1=enable */
+    int floating;        /* -1=unset, 0=false, 1=true */
+    int fullscreen;      /* -1=unset, 0=false, 1=true */
+    int fake_fullscreen; /* -1=unset, 0=false, 1=true */
+    int sticky;          /* -1=unset, 0=false, 1=true */
+    int workspace;       /* -1=unset, 0-8 = workspace index */
+    char *monitor;       /* NULL=unset, output name e.g. "DP-1" */
+    float opacity;       /* <0 = unset (use global); 0.0–1.0 = override */
+    int blur;            /* -1=unset, 0=disable, 1=enable */
 #ifdef HAVE_SCENEFX
-    int   anim_open_style;   /* -1=unset, else nnwm_open_style */
-    int   anim_close_style;  /* -1=unset, else nnwm_open_style */
-    int   no_anim;           /* -1=unset, 1=disable animations for this window */
-#endif /* HAVE_SCENEFX */
+    int anim_open_style;  /* -1=unset, else nnwm_open_style */
+    int anim_close_style; /* -1=unset, else nnwm_open_style */
+    int no_anim;          /* -1=unset, 1=disable animations for this window */
+#endif                    /* HAVE_SCENEFX */
 };
 
 struct nnwm_monitor_config
@@ -79,20 +84,20 @@ struct nnwm_monitor_config
     char *description; /* "make model serial" combined string */
 
     /* Mode */
-    int width, height;/* pixels; 0 = use preferred mode */
-    int refresh;      /* Hz; 0 = use preferred mode */
+    int width, height; /* pixels; 0 = use preferred mode */
+    int refresh;       /* Hz; 0 = use preferred mode */
 
     /* Position */
-    int x, y;         /* INT_MAX = unset (auto-position) */
+    int x, y; /* INT_MAX = unset (auto-position) */
 
     /* Scale */
-    float scale;      /* <= 0 = default (1.0) */
+    float scale; /* <= 0 = default (1.0) */
 
     /* Transform: -1 = default, otherwise wl_output_transform enum value */
     int transform;
 
-    bool hdr;         /* enable HDR (BT.2020 + ST.2084 PQ); wlroots 0.20+ */
-    bool disabled;    /* disable this output entirely */
+    bool hdr;      /* enable HDR (BT.2020 + ST.2084 PQ); wlroots 0.20+ */
+    bool disabled; /* disable this output entirely */
 };
 
 struct nnwm_config
@@ -135,47 +140,53 @@ struct nnwm_config
     bool focus_follows_mouse;
 
     /* Layout behaviour */
-    bool new_window_master; /* true = new window becomes master, false = appended to stack */
-    float scroll_column_width; /* fraction of output width per column in hscroll layout (0.0–1.0) */
-    float scroll_row_height;   /* fraction of output height per row in vscroll layout (0.0–1.0) */
-    bool center_new_floating; /* center new floating windows on the output when they first map */
+    bool new_window_master;    /* true = new window becomes master, false =
+                                  appended to stack */
+    float scroll_column_width; /* fraction of output width per column in hscroll
+                                  layout (0.0–1.0) */
+    float scroll_row_height;   /* fraction of output height per row in vscroll
+                                  layout (0.0–1.0) */
+    bool center_new_floating;  /* center new floating windows on the output when
+                                  they first map */
 
     /* Decorations */
-    bool client_decorations; /* true = CSD (client draws titlebar), false = SSD (no titlebar) */
+    bool client_decorations; /* true = CSD (client draws titlebar), false = SSD
+                                (no titlebar) */
 
     /* Titlebar (server-side, drawn by compositor) */
-    int   titlebar_height;             /* pixels; 0 = disabled */
-    char *titlebar_font;               /* pango font description, e.g. "Sans Bold 10" */
-    int   titlebar_text_align;         /* 0 = left, 1 = center, 2 = right */
+    int titlebar_height;     /* pixels; 0 = disabled */
+    char *titlebar_font;     /* pango font description, e.g. "Sans Bold 10" */
+    int titlebar_text_align; /* 0 = left, 1 = center, 2 = right */
     float titlebar_bg_color[4];           /* unfocused background RGBA */
     float titlebar_focused_bg_color[4];   /* focused background RGBA */
     float titlebar_text_color[4];         /* unfocused text RGBA */
     float titlebar_focused_text_color[4]; /* focused text RGBA */
 
-    /* scenefx: corner radius, shadows, blur, opacity (requires HAVE_SCENEFX build flag) */
-    int   corner_radius;          /* pixels; 0 = disabled */
-    bool  shadow_enabled;
-    float shadow_blur_sigma;      /* Gaussian sigma; controls softness */
-    float shadow_color[4];        /* RGBA */
-    float shadow_offset_x;        /* pixels */
-    float shadow_offset_y;        /* pixels */
-    float opacity;                /* window content opacity: 0.0–1.0 (default: 1.0) */
-    bool  blur_enabled;
-    int   blur_passes;            /* number of dual-kawase passes (default: 3) */
-    int   blur_radius;            /* blur radius in pixels (default: 5) */
-    float blur_noise;             /* noise to reduce banding (default: 0.0) */
-    float blur_brightness;        /* brightness adjustment (default: 1.0) */
-    float blur_contrast;          /* contrast adjustment (default: 1.0) */
-    float blur_saturation;        /* saturation adjustment (default: 1.0) */
+    /* scenefx: corner radius, shadows, blur, opacity (requires HAVE_SCENEFX
+     * build flag) */
+    int corner_radius; /* pixels; 0 = disabled */
+    bool shadow_enabled;
+    float shadow_blur_sigma; /* Gaussian sigma; controls softness */
+    float shadow_color[4];   /* RGBA */
+    float shadow_offset_x;   /* pixels */
+    float shadow_offset_y;   /* pixels */
+    float opacity; /* window content opacity: 0.0–1.0 (default: 1.0) */
+    bool blur_enabled;
+    int blur_passes;       /* number of dual-kawase passes (default: 3) */
+    int blur_radius;       /* blur radius in pixels (default: 5) */
+    float blur_noise;      /* noise to reduce banding (default: 0.0) */
+    float blur_brightness; /* brightness adjustment (default: 1.0) */
+    float blur_contrast;   /* contrast adjustment (default: 1.0) */
+    float blur_saturation; /* saturation adjustment (default: 1.0) */
 
 #ifdef HAVE_SCENEFX
     /* Animation */
     bool anim_enabled;
-    int  anim_duration_ms;
-    nnwm_easing      anim_easing;          /* global default easing */
-    nnwm_open_style  anim_open_style;
-    nnwm_open_style  anim_close_style;
-    nnwm_ws_style    anim_ws_style;
+    int anim_duration_ms;
+    nnwm_easing anim_easing; /* global default easing */
+    nnwm_open_style anim_open_style;
+    nnwm_open_style anim_close_style;
+    nnwm_ws_style anim_ws_style;
     nnwm_layout_anim anim_layout_style;
     nnwm_focus_style anim_focus_style;
     /* Per-type easing (-1 = inherit global) */
@@ -202,13 +213,18 @@ struct nnwm_config
 };
 
 #ifdef __cplusplus
-namespace nnwm {
-    struct nnwm_config *config_defaults(void);
-    void config_free(struct nnwm_config *cfg);
+namespace nnwm
+{
+struct nnwm_config *
+config_defaults(void);
+void
+config_free(struct nnwm_config *cfg);
 } // namespace nnwm
 #else
-struct nnwm_config *nnwm_config_defaults(void);
-void nnwm_config_free(struct nnwm_config *cfg);
+struct nnwm_config *
+nnwm_config_defaults(void);
+void
+nnwm_config_free(struct nnwm_config *cfg);
 #endif
 
 #endif /* NNWM_CONFIG_HPP */
