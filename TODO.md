@@ -96,6 +96,8 @@
     - [x] fade
     - [x] linear
     - [x] bounce
+- [x] Focused and unfocused opacity
+- [x] Smart corner radius
 - [ ] Hardware-acceleration
 - [ ] Scratchpad
 - [ ] Multi workspace viewing at once (like dwm)
@@ -103,8 +105,6 @@
 - [ ] Overview mode that zooms out and shows all workspaces
 - [ ] Handle minimized windows
 - [ ] Urgent windows
-- [ ] Focused and unfocused opacity
-- [ ] Smart corner radius
 - [ ] Jump label support (like MangoWM)
 - [ ] temporary mouse cursor size increase to regain attention of the cursor
 - [ ] Touchpad gestures
