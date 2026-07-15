@@ -57,15 +57,15 @@ nnwm.opt.fx = {
     shadow = { enabled = true, blur_sigma = 20, color = "#00000088" },
     blur   = { enabled = true, passes = 3, radius = 5 },
     opacity = 0.95,
-}
 
-nnwm.opt.animations = {
-    enabled  = true,
-    duration = 250,         -- ms
-    easing   = "ease_out",
-    open      = { style = "fade_scale" },
-    close     = { style = "fade" },
-    workspace = { style = "slide" },
+    animations = {
+        enabled  = true,
+        duration = 250,         -- ms
+        easing   = "ease_out",
+        open      = { style = "fade_scale" },
+        close     = { style = "fade" },
+        workspace = { style = "slide" },
+    },
 }
 ```
 
