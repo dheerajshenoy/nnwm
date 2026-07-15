@@ -100,6 +100,28 @@
     smoothly when keyboard focus moves between windows.
   - All animations share a single duration (`duration`, default `250 ms`). Set
     `enabled = false` to disable all animations instantly.
+  - All animation code is compiled only when `USE_SCENEFX=ON`; without scenefx
+    all paths fall back to instant layout/color changes.
+- **Animation styles and easing curves**: each animation type is independently
+  configurable via sub-tables of `nnwm.opt.animations`:
+  - **Easing curves** (`easing` field, global or per-type):
+    `"ease_out"` (default, cubic), `"ease_in"`, `"ease_in_out"`, `"linear"`,
+    `"bounce"` (bounce-out), `"elastic"` (elastic-out).
+  - **Open style** (`open.style`): `"fade_scale"` (default — grow from center
+    + fade in), `"fade"`, `"scale"`, `"slide_up"`, `"slide_down"`,
+    `"slide_left"`, `"slide_right"`, `"none"`.
+  - **Close style** (`close.style`): same options as open; default `"fade"`.
+  - **Workspace switch style** (`workspace.style`): `"slide"` (default),
+    `"fade"`, `"none"`.
+  - **Layout transition style** (`layout.style`): `"tween"` (default), `"none"`.
+  - **Focus border style** (`focus.style`): `"crossfade"` (default), `"none"`.
+  - Each sub-table also accepts `easing` and `duration` to override the global
+    defaults for that animation type only.
+  - **Per-window overrides via window rules**: `nnwm.rule()` action table now
+    accepts `anim_open` (string, open style), `anim_close` (string, close style),
+    and `no_anim` (boolean) to override or disable animations for specific
+    windows. Example:
+    `nnwm.rule({ app_id = "rofi" }, { anim_open = "fade", anim_close = "fade" })`.
 
 ### Bug Fixes
 
