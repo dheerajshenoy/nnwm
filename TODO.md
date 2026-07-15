@@ -96,3 +96,4 @@
 - [x] Don't show titlebar in tabbed layout mode (if activated)
 - [x] Don't show titlebar in fullscreen mode
 - [ ] Firefox wierd behavior with window border and scaling
+- [ ] Popup menu appears outside viewport
