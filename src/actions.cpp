@@ -52,6 +52,31 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
     arrange_windows(server, out);
 }
 
+void
+do_toggle_fake_fullscreen(nnwm_toplevel *tl)
+{
+    tl->fake_fullscreen = !tl->fake_fullscreen;
+
+    nnwm_server *server = tl->server;
+    nnwm_output *out    = tl->output;
+
+    if (tl->fake_fullscreen && out)
+    {
+        wlr_scene_node_raise_to_top(&tl->scene_tree->node);
+        wlr_box area;
+        wlr_output_layout_get_box(server->output_layout, out->wlr_output,
+                                  &area);
+        wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
+        wlr_xdg_toplevel_set_size(tl->xdg_toplevel, area.width, area.height);
+        update_borders(tl, area.width, area.height, 0);
+        if (tl->titlebar)
+            wlr_scene_node_set_enabled(&tl->titlebar->node, false);
+        wlr_scene_node_set_position(&tl->scene_surface->node, 0, 0);
+    }
+
+    arrange_windows(server, out);
+}
+
 nnwm_toplevel *
 get_focused_toplevel(nnwm_server *server)
 {
@@ -695,6 +720,14 @@ nnwm::window::toggle_fullscreen(nnwm_server *server)
     nnwm_toplevel *tl = get_focused_toplevel(server);
     if (tl)
         do_toggle_fullscreen(tl);
+}
+
+void
+nnwm::window::toggle_fake_fullscreen(nnwm_server *server)
+{
+    nnwm_toplevel *tl = get_focused_toplevel(server);
+    if (tl)
+        do_toggle_fake_fullscreen(tl);
 }
 
 void

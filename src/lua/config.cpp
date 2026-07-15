@@ -517,6 +517,13 @@ l_nnwm_toggle_fullscreen(lua_State *L)
 }
 
 static int
+l_nnwm_toggle_fake_fullscreen(lua_State *L)
+{
+    nnwm::window::toggle_fake_fullscreen(get_server(L));
+    return 0;
+}
+
+static int
 l_nnwm_toggle_tabbed(lua_State *L)
 {
     nnwm::layout::toggle_tabbed(get_server(L));
@@ -619,9 +626,10 @@ l_nnwm_rule(lua_State *L)
                                        * sizeof(nnwm_window_rule)));
     auto &r = cfg->window_rules[cfg->window_rule_count++];
     memset(&r, 0, sizeof(r));
-    r.floating   = -1;
-    r.fullscreen = -1;
-    r.sticky     = -1;
+    r.floating        = -1;
+    r.fullscreen      = -1;
+    r.fake_fullscreen = -1;
+    r.sticky          = -1;
     r.workspace  = -1;
     r.opacity    = -1.0f;
     r.blur       = -1;
@@ -651,6 +659,11 @@ l_nnwm_rule(lua_State *L)
     lua_getfield(L, 2, "fullscreen");
     if (lua_isboolean(L, -1))
         r.fullscreen = lua_toboolean(L, -1) ? 1 : 0;
+    lua_pop(L, 1);
+
+    lua_getfield(L, 2, "fake_fullscreen");
+    if (lua_isboolean(L, -1))
+        r.fake_fullscreen = lua_toboolean(L, -1) ? 1 : 0;
     lua_pop(L, 1);
 
     lua_getfield(L, 2, "sticky");
@@ -741,6 +754,7 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"master_ratio_shrink", l_nnwm_master_ratio_shrink},
     {"toggle_float", l_nnwm_toggle_float},
     {"toggle_fullscreen", l_nnwm_toggle_fullscreen},
+    {"toggle_fake_fullscreen", l_nnwm_toggle_fake_fullscreen},
     {"toggle_sticky", l_nnwm_toggle_sticky},
     {"focus_monitor_next", l_nnwm_focus_monitor_next},
     {"focus_monitor_prev", l_nnwm_focus_monitor_prev},

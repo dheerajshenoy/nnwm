@@ -265,6 +265,12 @@ function nnwm.toggle_float() end
 --- exiting fullscreen restores the tiling layout.
 function nnwm.toggle_fullscreen() end
 
+--- Toggle the focused window between fake-fullscreen and its previous mode.
+--- Like fullscreen, the window covers the entire output with no borders or
+--- gaps, but the client is NOT told it is fullscreen (CSD decorations are
+--- preserved). Useful for apps like OBS or Steam.
+function nnwm.toggle_fake_fullscreen() end
+
 --- Move keyboard focus to the next monitor (output), wrapping around.
 --- Restores the last focused window on the target monitor.
 function nnwm.focus_monitor_next() end

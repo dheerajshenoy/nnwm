@@ -84,6 +84,9 @@ void server_new_pointer(struct nnwm_server *server,
 /* ---- Fullscreen toggle (used by actions + xdg request_fullscreen) ---- */
 void do_toggle_fullscreen(struct nnwm_toplevel *tl);
 
+/* ---- Fake fullscreen toggle ---- */
+void do_toggle_fake_fullscreen(struct nnwm_toplevel *tl);
+
 /* ---- Decoration helpers ---- */
 struct nnwm_toplevel *toplevel_from_deco(struct nnwm_decoration *deco);
 void decoration_apply(struct nnwm_decoration *deco, bool client_side);

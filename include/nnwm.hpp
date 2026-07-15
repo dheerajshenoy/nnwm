@@ -310,6 +310,7 @@ struct nnwm_toplevel
     int workspace; /* workspace index within output (0..8) */
     bool floating;
     bool fullscreen;
+    bool fake_fullscreen;
     bool sticky;
     struct wlr_xdg_toplevel *xdg_toplevel;
     struct wlr_scene_tree *scene_tree;

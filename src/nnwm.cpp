@@ -865,7 +865,8 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
     nnwm_toplevel *active_tl = out->last_focused[ws];
     if (active_tl
         && (active_tl->output != out || active_tl->workspace != ws
-            || active_tl->floating || active_tl->fullscreen))
+            || active_tl->floating || active_tl->fullscreen
+            || active_tl->fake_fullscreen))
         active_tl = nullptr;
 
     nnwm_tbuf *tb         = tbuf_create(width, height);
@@ -882,7 +883,7 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
     wl_list_for_each(tl, &server->toplevels, link)
     {
         if (tl->output != out || tl->workspace != ws || tl->floating
-            || tl->fullscreen)
+            || tl->fullscreen || tl->fake_fullscreen)
             continue;
 
         bool focused = (tl == active_tl);
@@ -991,7 +992,7 @@ output_at_cursor(nnwm_server *server)
 #define WS_TILED(t, out)                                                       \
     ((t)->output == (out)                                                      \
      && ((t)->workspace == (out)->active_workspace || (t)->sticky)             \
-     && !(t)->floating && !(t)->fullscreen)
+     && !(t)->floating && !(t)->fullscreen && !(t)->fake_fullscreen)
 
 nnwm_toplevel *
 ws_first(nnwm_server *server, nnwm_output *out)
@@ -1120,7 +1121,7 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
          */
         nnwm_toplevel *active = out->last_focused[ws];
         if (!active || active->output != out || active->workspace != ws
-            || active->floating || active->fullscreen)
+            || active->floating || active->fullscreen || active->fake_fullscreen)
             active = ws_first(server, out);
 
         int cx = area.x + og;
@@ -1162,7 +1163,7 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         wl_list_for_each(tl, &server->toplevels, link)
         {
             if (tl->output == out && (tl->workspace == ws || tl->sticky)
-                && (tl->floating || tl->fullscreen))
+                && (tl->floating || tl->fullscreen || tl->fake_fullscreen))
                 wlr_scene_node_raise_to_top(&tl->scene_tree->node);
         }
         return;
@@ -1187,7 +1188,7 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         /* Find focused window index to compute scroll offset */
         nnwm_toplevel *active = out->last_focused[ws];
         if (!active || active->output != out || active->workspace != ws
-            || active->floating || active->fullscreen)
+            || active->floating || active->fullscreen || active->fake_fullscreen)
             active = ws_first(server, out);
 
         int fi = 0, idx = 0;
@@ -1232,7 +1233,7 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         wl_list_for_each(tl, &server->toplevels, link)
         {
             if (tl->output == out && (tl->workspace == ws || tl->sticky)
-                && (tl->floating || tl->fullscreen))
+                && (tl->floating || tl->fullscreen || tl->fake_fullscreen))
                 wlr_scene_node_raise_to_top(&tl->scene_tree->node);
         }
         return;
@@ -1256,7 +1257,7 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
 
         nnwm_toplevel *active = out->last_focused[ws];
         if (!active || active->output != out || active->workspace != ws
-            || active->floating || active->fullscreen)
+            || active->floating || active->fullscreen || active->fake_fullscreen)
             active = ws_first(server, out);
 
         int fi = 0, idx = 0;
@@ -1300,7 +1301,7 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         wl_list_for_each(tl, &server->toplevels, link)
         {
             if (tl->output == out && (tl->workspace == ws || tl->sticky)
-                && (tl->floating || tl->fullscreen))
+                && (tl->floating || tl->fullscreen || tl->fake_fullscreen))
                 wlr_scene_node_raise_to_top(&tl->scene_tree->node);
         }
         return;
@@ -1396,7 +1397,7 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         wl_list_for_each(tl, &server->toplevels, link)
         {
             if (tl->output == out && (tl->workspace == ws || tl->sticky)
-                && (tl->floating || tl->fullscreen))
+                && (tl->floating || tl->fullscreen || tl->fake_fullscreen))
             {
                 wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel, WLR_EDGE_NONE);
                 wlr_scene_node_raise_to_top(&tl->scene_tree->node);
@@ -1467,7 +1468,7 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
     wl_list_for_each(tl, &server->toplevels, link)
     {
         if (tl->output == out && (tl->workspace == ws || tl->sticky)
-            && (tl->floating || tl->fullscreen))
+            && (tl->floating || tl->fullscreen || tl->fake_fullscreen))
         {
             wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel, WLR_EDGE_NONE);
             wlr_scene_node_raise_to_top(&tl->scene_tree->node);

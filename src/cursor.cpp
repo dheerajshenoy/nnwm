@@ -80,7 +80,7 @@ tab_toplevel_at(nnwm_server *server, double lx, double ly)
     wl_list_for_each(tl, &server->toplevels, link)
     {
         if (tl->output != hit || tl->workspace != ws || tl->floating
-            || tl->fullscreen)
+            || tl->fullscreen || tl->fake_fullscreen)
             continue;
         if (i++ == tab_idx)
             return tl;
