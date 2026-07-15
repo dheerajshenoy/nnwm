@@ -12,6 +12,44 @@ extern "C"
 }
 #endif
 
+#ifdef HAVE_SCENEFX
+typedef enum nnwm_easing {
+    NNWM_EASE_OUT = 0,
+    NNWM_EASE_LINEAR,
+    NNWM_EASE_IN,
+    NNWM_EASE_IN_OUT,
+    NNWM_EASE_BOUNCE,
+    NNWM_EASE_ELASTIC,
+} nnwm_easing;
+
+typedef enum nnwm_open_style {
+    NNWM_OPEN_FADE_SCALE = 0,
+    NNWM_OPEN_FADE,
+    NNWM_OPEN_SCALE,
+    NNWM_OPEN_SLIDE_UP,
+    NNWM_OPEN_SLIDE_DOWN,
+    NNWM_OPEN_SLIDE_LEFT,
+    NNWM_OPEN_SLIDE_RIGHT,
+    NNWM_OPEN_NONE,
+} nnwm_open_style;
+
+typedef enum nnwm_ws_style {
+    NNWM_WS_SLIDE = 0,
+    NNWM_WS_FADE,
+    NNWM_WS_NONE,
+} nnwm_ws_style;
+
+typedef enum nnwm_layout_anim {
+    NNWM_LAYOUT_TWEEN = 0,
+    NNWM_LAYOUT_ANIM_NONE,
+} nnwm_layout_anim;
+
+typedef enum nnwm_focus_style {
+    NNWM_FOCUS_CROSSFADE = 0,
+    NNWM_FOCUS_NONE,
+} nnwm_focus_style;
+#endif /* HAVE_SCENEFX */
+
 struct nnwm_window_rule
 {
     /* Match fields — NULL = not used for matching */
@@ -26,6 +64,11 @@ struct nnwm_window_rule
     char *monitor;    /* NULL=unset, output name e.g. "DP-1" */
     float opacity;    /* <0 = unset (use global); 0.0–1.0 = override */
     int   blur;       /* -1=unset, 0=disable, 1=enable */
+#ifdef HAVE_SCENEFX
+    int   anim_open_style;   /* -1=unset, else nnwm_open_style */
+    int   anim_close_style;  /* -1=unset, else nnwm_open_style */
+    int   no_anim;           /* -1=unset, 1=disable animations for this window */
+#endif /* HAVE_SCENEFX */
 };
 
 struct nnwm_monitor_config
@@ -123,9 +166,29 @@ struct nnwm_config
     float blur_contrast;          /* contrast adjustment (default: 1.0) */
     float blur_saturation;        /* saturation adjustment (default: 1.0) */
 
+#ifdef HAVE_SCENEFX
     /* Animation */
     bool anim_enabled;
     int  anim_duration_ms;
+    nnwm_easing      anim_easing;          /* global default easing */
+    nnwm_open_style  anim_open_style;
+    nnwm_open_style  anim_close_style;
+    nnwm_ws_style    anim_ws_style;
+    nnwm_layout_anim anim_layout_style;
+    nnwm_focus_style anim_focus_style;
+    /* Per-type easing (-1 = inherit global) */
+    int anim_open_easing;
+    int anim_close_easing;
+    int anim_ws_easing;
+    int anim_layout_easing;
+    int anim_focus_easing;
+    /* Per-type duration in ms (0 = inherit global) */
+    int anim_open_duration_ms;
+    int anim_close_duration_ms;
+    int anim_ws_duration_ms;
+    int anim_layout_duration_ms;
+    int anim_focus_duration_ms;
+#endif /* HAVE_SCENEFX */
 
     /* Monitor configuration */
     struct nnwm_monitor_config *monitor_configs;

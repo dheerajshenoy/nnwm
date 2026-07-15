@@ -107,10 +107,21 @@ void apply_window_rules(struct nnwm_server *server,
                         struct nnwm_toplevel *toplevel);
 
 /* ---- Animation ---- */
+void tl_set_geometry(struct nnwm_toplevel *tl, int x, int y, int w, int h, int bw);
+#ifdef HAVE_SCENEFX
 double anim_now(void);
 void animate_step(struct nnwm_server *server);
-void tl_set_geometry(struct nnwm_toplevel *tl, int x, int y, int w, int h, int bw);
-void tl_start_fade(struct nnwm_toplevel *tl, float from, float to);
+void tl_start_fade(struct nnwm_toplevel *tl, float from, float to, int duration_ms, nnwm_easing easing);
 void tl_start_border_color(struct nnwm_toplevel *tl, const float to[4]);
+void tl_open_anim(struct nnwm_toplevel *tl);
+void tl_close_anim(struct nnwm_toplevel *tl);
+
+static inline nnwm_easing eff_easing(nnwm_config *cfg, int type_easing) {
+    return type_easing >= 0 ? (nnwm_easing)type_easing : cfg->anim_easing;
+}
+static inline int eff_duration(nnwm_config *cfg, int type_duration) {
+    return type_duration > 0 ? type_duration : cfg->anim_duration_ms;
+}
+#endif /* HAVE_SCENEFX */
 
 #endif /* NNWM_INTERNAL_HPP */

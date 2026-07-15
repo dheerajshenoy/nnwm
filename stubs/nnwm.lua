@@ -83,9 +83,20 @@ MOD = {}
 ---@field shadow?        nnwm.fx.shadow
 ---@field blur?          nnwm.fx.blur
 
+---@class nnwm_anim_type_config
+---@field style?    string   Style for this animation type (depends on type)
+---@field easing?   string   Easing override: "ease_out"|"ease_in"|"ease_in_out"|"linear"|"bounce"|"elastic"
+---@field duration? integer  Duration override in ms; 0 = inherit global
+
 ---@class nnwm.animations
----@field enabled?  boolean  Enable animations (default: true)
----@field duration? integer  Animation duration in milliseconds (default: 250)
+---@field enabled?   boolean  Enable animations (default: true)
+---@field duration?  integer  Global default animation duration in ms (default: 250)
+---@field easing?    string   Global default easing: "ease_out"|"ease_in"|"ease_in_out"|"linear"|"bounce"|"elastic" (default: "ease_out")
+---@field open?      nnwm_anim_type_config  Open style: "fade_scale"|"fade"|"scale"|"slide_up"|"slide_down"|"slide_left"|"slide_right"|"none" (default: "fade_scale")
+---@field close?     nnwm_anim_type_config  Close style: same options as open (default: "fade")
+---@field layout?    nnwm_anim_type_config  Layout tween style: "tween"|"none" (default: "tween")
+---@field workspace? nnwm_anim_type_config  Workspace switch style: "slide"|"fade"|"none" (default: "slide")
+---@field focus?     nnwm_anim_type_config  Focus border style: "crossfade"|"none" (default: "crossfade")
 
 ---@class nnwm_opts
 ---@field layout?             nnwm.layout
@@ -110,13 +121,16 @@ MOD = {}
 ---@field title  string? fnmatch glob matched against the window title
 
 ---@class nnwm_window_rule_action
----@field floating   boolean? Make the window floating (true) or tiled (false)
----@field fullscreen boolean? Make the window fullscreen
----@field sticky     boolean? Make the window sticky (appears on all workspaces; tiles or floats as normal)
----@field workspace  integer? Assign to workspace 1–9
----@field monitor    string?  Assign to the output with this name (e.g. `"DP-1"`)
----@field opacity    number?  Override global opacity for this window: 0.0 (invisible) – 1.0 (opaque). Requires `USE_SCENEFX=ON`.
----@field blur       boolean? Override global blur setting for this window. Requires `USE_SCENEFX=ON`.
+---@field floating    boolean? Make the window floating (true) or tiled (false)
+---@field fullscreen  boolean? Make the window fullscreen
+---@field sticky      boolean? Make the window sticky (appears on all workspaces; tiles or floats as normal)
+---@field workspace   integer? Assign to workspace 1–9
+---@field monitor     string?  Assign to the output with this name (e.g. `"DP-1"`)
+---@field opacity     number?  Override global opacity for this window: 0.0 (invisible) – 1.0 (opaque). Requires `USE_SCENEFX=ON`.
+---@field blur        boolean? Override global blur setting for this window. Requires `USE_SCENEFX=ON`.
+---@field anim_open   string?  Open animation style override: "fade_scale"|"fade"|"scale"|"slide_up"|"slide_down"|"slide_left"|"slide_right"|"none"
+---@field anim_close  string?  Close animation style override: same options as anim_open
+---@field no_anim     boolean? Disable all animations for this window
 
 ---@class nnwm_monitor_config
 ---@field name        string?   Output connector name, e.g. `"DP-1"`, `"eDP-1"`

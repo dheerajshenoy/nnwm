@@ -365,44 +365,70 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
 
     arrange_windows(server, out);
 
-    /* Workspace slide animation */
+#ifdef HAVE_SCENEFX
+    /* Workspace animation */
     if (server->config->anim_enabled && server->config->anim_duration_ms > 0) {
-        wlr_box area;
-        wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
-        int slide = (ws > old_ws) ? -area.width : area.width;
+        nnwm_config *cfg = server->config;
+        nnwm_ws_style ws_style = cfg->anim_ws_style;
+        int ws_dur  = eff_duration(cfg, cfg->anim_ws_duration_ms);
+        nnwm_easing ws_ease = eff_easing(cfg, cfg->anim_ws_easing);
 
-        wl_list_for_each(tl, &server->toplevels, link) {
-            if (tl->output != out || tl->sticky) continue;
+        if (ws_style == NNWM_WS_NONE) {
+            /* No animation — nothing extra to do */
+        } else if (ws_style == NNWM_WS_FADE) {
+            wl_list_for_each(tl, &server->toplevels, link) {
+                if (tl->output != out || tl->sticky) continue;
+                float op = (tl->rule_opacity >= 0.0f) ? tl->rule_opacity : cfg->opacity;
+                if (tl->workspace == old_ws) {
+                    tl_start_fade(tl, op, 0.0f, ws_dur, ws_ease);
+                    wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
+                    tl->geo_then_hide = true;
+                } else if (tl->workspace == ws) {
+                    tl_start_fade(tl, 0.0f, op, ws_dur, ws_ease);
+                }
+            }
+        } else {
+            /* NNWM_WS_SLIDE — default behavior */
+            wlr_box area;
+            wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
+            int slide = (ws > old_ws) ? -area.width : area.width;
 
-            if (tl->workspace == old_ws) {
-                /* Slide out: keep visible, animate to off-screen, then hide */
-                wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
-                tl->geo_from_x = tl->cur_x;
-                tl->geo_from_y = tl->cur_y;
-                tl->geo_from_w = tl->cur_w;
-                tl->geo_from_h = tl->cur_h;
-                tl->geo_to_x   = tl->cur_x + slide;
-                tl->geo_to_y   = tl->cur_y;
-                tl->geo_to_w   = tl->cur_w;
-                tl->geo_to_h   = tl->cur_h;
-                tl->geo_anim   = true;
-                tl->geo_t0     = anim_now();
-                tl->geo_then_hide = true;
-            } else if (tl->workspace == ws) {
-                /* Slide in: override from position to off-screen opposite side */
-                tl->geo_from_x = tl->geo_to_x - slide;
-                tl->geo_from_y = tl->geo_to_y;
-                tl->geo_from_w = tl->geo_to_w;
-                tl->geo_from_h = tl->geo_to_h;
-                tl->geo_anim   = true;
-                tl->geo_t0     = anim_now();
-                tl->geo_then_hide = false;
-                wlr_scene_node_set_position(&tl->scene_tree->node, tl->geo_from_x, tl->geo_from_y);
-                update_borders(tl, tl->geo_from_w, tl->geo_from_h, tl->geo_bw);
-                tl->cur_x = tl->geo_from_x; tl->cur_y = tl->geo_from_y;
+            wl_list_for_each(tl, &server->toplevels, link) {
+                if (tl->output != out || tl->sticky) continue;
+
+                if (tl->workspace == old_ws) {
+                    /* Slide out: keep visible, animate to off-screen, then hide */
+                    wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
+                    tl->geo_from_x = tl->cur_x;
+                    tl->geo_from_y = tl->cur_y;
+                    tl->geo_from_w = tl->cur_w;
+                    tl->geo_from_h = tl->cur_h;
+                    tl->geo_to_x   = tl->cur_x + slide;
+                    tl->geo_to_y   = tl->cur_y;
+                    tl->geo_to_w   = tl->cur_w;
+                    tl->geo_to_h   = tl->cur_h;
+                    tl->geo_duration_ms = ws_dur; tl->geo_easing = ws_ease;
+                    tl->geo_anim   = true;
+                    tl->geo_t0     = anim_now();
+                    tl->geo_then_hide = true;
+                } else if (tl->workspace == ws) {
+                    /* Slide in: override from position to off-screen opposite side */
+                    tl->geo_from_x = tl->geo_to_x - slide;
+                    tl->geo_from_y = tl->geo_to_y;
+                    tl->geo_from_w = tl->geo_to_w;
+                    tl->geo_from_h = tl->geo_to_h;
+                    tl->geo_duration_ms = ws_dur; tl->geo_easing = ws_ease;
+                    tl->geo_anim   = true;
+                    tl->geo_t0     = anim_now();
+                    tl->geo_then_hide = false;
+                    wlr_scene_node_set_position(&tl->scene_tree->node, tl->geo_from_x, tl->geo_from_y);
+                    update_borders(tl, tl->geo_from_w, tl->geo_from_h, tl->geo_bw);
+                    tl->cur_x = tl->geo_from_x; tl->cur_y = tl->geo_from_y;
+                }
             }
         }
     }
+#endif /* HAVE_SCENEFX */
 
     nnwm::ext_workspace_notify(server);
 }

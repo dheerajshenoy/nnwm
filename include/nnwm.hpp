@@ -186,7 +186,9 @@ struct nnwm_server
     struct wl_listener new_xdg_toplevel;
     struct wl_listener new_xdg_popup;
     struct wl_list toplevels;
+#ifdef HAVE_SCENEFX
     struct wl_list dying_toplevels;  /* toplevels fading out after unmap */
+#endif
 
     struct wlr_cursor *cursor;
     struct wlr_xcursor_manager *cursor_mgr;
@@ -292,6 +294,11 @@ struct nnwm_toplevel
     struct wlr_scene_rect *border[4];      /* top, bottom, left, right */
     float rule_opacity;  /* per-window override: <0 = use global cfg->opacity */
     int   rule_blur;     /* per-window override: -1=global, 0=off, 1=on */
+#ifdef HAVE_SCENEFX
+    int   rule_anim_open_style;   /* -1=unset, else nnwm_open_style */
+    int   rule_anim_close_style;  /* -1=unset, else nnwm_open_style */
+    int   rule_no_anim;           /* -1=unset, 1=disable */
+#endif /* HAVE_SCENEFX */
     struct wlr_scene_tree *scene_surface;
     struct nnwm_decoration *decoration; /* pending decoration, applied on initial commit */
     struct wlr_scene_buffer *titlebar;  /* server-side titlebar, nullptr if disabled */
@@ -303,9 +310,12 @@ struct nnwm_toplevel
     /* Current visual geometry — tracks what's actually rendered */
     int cur_x, cur_y, cur_w, cur_h;
 
+#ifdef HAVE_SCENEFX
     /* Geometry animation (position + size tween) */
     bool   geo_anim;
     double geo_t0;
+    int    geo_duration_ms;
+    nnwm_easing geo_easing;
     int    geo_from_x, geo_from_y, geo_from_w, geo_from_h;
     int    geo_to_x,   geo_to_y,   geo_to_w,   geo_to_h;
     int    geo_bw;
@@ -314,16 +324,21 @@ struct nnwm_toplevel
     /* Fade animation (open/close) */
     bool   fade_anim;
     double fade_t0;
+    int    fade_duration_ms;
+    nnwm_easing fade_easing;
     float  fade_from, fade_to;
 
     /* Border color animation (focus change) */
     bool   bcol_anim;
     double bcol_t0;
+    int    bcol_duration_ms;
+    nnwm_easing bcol_easing;
     float  bcol_from[4], bcol_to[4];
 
     /* Dying: removed from server->toplevels but still fading out */
     bool           dying;
     struct wl_list dying_link;
+#endif /* HAVE_SCENEFX */
 
     struct wl_listener map;
     struct wl_listener unmap;

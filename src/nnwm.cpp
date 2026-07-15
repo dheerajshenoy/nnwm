@@ -122,6 +122,7 @@ static void set_opacity_recursive(struct wlr_scene_tree *tree, float opacity);
 
 /* ---- Animation helpers ---- */
 
+#ifdef HAVE_SCENEFX
 double
 anim_now(void)
 {
@@ -131,23 +132,48 @@ anim_now(void)
 }
 
 static float
-ease_out(float t)
+apply_easing(nnwm_easing e, float t)
 {
-    float f = 1.0f - t;
-    return 1.0f - f * f * f;
+    switch (e) {
+    case NNWM_EASE_LINEAR:  return t;
+    case NNWM_EASE_IN:      return t * t * t;
+    default:
+    case NNWM_EASE_OUT: {
+        float f = 1.0f - t;
+        return 1.0f - f * f * f;
+    }
+    case NNWM_EASE_IN_OUT:
+        return t < 0.5f
+            ? 4.0f * t * t * t
+            : 1.0f - powf(-2.0f * t + 2.0f, 3.0f) * 0.5f;
+    case NNWM_EASE_BOUNCE: {
+        const float n1 = 7.5625f, d1 = 2.75f;
+        if (t < 1.0f / d1)         return n1 * t * t;
+        if (t < 2.0f / d1)         { t -= 1.5f  / d1; return n1 * t * t + 0.75f;    }
+        if (t < 2.5f / d1)         { t -= 2.25f / d1; return n1 * t * t + 0.9375f;  }
+                                    { t -= 2.625f/ d1; return n1 * t * t + 0.984375f; }
+    }
+    case NNWM_EASE_ELASTIC: {
+        const float c4 = (2.0f * (float)M_PI) / 3.0f;
+        if (t <= 0.0f) return 0.0f;
+        if (t >= 1.0f) return 1.0f;
+        return powf(2.0f, -10.0f * t) * sinf((t * 10.0f - 0.75f) * c4) + 1.0f;
+    }
+    }
 }
 
 static float
-anim_t(nnwm_server *server, double t0, double now)
+anim_t(double t0, double now, int duration_ms, nnwm_easing easing)
 {
-    if (!server->config->anim_enabled || server->config->anim_duration_ms <= 0)
-        return 1.0f;
-    float t = (float)((now - t0) / (server->config->anim_duration_ms * 0.001));
-    return t >= 1.0f ? 1.0f : ease_out(t);
+    if (duration_ms <= 0) return 1.0f;
+    float t = (float)((now - t0) / (duration_ms * 0.001));
+    return t >= 1.0f ? 1.0f : apply_easing(easing, t);
 }
+
 
 static float lerpf(float a, float b, float t) { return a + (b - a) * t; }
 static int   lerpi(int   a, int   b, float t) { return a + (int)roundf((float)(b - a) * t); }
+#endif /* HAVE_SCENEFX */
 
 /* ---- Borders and surface placement ---- */
 
@@ -202,6 +228,7 @@ void
 tl_set_geometry(nnwm_toplevel *tl, int x, int y, int w, int h, int bw)
 {
     nnwm_config *cfg = tl->server->config;
+#ifdef HAVE_SCENEFX
     bool do_anim = cfg->anim_enabled && cfg->anim_duration_ms > 0;
     bool first   = (tl->cur_w == 0 && tl->cur_h == 0);
     bool changed = (x != tl->cur_x || y != tl->cur_y ||
@@ -213,13 +240,54 @@ tl_set_geometry(nnwm_toplevel *tl, int x, int y, int w, int h, int bw)
 
     if (do_anim && changed) {
         if (first) {
-            /* First layout: grow from 95% of final size, centered */
-            int dx = w / 20, dy = h / 20;
-            tl->geo_from_x = x + dx;
-            tl->geo_from_y = y + dy;
-            tl->geo_from_w = w - 2 * dx;
-            tl->geo_from_h = h - 2 * dy;
+            /* First layout: open style determines the from-position.
+             * tl_open_anim() will override duration/easing for the open anim;
+             * for non-first layouts we use the layout easing/duration. */
+            int open_style = tl->rule_no_anim == 1 ? NNWM_OPEN_NONE
+                           : tl->rule_anim_open_style >= 0 ? tl->rule_anim_open_style
+                           : (int)cfg->anim_open_style;
+            int sw = (int)(w * 0.95f), sh = (int)(h * 0.95f);
+            switch ((nnwm_open_style)open_style) {
+            default:
+            case NNWM_OPEN_FADE_SCALE:
+            case NNWM_OPEN_SCALE:
+                tl->geo_from_x = x + (w - sw) / 2;
+                tl->geo_from_y = y + (h - sh) / 2;
+                tl->geo_from_w = sw;
+                tl->geo_from_h = sh;
+                break;
+            case NNWM_OPEN_SLIDE_UP:
+                tl->geo_from_x = x; tl->geo_from_y = y + h;
+                tl->geo_from_w = w; tl->geo_from_h = h;
+                break;
+            case NNWM_OPEN_SLIDE_DOWN:
+                tl->geo_from_x = x; tl->geo_from_y = y - h;
+                tl->geo_from_w = w; tl->geo_from_h = h;
+                break;
+            case NNWM_OPEN_SLIDE_LEFT:
+                tl->geo_from_x = x + w; tl->geo_from_y = y;
+                tl->geo_from_w = w; tl->geo_from_h = h;
+                break;
+            case NNWM_OPEN_SLIDE_RIGHT:
+                tl->geo_from_x = x - w; tl->geo_from_y = y;
+                tl->geo_from_w = w; tl->geo_from_h = h;
+                break;
+            case NNWM_OPEN_FADE:
+            case NNWM_OPEN_NONE:
+                tl->geo_from_x = x; tl->geo_from_y = y;
+                tl->geo_from_w = w; tl->geo_from_h = h;
+                break;
+            }
         } else {
+            /* Skip geo animation if layout anim is disabled */
+            if (cfg->anim_layout_style == NNWM_LAYOUT_ANIM_NONE) {
+                tl->geo_anim = false;
+                tl->cur_x = x; tl->cur_y = y;
+                tl->cur_w = w; tl->cur_h = h;
+                wlr_scene_node_set_position(&tl->scene_tree->node, x, y);
+                update_borders(tl, w, h, bw);
+                return;
+            }
             tl->geo_from_x = tl->cur_x;
             tl->geo_from_y = tl->cur_y;
             tl->geo_from_w = tl->cur_w;
@@ -228,60 +296,175 @@ tl_set_geometry(nnwm_toplevel *tl, int x, int y, int w, int h, int bw)
         tl->geo_anim      = true;
         tl->geo_t0        = anim_now();
         tl->geo_then_hide = false;
+        /* Bake layout easing/duration; tl_open_anim() will override for first layout */
+        tl->geo_duration_ms = eff_duration(cfg, cfg->anim_layout_duration_ms);
+        tl->geo_easing      = eff_easing(cfg, cfg->anim_layout_easing);
         wlr_scene_node_set_position(&tl->scene_tree->node, tl->geo_from_x, tl->geo_from_y);
         update_borders(tl, tl->geo_from_w, tl->geo_from_h, bw);
         tl->cur_x = tl->geo_from_x; tl->cur_y = tl->geo_from_y;
         tl->cur_w = tl->geo_from_w; tl->cur_h = tl->geo_from_h;
+        return;
+    }
+    // fall-through: instant apply
+    tl->geo_anim = false;
+#endif /* HAVE_SCENEFX */
+    // instant apply
+    tl->cur_x = x; tl->cur_y = y;
+    tl->cur_w = w; tl->cur_h = h;
+    wlr_scene_node_set_position(&tl->scene_tree->node, x, y);
+    update_borders(tl, w, h, bw);
+}
+
+#ifdef HAVE_SCENEFX
+void
+tl_start_fade(nnwm_toplevel *tl, float from, float to, int duration_ms, nnwm_easing easing)
+{
+    tl->fade_from        = from;
+    tl->fade_to          = to;
+    tl->fade_duration_ms = duration_ms;
+    tl->fade_easing      = easing;
+    if (tl->server->config->anim_enabled && duration_ms > 0) {
+        tl->fade_anim = true;
+        tl->fade_t0   = anim_now();
+        set_opacity_recursive(tl->scene_surface, from);
     } else {
-        tl->geo_anim = false;
-        tl->cur_x = x; tl->cur_y = y;
-        tl->cur_w = w; tl->cur_h = h;
-        wlr_scene_node_set_position(&tl->scene_tree->node, x, y);
-        update_borders(tl, w, h, bw);
+        tl->fade_anim = false;
+        set_opacity_recursive(tl->scene_surface, to);
     }
 }
 
 void
-tl_start_fade(nnwm_toplevel *tl, float from, float to)
+tl_open_anim(nnwm_toplevel *tl)
 {
-    tl->fade_from = from;
-    tl->fade_to   = to;
-    if (tl->server->config->anim_enabled && tl->server->config->anim_duration_ms > 0) {
-        tl->fade_anim = true;
-        tl->fade_t0   = anim_now();
-#ifdef HAVE_SCENEFX
-        set_opacity_recursive(tl->scene_surface, from);
-#endif
+    nnwm_config *cfg = tl->server->config;
+    if (!cfg->anim_enabled) return;
+
+    int open_style = tl->rule_no_anim == 1 ? NNWM_OPEN_NONE
+                   : tl->rule_anim_open_style >= 0 ? tl->rule_anim_open_style
+                   : (int)cfg->anim_open_style;
+    int dur = eff_duration(cfg, cfg->anim_open_duration_ms);
+    nnwm_easing ease = eff_easing(cfg, cfg->anim_open_easing);
+
+    float target_op = (tl->rule_opacity >= 0.0f) ? tl->rule_opacity : cfg->opacity;
+
+    bool do_fade  = (open_style != NNWM_OPEN_SCALE && open_style != NNWM_OPEN_NONE);
+    bool do_scale = (open_style == NNWM_OPEN_FADE_SCALE || open_style == NNWM_OPEN_SCALE);
+    bool do_slide = (open_style >= NNWM_OPEN_SLIDE_UP && open_style <= NNWM_OPEN_SLIDE_RIGHT);
+
+    if (do_fade)
+        tl_start_fade(tl, 0.0f, target_op, dur, ease);
+    else {
+        /* Set opacity directly to target */
+        set_opacity_recursive(tl->scene_surface, target_op);
+    }
+
+    if (open_style == NNWM_OPEN_NONE) {
+        tl->geo_anim = false;
+        /* Apply target position immediately */
+        wlr_scene_node_set_position(&tl->scene_tree->node, tl->geo_to_x, tl->geo_to_y);
+        update_borders(tl, tl->geo_to_w, tl->geo_to_h, tl->geo_bw);
+        tl->cur_x = tl->geo_to_x; tl->cur_y = tl->geo_to_y;
+        tl->cur_w = tl->geo_to_w; tl->cur_h = tl->geo_to_h;
+        return;
+    }
+    if (!do_scale && !do_slide) {
+        /* OPEN_FADE: cancel geo animation */
+        tl->geo_anim = false;
+        wlr_scene_node_set_position(&tl->scene_tree->node, tl->geo_to_x, tl->geo_to_y);
+        update_borders(tl, tl->geo_to_w, tl->geo_to_h, tl->geo_bw);
+        tl->cur_x = tl->geo_to_x; tl->cur_y = tl->geo_to_y;
+        tl->cur_w = tl->geo_to_w; tl->cur_h = tl->geo_to_h;
+        return;
+    }
+    /* For scale + slide, from-position is already set in tl_set_geometry — bake easing */
+    if (tl->geo_anim) {
+        tl->geo_duration_ms = dur;
+        tl->geo_easing      = ease;
+    }
+}
+
+void
+tl_close_anim(nnwm_toplevel *tl)
+{
+    nnwm_config *cfg = tl->server->config;
+    if (!cfg->anim_enabled || cfg->anim_duration_ms <= 0) {
+        tl->dying = false;
+        return;
+    }
+
+    int close_style = tl->rule_no_anim == 1 ? NNWM_OPEN_NONE
+                    : tl->rule_anim_close_style >= 0 ? tl->rule_anim_close_style
+                    : (int)cfg->anim_close_style;
+    int dur = eff_duration(cfg, cfg->anim_close_duration_ms);
+    nnwm_easing ease = eff_easing(cfg, cfg->anim_close_easing);
+
+    float cur_op = (tl->rule_opacity >= 0.0f) ? tl->rule_opacity : cfg->opacity;
+
+    bool do_fade  = (close_style != NNWM_OPEN_SCALE && close_style != NNWM_OPEN_NONE);
+    bool do_slide = (close_style >= NNWM_OPEN_SLIDE_UP && close_style <= NNWM_OPEN_SLIDE_RIGHT);
+
+    if (do_fade)
+        tl_start_fade(tl, cur_op, 0.0f, dur, ease);
+
+    if (do_slide) {
+        int dx = 0, dy = 0;
+        int w = tl->cur_w, h = tl->cur_h;
+        switch ((nnwm_open_style)close_style) {
+        case NNWM_OPEN_SLIDE_UP:    dy = -h; break;
+        case NNWM_OPEN_SLIDE_DOWN:  dy = +h; break;
+        case NNWM_OPEN_SLIDE_LEFT:  dx = -w; break;
+        case NNWM_OPEN_SLIDE_RIGHT: dx = +w; break;
+        default: break;
+        }
+        tl->geo_from_x = tl->cur_x;
+        tl->geo_from_y = tl->cur_y;
+        tl->geo_from_w = tl->cur_w;
+        tl->geo_from_h = tl->cur_h;
+        tl->geo_to_x   = tl->cur_x + dx;
+        tl->geo_to_y   = tl->cur_y + dy;
+        tl->geo_to_w   = tl->cur_w;
+        tl->geo_to_h   = tl->cur_h;
+        tl->geo_duration_ms = dur;
+        tl->geo_easing      = ease;
+        tl->geo_anim        = true;
+        tl->geo_t0          = anim_now();
+        tl->geo_then_hide   = false;
+    }
+
+    if (close_style == NNWM_OPEN_NONE) {
+        tl->dying = false;
     } else {
-        tl->fade_anim = false;
-#ifdef HAVE_SCENEFX
-        set_opacity_recursive(tl->scene_surface, to);
-#endif
+        tl->dying = true;
     }
 }
 
 void
 tl_start_border_color(nnwm_toplevel *tl, const float to[4])
 {
-    if (!tl->server->config->anim_enabled || tl->server->config->anim_duration_ms <= 0) {
-        for (int i = 0; i < 4; i++)
-            wlr_scene_rect_set_color(tl->border[i], to);
+    nnwm_config *cfg = tl->server->config;
+    nnwm_focus_style fs = cfg->anim_focus_style;
+
+    if (!cfg->anim_enabled || fs == NNWM_FOCUS_NONE) {
+        for (int i = 0; i < 4; i++) tl->bcol_to[i] = to[i];
         tl->bcol_anim = false;
+        for (int b = 0; b < 4; b++) wlr_scene_rect_set_color(tl->border[b], to);
         return;
     }
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++)
         tl->bcol_from[i] = tl->bcol_anim ? tl->bcol_to[i] : tl->border[0]->color[i];
-        tl->bcol_to[i]   = to[i];
-    }
+    for (int i = 0; i < 4; i++) tl->bcol_to[i] = to[i];
+    tl->bcol_duration_ms = eff_duration(cfg, cfg->anim_focus_duration_ms);
+    tl->bcol_easing      = eff_easing(cfg, cfg->anim_focus_easing);
     tl->bcol_anim = true;
     tl->bcol_t0   = anim_now();
 }
 
-static void
-animate_step_one(nnwm_server *server, nnwm_toplevel *tl, double now)
+static bool
+animate_step_one(nnwm_server * /*server*/, nnwm_toplevel *tl, double now)
 {
+    bool active = false;
     if (tl->geo_anim) {
-        float t  = anim_t(server, tl->geo_t0, now);
+        float t  = anim_t(tl->geo_t0, now, tl->geo_duration_ms, tl->geo_easing);
         int   cx = lerpi(tl->geo_from_x, tl->geo_to_x, t);
         int   cy = lerpi(tl->geo_from_y, tl->geo_to_y, t);
         int   cw = lerpi(tl->geo_from_w, tl->geo_to_w, t);
@@ -296,29 +479,33 @@ animate_step_one(nnwm_server *server, nnwm_toplevel *tl, double now)
                 wlr_scene_node_set_enabled(&tl->scene_tree->node, false);
                 tl->cur_x = tl->geo_from_x; tl->cur_y = tl->geo_from_y;
                 tl->cur_w = tl->geo_from_w; tl->cur_h = tl->geo_from_h;
+            } else if (tl->dying && !tl->fade_anim) {
+                wlr_scene_node_set_enabled(&tl->scene_tree->node, false);
             }
         }
+        active = true;
     }
     if (tl->fade_anim) {
-        float t = anim_t(server, tl->fade_t0, now);
-#ifdef HAVE_SCENEFX
+        float t = anim_t(tl->fade_t0, now, tl->fade_duration_ms, tl->fade_easing);
         set_opacity_recursive(tl->scene_surface, lerpf(tl->fade_from, tl->fade_to, t));
-#endif
         if (t >= 1.0f) {
             tl->fade_anim = false;
-            if (tl->dying)
+            if (tl->dying && !tl->geo_anim)
                 wlr_scene_node_set_enabled(&tl->scene_tree->node, false);
         }
+        active = true;
     }
     if (tl->bcol_anim) {
-        float t = anim_t(server, tl->bcol_t0, now);
+        float t = anim_t(tl->bcol_t0, now, tl->bcol_duration_ms, tl->bcol_easing);
         float col[4];
         for (int i = 0; i < 4; i++)
             col[i] = lerpf(tl->bcol_from[i], tl->bcol_to[i], t);
         for (int i = 0; i < 4; i++)
             wlr_scene_rect_set_color(tl->border[i], col);
         if (t >= 1.0f) tl->bcol_anim = false;
+        active = true;
     }
+    return active;
 }
 
 void
@@ -332,6 +519,8 @@ animate_step(nnwm_server *server)
     wl_list_for_each(tl, &server->dying_toplevels, dying_link)
         animate_step_one(server, tl, now);
 }
+#endif /* HAVE_SCENEFX */
+
 
 /* ---- scenefx per-window decorations ---- */
 
@@ -925,7 +1114,11 @@ focus_toplevel(nnwm_toplevel *toplevel)
         bool foc = (tl == toplevel);
         float *color = foc ? server->config->focused_color
                            : server->config->unfocused_color;
+#ifdef HAVE_SCENEFX
         tl_start_border_color(tl, color);
+#else
+        for (int b = 0; b < 4; b++) wlr_scene_rect_set_color(tl->border[b], color);
+#endif
         render_titlebar(tl, tl->titlebar_width, foc);
     }
 
@@ -957,7 +1150,12 @@ unfocus_all_borders(nnwm_server *server)
 {
     nnwm_toplevel *tl;
     wl_list_for_each(tl, &server->toplevels, link) {
+#ifdef HAVE_SCENEFX
         tl_start_border_color(tl, server->config->unfocused_color);
+#else
+        for (int b = 0; b < 4; b++)
+            wlr_scene_rect_set_color(tl->border[b], server->config->unfocused_color);
+#endif
         render_titlebar(tl, tl->titlebar_width, false);
     }
 }

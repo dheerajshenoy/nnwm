@@ -42,6 +42,11 @@ apply_window_rules(nnwm_server *server, nnwm_toplevel *toplevel)
         if (r.workspace  >= 0) toplevel->workspace  = r.workspace;
         if (r.opacity    >= 0) toplevel->rule_opacity = r.opacity;
         if (r.blur       >= 0) toplevel->rule_blur    = r.blur;
+#ifdef HAVE_SCENEFX
+        if (r.anim_open_style  >= 0) toplevel->rule_anim_open_style  = r.anim_open_style;
+        if (r.anim_close_style >= 0) toplevel->rule_anim_close_style = r.anim_close_style;
+        if (r.no_anim          >= 0) toplevel->rule_no_anim          = r.no_anim;
+#endif
         if (r.monitor) {
             nnwm_output *out;
             wl_list_for_each(out, &server->outputs, link) {
@@ -76,12 +81,10 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
         toplevel->floating = true;
 
     apply_fx_decorations(toplevel);
-    /* Fade in on map */
-    if (server->config->anim_enabled) {
-        float target_op = (toplevel->rule_opacity >= 0.0f)
-                          ? toplevel->rule_opacity : server->config->opacity;
-        tl_start_fade(toplevel, 0.0f, target_op);
-    }
+    /* Open animation */
+#ifdef HAVE_SCENEFX
+    tl_open_anim(toplevel);
+#endif
     /* After rules, ensure output pointer is still valid */
     if (!toplevel->output)
         toplevel->output = server->focused_output;
@@ -119,13 +122,10 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
 
     nnwm_server *server = toplevel->server;
 
-    /* Start fade-out before removing from active list */
-    if (server->config->anim_enabled && server->config->anim_duration_ms > 0) {
-        float cur_op = (toplevel->rule_opacity >= 0.0f)
-                       ? toplevel->rule_opacity : server->config->opacity;
-        tl_start_fade(toplevel, cur_op, 0.0f);
-        toplevel->dying = true;
-    }
+    /* Start close animation before removing from active list */
+#ifdef HAVE_SCENEFX
+    tl_close_anim(toplevel);
+#endif
 
     if (toplevel == toplevel->server->grabbed_toplevel)
     {
@@ -150,8 +150,10 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
     }
 
     wl_list_remove(&toplevel->link);
+#ifdef HAVE_SCENEFX
     if (toplevel->dying)
         wl_list_insert(&server->dying_toplevels, &toplevel->dying_link);
+#endif
 
     if (out) {
         nnwm_toplevel *next = nullptr;
@@ -262,8 +264,10 @@ handle_xdg_toplevel_destroy(wl_listener *listener, void * /*data*/)
         = wl_container_of(listener, toplevel, destroy);
 
     /* Remove from dying list if still there */
+#ifdef HAVE_SCENEFX
     if (toplevel->dying)
         wl_list_remove(&toplevel->dying_link);
+#endif
 
     wl_list_remove(&toplevel->map.link);
     wl_list_remove(&toplevel->unmap.link);
@@ -405,12 +409,21 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     nnwm_toplevel *toplevel = new nnwm_toplevel{};
     toplevel->server          = server;
     toplevel->xdg_toplevel    = xdg_toplevel;
-    toplevel->rule_opacity    = -1.0f;
-    toplevel->rule_blur       = -1;
+    toplevel->rule_opacity         = -1.0f;
+    toplevel->rule_blur            = -1;
+#ifdef HAVE_SCENEFX
+    toplevel->rule_anim_open_style  = -1;
+    toplevel->rule_anim_close_style = -1;
+    toplevel->rule_no_anim          = -1;
+#endif
     toplevel->cur_x = toplevel->cur_y = toplevel->cur_w = toplevel->cur_h = 0;
+#ifdef HAVE_SCENEFX
     toplevel->geo_anim = toplevel->fade_anim = toplevel->bcol_anim = false;
+    toplevel->geo_duration_ms = toplevel->fade_duration_ms = toplevel->bcol_duration_ms = 0;
+    toplevel->geo_easing = toplevel->fade_easing = toplevel->bcol_easing = NNWM_EASE_OUT;
     toplevel->dying    = false;
     wl_list_init(&toplevel->dying_link);
+#endif
 
     toplevel->scene_tree = wlr_scene_tree_create(server->scene_windows);
     toplevel->scene_tree->node.data = toplevel;

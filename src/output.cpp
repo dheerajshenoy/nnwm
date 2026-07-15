@@ -33,7 +33,9 @@ output_frame(wl_listener *listener, void * /*data*/)
     if (!scene_output)
         return;
 
+#ifdef HAVE_SCENEFX
     animate_step(output->server);
+#endif
 
     if (!wlr_scene_output_commit(scene_output, nullptr))
         return;
