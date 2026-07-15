@@ -82,8 +82,10 @@
     - [ ] wlr-virtual-pointer-unstable-v1
     - [ ] wlr-virtual-keyboard-unstable-v1
     - [ ] wlr-gamma-control-unstable-v1
-- [ ] XWayland
 - [x] Fake fullscreen mode
+- [x] Don't show titlebar in tabbed layout mode (if activated)
+- [x] Don't show titlebar in fullscreen mode
+- [x] Popup menu appears outside viewport
 - lua helper functions
     - [x] device_name
 - Styles of animation
@@ -96,10 +98,7 @@
 - [ ] Hardware-acceleration
 - [ ] Scratchpad
 - [ ] Multi workspace viewing at once (like dwm)
-- [x] Don't show titlebar in tabbed layout mode (if activated)
-- [x] Don't show titlebar in fullscreen mode
 - [ ] Firefox wierd behavior with window border and scaling
-- [x] Popup menu appears outside viewport
 - [ ] Overview mode that zooms out and shows all workspaces
 - [ ] Handle minimized windows
 - [ ] Urgent windows
@@ -108,3 +107,4 @@
 - [ ] Jump label support (like MangoWM)
 - [ ] temporary mouse cursor size increase to regain attention of the cursor
 - [ ] Touchpad gestures
+- [ ] XWayland
