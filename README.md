@@ -12,22 +12,18 @@ P.S : MangoWM is awesome, and I love it, but I want to have my own compositor wi
 
 ## Features
 
-- **Tiling layout** — master-stack with configurable master ratio
-- **Tabbed layout** — all tiled windows share the same area, switched via a tab bar
-- **Sticky windows** — `nnwm.toggle_sticky()` pins a window across all workspaces
-- **9 workspaces per monitor** — independent per output, switch with `nnwm.switch_workspace(n)`
-- **Multi-monitor support** — focus monitors with `nnwm.focus_monitor_next/prev()`, move windows with `nnwm.move_to_monitor_next/prev()`
-- **Window rules** — `nnwm.rule(match, action)` applies floating/fullscreen/sticky/workspace/monitor actions on map
-- **Server-side titlebars** — optional, fully configurable (font, colors, alignment)
-- **Window borders** — configurable focused/unfocused colors
-- **Gaps** — inner and outer gaps with smart gaps/borders support
-- **Lua configuration** with hot-reload via inotify
-- **Keybindings** defined as Lua callbacks via `nnwm.key()`
-- **Layer shell** — background, bottom, top, overlay layers (panels, wallpapers, etc.)
-- **Output configuration** — per-monitor mode, scale, transform, position, enable/disable via `nnwm.opt.monitors`
-- **Screen capture** — `wlr-screencopy`, `wlr-export-dmabuf`, `ext-image-copy-capture-v1`
-- **DPMS** — `wlr-output-power-management-v1` (swayidle, wlopm)
-- **Input** — libinput touchpad options (tap, natural scroll, disable-while-typing), XKB options
+- Master-stack, tabbed, and scrolling layouts
+- 9 independent workspaces per monitor
+- Multi-monitor support with per-output layout
+- Floating, fullscreen, and sticky windows
+- Window rules (`nnwm.rule`) — match by app_id/title, set workspace, float, opacity, etc.
+- Lua configuration with hot-reload
+- Keybindings as Lua callbacks
+- Server-side titlebars and configurable borders
+- Inner/outer gaps with smart gaps
+- Layer shell (panels, wallpapers, overlays)
+- Per-monitor output configuration (mode, scale, transform, position)
+- Screen capture, DPMS, libinput touchpad, XKB
 
 ## sceneFX (Optional, Experimental)
 
