@@ -196,6 +196,8 @@ struct nnwm_config
         float shadow_offset_x;   /* pixels */
         float shadow_offset_y;   /* pixels */
         float opacity; /* window content opacity: 0.0–1.0 (default: 1.0) */
+        float focused_opacity;  /* <0 = inherit opacity; 0.0–1.0 = override */
+        float unfocused_opacity; /* <0 = inherit opacity; 0.0–1.0 = override */
         bool blur_enabled;
         int blur_passes;       /* number of dual-kawase passes (default: 3) */
         int blur_radius;       /* blur radius in pixels (default: 5) */

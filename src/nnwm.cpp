@@ -768,6 +768,16 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
     float eff_opacity = (toplevel->rule_opacity >= 0.0f)
                             ? toplevel->rule_opacity
                             : cfg->fx.opacity;
+    /* Apply focused / unfocused override if set */
+    wlr_surface *focused_surface
+        = toplevel->server->seat->keyboard_state.focused_surface;
+    bool focused = focused_surface
+                   && wlr_xdg_toplevel_try_from_wlr_surface(focused_surface)
+                       == toplevel->xdg_toplevel;
+    if (focused && cfg->fx.focused_opacity >= 0.0f)
+        eff_opacity = cfg->fx.focused_opacity;
+    else if (!focused && cfg->fx.unfocused_opacity >= 0.0f)
+        eff_opacity = cfg->fx.unfocused_opacity;
     bool eff_blur     = (toplevel->rule_blur >= 0) ? (bool)toplevel->rule_blur
                                                    : cfg->fx.blur_enabled;
 
@@ -1515,13 +1525,14 @@ focus_toplevel(nnwm_toplevel *toplevel)
     wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
     wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
 
-    /* Update border colors and titlebar focus state for all windows */
+    /* Update border colors, titlebar focus state, and opacity for all windows */
+    nnwm_config *cfg = server->config;
     nnwm_toplevel *tl;
     wl_list_for_each(tl, &server->toplevels, link)
     {
         bool foc     = (tl == toplevel);
-        float *color = foc ? server->config->border.focused_color
-                           : server->config->border.unfocused_color;
+        float *color = foc ? cfg->border.focused_color
+                           : cfg->border.unfocused_color;
 #ifdef HAVE_SCENEFX
         tl_start_border_color(tl, color);
 #else
@@ -1529,6 +1540,18 @@ focus_toplevel(nnwm_toplevel *toplevel)
             wlr_scene_rect_set_color(tl->border[b], color);
 #endif
         render_titlebar(tl, tl->titlebar_width, foc);
+
+        /* Apply focused / unfocused opacity */
+        float base = (tl->rule_opacity >= 0.0f) ? tl->rule_opacity
+                                                 : cfg->fx.opacity;
+        float op   = foc ? (cfg->fx.focused_opacity >= 0.0f
+                                ? cfg->fx.focused_opacity
+                                : base)
+                         : (cfg->fx.unfocused_opacity >= 0.0f
+                                ? cfg->fx.unfocused_opacity
+                                : base);
+        if (tl->scene_surface)
+            set_opacity_recursive(tl->scene_surface, op);
     }
 
     if (keyboard != nullptr)

@@ -945,6 +945,10 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "shadow");
     lua_pushnumber(L, cfg->fx.opacity);
     lua_setfield(L, -2, "opacity");
+    lua_pushnumber(L, cfg->fx.focused_opacity);
+    lua_setfield(L, -2, "focused_opacity");
+    lua_pushnumber(L, cfg->fx.unfocused_opacity);
+    lua_setfield(L, -2, "unfocused_opacity");
     lua_newtable(L);
     lua_pushboolean(L, cfg->fx.blur_enabled);
     lua_setfield(L, -2, "enabled");
@@ -1421,6 +1425,10 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         }
         lua_pop(L, 1);
         cfg->fx.opacity = get_float_field(L, "opacity", cfg->fx.opacity);
+        cfg->fx.focused_opacity
+            = get_float_field(L, "focused_opacity", cfg->fx.focused_opacity);
+        cfg->fx.unfocused_opacity
+            = get_float_field(L, "unfocused_opacity", cfg->fx.unfocused_opacity);
         lua_getfield(L, -1, "blur");
         if (lua_istable(L, -1))
         {
@@ -1784,6 +1792,8 @@ nnwm::config_defaults(void)
     cfg->fx.shadow_offset_x   = 4.0f;
     cfg->fx.shadow_offset_y   = 4.0f;
     cfg->fx.opacity           = 1.0f;
+    cfg->fx.focused_opacity   = -1.0f;
+    cfg->fx.unfocused_opacity = -1.0f;
     cfg->fx.blur_enabled      = false;
     cfg->fx.blur_passes       = 3;
     cfg->fx.blur_radius       = 5;

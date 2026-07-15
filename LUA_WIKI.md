@@ -311,7 +311,10 @@ nnwm.opt = {
     client_decorations = false,
 
     fx = {
-        rounding = { radius = 6, smart = true },
+        rounding          = { radius = 6, smart = true },
+        opacity           = 1.0,
+        focused_opacity   = 1.0,
+        unfocused_opacity = 0.8,
     },
 
     monitors = {
