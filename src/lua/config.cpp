@@ -669,6 +669,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_newtable(L);
     lua_pushboolean(L, cfg->new_window_master);
     lua_setfield(L, -2, "new_window_master");
+    lua_pushboolean(L, cfg->center_new_floating);
+    lua_setfield(L, -2, "center_new_floating");
     lua_pushnumber(L, cfg->master_ratio);
     lua_setfield(L, -2, "master_ratio");
     lua_pushnumber(L, cfg->master_ratio_step);
@@ -941,7 +943,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
 
     lua_getfield(L, -1, "layout");
     if (lua_istable(L, -1)) {
-        cfg->new_window_master  = get_bool_field(L, "new_window_master", cfg->new_window_master);
+        cfg->new_window_master   = get_bool_field(L, "new_window_master",   cfg->new_window_master);
+        cfg->center_new_floating = get_bool_field(L, "center_new_floating", cfg->center_new_floating);
         cfg->master_ratio       = get_float_field(L, "master_ratio", cfg->master_ratio);
         cfg->master_ratio_step  = get_float_field(L, "master_ratio_step", cfg->master_ratio_step);
         cfg->master_ratio_min   = get_float_field(L, "master_ratio_min", cfg->master_ratio_min);
@@ -1297,9 +1300,10 @@ nnwm::config_defaults(void)
     cfg->touchpad_natural_scroll       = true;
     cfg->touchpad_disable_while_typing = true;
 
-    cfg->focus_follows_mouse = false;
-    cfg->new_window_master   = true;
-    cfg->client_decorations  = false;
+    cfg->focus_follows_mouse  = false;
+    cfg->new_window_master    = true;
+    cfg->center_new_floating  = true;
+    cfg->client_decorations   = false;
 
     cfg->titlebar_height         = 0;
     cfg->titlebar_font           = strdup("Sans 10");

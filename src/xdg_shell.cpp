@@ -67,6 +67,14 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
     toplevel->output    = out;
     toplevel->workspace = out ? out->active_workspace : 0;
     apply_window_rules(server, toplevel);
+
+    /* Auto-float windows that declare a parent (dialogs, child frames).
+     * A set parent means the client is a transient/dialog — it should float
+     * centered rather than enter the tile list and break the layout.
+     * Window rules applied above can still override this with floating=false. */
+    if (!toplevel->floating && toplevel->xdg_toplevel->parent)
+        toplevel->floating = true;
+
     apply_fx_decorations(toplevel);
     /* Fade in on map */
     if (server->config->anim_enabled) {
@@ -78,6 +86,23 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
     if (!toplevel->output)
         toplevel->output = server->focused_output;
     out = toplevel->output;
+
+    /* Center new floating windows (including auto-floated dialogs) on the output */
+    if (toplevel->floating && out && server->config->center_new_floating) {
+        wlr_box *geo = &toplevel->xdg_toplevel->base->geometry;
+        int bw = server->config->border_width;
+        int th = server->config->titlebar_height;
+        wlr_box area = out->usable_area;
+        if (geo->width > 0 && geo->height > 0) {
+            int fx = area.x + (area.width  - geo->width  - 2 * bw) / 2;
+            int fy = area.y + (area.height - geo->height - 2 * bw - th) / 2;
+            if (fx < area.x) fx = area.x;
+            if (fy < area.y) fy = area.y;
+            wlr_scene_node_set_position(&toplevel->scene_tree->node, fx, fy);
+            update_borders(toplevel, geo->width + 2 * bw, geo->height + 2 * bw + th, bw);
+        }
+    }
+
     if (server->config->new_window_master)
         wl_list_insert(&server->toplevels, &toplevel->link);
     else
