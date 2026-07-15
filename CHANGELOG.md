@@ -100,10 +100,11 @@
     smoothly when keyboard focus moves between windows.
   - All animations share a single duration (`duration`, default `250 ms`). Set
     `enabled = false` to disable all animations instantly.
-  - All animation code is compiled only when `USE_SCENEFX=ON`; without scenefx
-    all paths fall back to instant layout/color changes.
+  - Configured under `nnwm.opt.fx.animations`. All animation code is compiled
+    only when `USE_SCENEFX=ON`; without scenefx all paths fall back to instant
+    layout/color changes.
 - **Animation styles and easing curves**: each animation type is independently
-  configurable via sub-tables of `nnwm.opt.animations`:
+  configurable via sub-tables of `nnwm.opt.fx.animations`:
   - **Easing curves** (`easing` field, global or per-type):
     `"ease_out"` (default, cubic), `"ease_in"`, `"ease_in_out"`, `"linear"`,
     `"bounce"` (bounce-out), `"elastic"` (elastic-out).
