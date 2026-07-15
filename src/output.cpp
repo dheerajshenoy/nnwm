@@ -6,15 +6,30 @@
 #include <cstring>
 #include <ctime>
 
-/* Build "make model serial" description string for matching (caller must free) */
-static char *output_description(const wlr_output *o)
+/* Build "make model serial" description string for matching (caller must free)
+ */
+static char *
+output_description(const wlr_output *o)
 {
     char buf[512] = {};
-    if (o->make  && o->make[0])  { if (buf[0]) strcat(buf, " "); strcat(buf, o->make); }
-    if (o->model && o->model[0]) { if (buf[0]) strcat(buf, " "); strcat(buf, o->model); }
-    if (buf[0]) strcat(buf, " ");
-    if (o->serial && o->serial[0]) strcat(buf, o->serial);
-    else                           strcat(buf, "Unknown");
+    if (o->make && o->make[0])
+    {
+        if (buf[0])
+            strcat(buf, " ");
+        strcat(buf, o->make);
+    }
+    if (o->model && o->model[0])
+    {
+        if (buf[0])
+            strcat(buf, " ");
+        strcat(buf, o->model);
+    }
+    if (buf[0])
+        strcat(buf, " ");
+    if (o->serial && o->serial[0])
+        strcat(buf, o->serial);
+    else
+        strcat(buf, "Unknown");
     return strdup(buf);
 }
 
@@ -48,10 +63,9 @@ output_frame(wl_listener *listener, void * /*data*/)
 void
 output_request_state(wl_listener *listener, void *data)
 {
-    nnwm_output *output
-        = wl_container_of(listener, output, request_state);
-    const auto *event =
-        static_cast<const wlr_output_event_request_state*>(data);
+    nnwm_output *output = wl_container_of(listener, output, request_state);
+    const auto *event
+        = static_cast<const wlr_output_event_request_state *>(data);
     wlr_output_commit_state(output->wlr_output, event->state);
 }
 
@@ -61,11 +75,15 @@ output_destroy(wl_listener *listener, void * /*data*/)
     nnwm_output *output = wl_container_of(listener, output, destroy);
     nnwm_server *server = output->server;
 
-    if (server->focused_output == output) {
+    if (server->focused_output == output)
+    {
         server->focused_output = nullptr;
         nnwm_output *o;
-        wl_list_for_each(o, &server->outputs, link)
-            if (o != output) { server->focused_output = o; break; }
+        wl_list_for_each(o, &server->outputs, link) if (o != output)
+        {
+            server->focused_output = o;
+            break;
+        }
     }
 
     wl_list_remove(&output->frame.link);
@@ -102,22 +120,22 @@ server_session_active(wl_listener *listener, void * /*data*/)
 void
 output_manager_build_config(nnwm_server *server)
 {
-    wlr_output_configuration_v1 *config =
-        wlr_output_configuration_v1_create();
+    wlr_output_configuration_v1 *config = wlr_output_configuration_v1_create();
 
     nnwm_output *output;
-    wl_list_for_each(output, &server->outputs, link) {
-        wlr_output_configuration_head_v1 *head =
-            wlr_output_configuration_head_v1_create(config,
-                output->wlr_output);
+    wl_list_for_each(output, &server->outputs, link)
+    {
+        wlr_output_configuration_head_v1 *head
+            = wlr_output_configuration_head_v1_create(config,
+                                                      output->wlr_output);
 
         head->state.enabled = output->wlr_output->enabled;
         head->state.mode    = output->wlr_output->current_mode;
 
-        struct wlr_output_layout_output *l_output =
-            wlr_output_layout_get(server->output_layout,
-                output->wlr_output);
-        if (l_output) {
+        struct wlr_output_layout_output *l_output
+            = wlr_output_layout_get(server->output_layout, output->wlr_output);
+        if (l_output)
+        {
             head->state.x = l_output->x;
             head->state.y = l_output->y;
         }
@@ -131,19 +149,21 @@ output_manager_build_config(nnwm_server *server)
 
 static void
 output_manager_apply_or_test(nnwm_server *server,
-    wlr_output_configuration_v1 *config, bool test)
+                             wlr_output_configuration_v1 *config, bool test)
 {
     wlr_output_configuration_head_v1 *head;
     bool ok = true;
 
-    wl_list_for_each(head, &config->heads, link) {
+    wl_list_for_each(head, &config->heads, link)
+    {
         wlr_output *wlr_output = head->state.output;
 
         wlr_output_state state;
         wlr_output_state_init(&state);
         wlr_output_head_v1_state_apply(&head->state, &state);
 
-        if (test) {
+        if (test)
+        {
             ok = wlr_output_test_state(wlr_output, &state);
             wlr_output_state_finish(&state);
             if (!ok)
@@ -152,8 +172,8 @@ output_manager_apply_or_test(nnwm_server *server,
         }
 
         /* Reposition in the output layout */
-        wlr_output_layout_add(server->output_layout, wlr_output,
-            head->state.x, head->state.y);
+        wlr_output_layout_add(server->output_layout, wlr_output, head->state.x,
+                              head->state.y);
 
         ok = wlr_output_commit_state(wlr_output, &state);
         wlr_output_state_finish(&state);
@@ -165,13 +185,18 @@ output_manager_apply_or_test(nnwm_server *server,
         arrange_layers(server, wlr_output);
     }
 
-    if (test) {
+    if (test)
+    {
         wlr_output_configuration_v1_send_succeeded(config);
-    } else if (ok) {
+    }
+    else if (ok)
+    {
         wlr_output_configuration_v1_send_succeeded(config);
         output_manager_build_config(server);
         arrange_all_outputs(server);
-    } else {
+    }
+    else
+    {
         wlr_output_configuration_v1_send_failed(config);
     }
 
@@ -183,7 +208,7 @@ output_manager_apply(wl_listener *listener, void *data)
 {
     nnwm_server *server
         = wl_container_of(listener, server, output_manager_apply);
-    auto *config = static_cast<wlr_output_configuration_v1*>(data);
+    auto *config = static_cast<wlr_output_configuration_v1 *>(data);
     output_manager_apply_or_test(server, config, false);
 }
 
@@ -192,7 +217,7 @@ output_manager_test(wl_listener *listener, void *data)
 {
     nnwm_server *server
         = wl_container_of(listener, server, output_manager_test);
-    auto *config = static_cast<wlr_output_configuration_v1*>(data);
+    auto *config = static_cast<wlr_output_configuration_v1 *>(data);
     output_manager_apply_or_test(server, config, true);
 }
 
@@ -201,17 +226,19 @@ output_manager_test(wl_listener *listener, void *data)
 void
 output_power_set_mode(wl_listener *listener, void *data)
 {
-    nnwm_server *server = wl_container_of(listener, server, output_power_set_mode);
-    auto *event = static_cast<wlr_output_power_v1_set_mode_event*>(data);
+    nnwm_server *server
+        = wl_container_of(listener, server, output_power_set_mode);
+    auto *event = static_cast<wlr_output_power_v1_set_mode_event *>(data);
 
     wlr_output_state state;
     wlr_output_state_init(&state);
     wlr_output_state_set_enabled(&state,
-        event->mode == ZWLR_OUTPUT_POWER_V1_MODE_ON);
+                                 event->mode == ZWLR_OUTPUT_POWER_V1_MODE_ON);
     wlr_output_commit_state(event->output, &state);
     wlr_output_state_finish(&state);
 
-    /* Rebuild output manager config so wlr-randr etc. see the new enabled state */
+    /* Rebuild output manager config so wlr-randr etc. see the new enabled state
+     */
     output_manager_build_config(server);
 }
 
@@ -225,31 +252,42 @@ server_apply_config(nnwm_server *server)
      * server_new_output but runs on already-created outputs. */
     {
         nnwm_output *output, *tmp;
-        wl_list_for_each_safe(output, tmp, &server->outputs, link) {
+        wl_list_for_each_safe(output, tmp, &server->outputs, link)
+        {
             wlr_output *wlr_output = output->wlr_output;
 
             /* Find matching monitor config (first match wins) */
             nnwm_monitor_config *mc = nullptr;
             {
-                auto *cfg = server->config;
+                auto *cfg  = server->config;
                 char *desc = output_description(wlr_output);
-                for (int i = 0; i < cfg->monitor_config_count; i++) {
-                    auto &c = cfg->monitor_configs[i];
+                for (int i = 0; i < cfg->monitor_config_count; i++)
+                {
+                    auto &c    = cfg->monitor_configs[i];
                     bool match = true;
-                    if (c.name        && (!wlr_output->name || strcmp(c.name, wlr_output->name) != 0)) match = false;
-                    if (c.description && strcmp(c.description, desc) != 0) match = false;
-                    if (match) { mc = &c; break; }
+                    if (c.name
+                        && (!wlr_output->name
+                            || strcmp(c.name, wlr_output->name) != 0))
+                        match = false;
+                    if (c.description && strcmp(c.description, desc) != 0)
+                        match = false;
+                    if (match)
+                    {
+                        mc = &c;
+                        break;
+                    }
                 }
                 free(desc);
             }
 
             if (!mc)
-                continue;  /* no config for this output — keep current state */
+                continue; /* no config for this output — keep current state */
 
             wlr_output_state state;
             wlr_output_state_init(&state);
 
-            if (mc->disabled) {
+            if (mc->disabled)
+            {
                 wlr_output_state_set_enabled(&state, false);
                 wlr_output_commit_state(wlr_output, &state);
                 wlr_output_state_finish(&state);
@@ -262,22 +300,29 @@ server_apply_config(nnwm_server *server)
 
             /* Apply transform */
             if (mc->transform >= 0)
-                wlr_output_state_set_transform(&state,
-                    static_cast<wl_output_transform>(mc->transform));
+                wlr_output_state_set_transform(
+                    &state, static_cast<wl_output_transform>(mc->transform));
 
             /* Pick a mode: match by size/refresh if configured */
-            if (mc->width > 0 && mc->height > 0) {
+            if (mc->width > 0 && mc->height > 0)
+            {
                 int target_w   = mc->width;
                 int target_h   = mc->height;
                 int target_mhz = mc->refresh * 1000;
 
                 wlr_output_mode *mode = nullptr;
                 wlr_output_mode *m;
-                wl_list_for_each(m, &wlr_output->modes, link) {
-                    if (m->width == target_w && m->height == target_h) {
+                wl_list_for_each(m, &wlr_output->modes, link)
+                {
+                    if (m->width == target_w && m->height == target_h)
+                    {
                         if (target_mhz == 0 || m->refresh == target_mhz)
-                        { mode = m; break; }
-                        if (!mode) mode = m;
+                        {
+                            mode = m;
+                            break;
+                        }
+                        if (!mode)
+                            mode = m;
                     }
                 }
                 if (mode)
@@ -289,8 +334,8 @@ server_apply_config(nnwm_server *server)
 
             /* Reposition in the output layout */
             if (mc->x != INT_MAX && mc->y != INT_MAX)
-                wlr_output_layout_add(server->output_layout, wlr_output,
-                                      mc->x, mc->y);
+                wlr_output_layout_add(server->output_layout, wlr_output, mc->x,
+                                      mc->y);
 
             /* Recompute usable area with the new logical resolution and
              * re-tile; arrange_layers reads wlr_output_layout_get_box which
@@ -305,25 +350,27 @@ server_apply_config(nnwm_server *server)
     /* Update border colors using actual keyboard focus */
     wlr_surface *focused_surface = server->seat->keyboard_state.focused_surface;
     nnwm_toplevel *tl;
-    wl_list_for_each(tl, &server->toplevels, link) {
+    wl_list_for_each(tl, &server->toplevels, link)
+    {
         float *color = (tl->xdg_toplevel->base->surface == focused_surface)
-            ? server->config->focused_color
-            : server->config->unfocused_color;
+                           ? server->config->focused_color
+                           : server->config->unfocused_color;
         for (int i = 0; i < 4; i++)
             wlr_scene_rect_set_color(tl->border[i], color);
     }
 
     /* Re-apply decoration mode (CSD vs SSD) to all live toplevels */
-    wl_list_for_each(tl, &server->toplevels, link) {
+    wl_list_for_each(tl, &server->toplevels, link)
+    {
         if (tl->decoration)
-            decoration_apply(tl->decoration, server->config->client_decorations);
+            decoration_apply(tl->decoration,
+                             server->config->client_decorations);
     }
 
     /* Re-apply scenefx decorations (corner radius / shadow) to all windows */
     {
         nnwm_toplevel *tl;
-        wl_list_for_each(tl, &server->toplevels, link)
-            apply_fx_decorations(tl);
+        wl_list_for_each(tl, &server->toplevels, link) apply_fx_decorations(tl);
     }
 
     /* Re-arrange to apply border_width / master_ratio changes */
@@ -331,7 +378,8 @@ server_apply_config(nnwm_server *server)
 
     /* Update keymap and repeat info for all connected keyboards */
     nnwm_keyboard *kb;
-    wl_list_for_each(kb, &server->keyboards, link) {
+    wl_list_for_each(kb, &server->keyboards, link)
+    {
         apply_keymap(kb->wlr_keyboard, server->config);
         wlr_keyboard_set_repeat_info(kb->wlr_keyboard,
                                      server->config->keyboard_repeat_rate,
@@ -344,30 +392,36 @@ server_apply_config(nnwm_server *server)
 void
 server_new_output(wl_listener *listener, void *data)
 {
-    nnwm_server *server
-        = wl_container_of(listener, server, new_output);
-    wlr_output *wlr_output = static_cast<struct wlr_output*>(data);
+    nnwm_server *server    = wl_container_of(listener, server, new_output);
+    wlr_output *wlr_output = static_cast<struct wlr_output *>(data);
 
     wlr_output_init_render(wlr_output, server->allocator, server->renderer);
 
     wlr_log(WLR_INFO, "new output: name='%s' make='%s' model='%s' serial='%s'",
-            wlr_output->name   ? wlr_output->name   : "",
-            wlr_output->make   ? wlr_output->make   : "",
-            wlr_output->model  ? wlr_output->model  : "",
+            wlr_output->name ? wlr_output->name : "",
+            wlr_output->make ? wlr_output->make : "",
+            wlr_output->model ? wlr_output->model : "",
             wlr_output->serial ? wlr_output->serial : "");
 
     /* Find matching monitor config (first match wins) */
     nnwm_monitor_config *mc = nullptr;
     {
-        auto *cfg = server->config;
+        auto *cfg  = server->config;
         char *desc = output_description(wlr_output);
         for (int i = 0; i < cfg->monitor_config_count; i++)
         {
-            auto &c = cfg->monitor_configs[i];
+            auto &c    = cfg->monitor_configs[i];
             bool match = true;
-            if (c.name        && (!wlr_output->name || strcmp(c.name, wlr_output->name) != 0)) match = false;
-            if (c.description && strcmp(c.description, desc) != 0) match = false;
-            if (match) { mc = &c; break; }
+            if (c.name
+                && (!wlr_output->name || strcmp(c.name, wlr_output->name) != 0))
+                match = false;
+            if (c.description && strcmp(c.description, desc) != 0)
+                match = false;
+            if (match)
+            {
+                mc = &c;
+                break;
+            }
         }
         free(desc);
     }
@@ -391,16 +445,17 @@ server_new_output(wl_listener *listener, void *data)
 
     /* Apply transform if configured */
     if (mc && mc->transform >= 0)
-        wlr_output_state_set_transform(&state,
-            static_cast<wl_output_transform>(mc->transform));
+        wlr_output_state_set_transform(
+            &state, static_cast<wl_output_transform>(mc->transform));
 
     /* Pick a mode: match by size/refresh if configured, else preferred */
     wlr_output_mode *mode = nullptr;
     if (mc && mc->width > 0 && mc->height > 0)
     {
-        int target_w   = mc->width;
-        int target_h   = mc->height;
-        int target_mhz = mc->refresh * 1000; /* user passes Hz; wlroots uses mHz */
+        int target_w = mc->width;
+        int target_h = mc->height;
+        int target_mhz
+            = mc->refresh * 1000; /* user passes Hz; wlroots uses mHz */
 
         wlr_output_mode *m;
         wl_list_for_each(m, &wlr_output->modes, link)
@@ -408,15 +463,20 @@ server_new_output(wl_listener *listener, void *data)
             if (m->width == target_w && m->height == target_h)
             {
                 if (target_mhz == 0 || m->refresh == target_mhz)
-                { mode = m; break; }
-                if (!mode) mode = m; /* fallback: closest match on size */
+                {
+                    mode = m;
+                    break;
+                }
+                if (!mode)
+                    mode = m; /* fallback: closest match on size */
             }
         }
         if (!mode)
-            std::fprintf(stderr, "nnwm: monitor '%s' has no mode %dx%d, "
+            std::fprintf(stderr,
+                         "nnwm: monitor '%s' has no mode %dx%d, "
                          "falling back to preferred\n",
-                         wlr_output->name ? wlr_output->name : "?",
-                         target_w, target_h);
+                         wlr_output->name ? wlr_output->name : "?", target_w,
+                         target_h);
     }
     if (!mode)
         mode = wlr_output_preferred_mode(wlr_output);
@@ -427,21 +487,23 @@ server_new_output(wl_listener *listener, void *data)
     wlr_output_state_finish(&state);
 
     nnwm_output *output = new nnwm_output{};
-    output->wlr_output    = wlr_output;
-    output->server        = server;
+    output->wlr_output  = wlr_output;
+    output->server      = server;
     wlr_output_layout_get_box(server->output_layout, wlr_output,
                               &output->usable_area);
 
     output->active_workspace = 0;
     memset(output->last_focused, 0, sizeof(output->last_focused));
     memset(output->prev_focused, 0, sizeof(output->prev_focused));
-    for (int i = 0; i < NNWM_NUM_WORKSPACES; i++) {
-        output->layout_mode[i]  = NNWM_LAYOUT_TILE;
+    for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
+    {
+        output->layout_mode[i]   = nnwm_layout_mode::HTILE;
         output->scroll_offset[i] = 0;
     }
     output->tab_bar = wlr_scene_buffer_create(server->scene_windows, nullptr);
     wlr_scene_node_set_enabled(&output->tab_bar->node, false);
-    output->error_bar = wlr_scene_buffer_create(server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY], nullptr);
+    output->error_bar = wlr_scene_buffer_create(
+        server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY], nullptr);
     wlr_scene_node_set_enabled(&output->error_bar->node, false);
     if (!server->focused_output)
         server->focused_output = output;
@@ -463,7 +525,8 @@ server_new_output(wl_listener *listener, void *data)
         l_output = wlr_output_layout_add(server->output_layout, wlr_output,
                                          mc->x, mc->y);
     else
-        l_output = wlr_output_layout_add_auto(server->output_layout, wlr_output);
+        l_output
+            = wlr_output_layout_add_auto(server->output_layout, wlr_output);
 
     wlr_scene_output *scene_output
         = wlr_scene_output_create(server->scene, wlr_output);
