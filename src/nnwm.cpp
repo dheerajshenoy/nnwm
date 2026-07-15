@@ -721,6 +721,8 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         wl_list_for_each(tl, &server->toplevels, link) {
             if (!WS_TILED(tl, out)) continue;
             wlr_scene_node_set_enabled(&tl->scene_tree->node, tl == active);
+            wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+                WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
             wlr_xdg_toplevel_set_size(tl->xdg_toplevel, cw - 2 * bw, ch - 2 * bw);
             tl_set_geometry(tl, cx, cy, cw, ch, bw);
             /* Override scene_surface position: no per-window titlebar offset.
@@ -787,6 +789,8 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
             int ty = area.y + og;
             bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
             wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
+            wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+                WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
             wlr_xdg_toplevel_set_size(tl->xdg_toplevel, col_w - 2 * bw, col_h - 2 * bw - th);
             tl_set_geometry(tl, tx, ty, col_w, col_h, bw);
             render_titlebar(tl, col_w - 2 * bw, focused);
@@ -830,6 +834,8 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
     if (n == 1) {
         wl_list_for_each(tl, &server->toplevels, link) {
             if (!WS_TILED(tl, out)) continue;
+            wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+                WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
             wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw, H - 2 * bw - th);
             tl_set_geometry(tl, x0, y0, W, H, bw);
             render_titlebar(tl, W - 2 * bw,
@@ -847,12 +853,16 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
             if (!WS_TILED(tl, out)) continue;
             bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
             if (i == 0) {
+                wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+                    WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
                 wlr_xdg_toplevel_set_size(tl->xdg_toplevel, mw - 2 * bw, H - 2 * bw - th);
                 tl_set_geometry(tl, x0, y0, mw, H, bw);
                 render_titlebar(tl, mw - 2 * bw, focused);
             } else {
                 int sy = y0 + (i - 1) * (sh + ig);
                 int h  = (i < ns) ? sh : H - (i - 1) * (sh + ig);
+                wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+                    WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
                 wlr_xdg_toplevel_set_size(tl->xdg_toplevel, sw - 2 * bw, h - 2 * bw - th);
                 tl_set_geometry(tl, x0 + mw + ig, sy, sw, h, bw);
                 render_titlebar(tl, sw - 2 * bw, focused);
@@ -861,11 +871,14 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         }
     }
 
-    /* Floating and fullscreen windows must always sit above tiled ones. */
+    /* Floating and fullscreen windows must always sit above tiled ones.
+     * Clear the tiled state so clients know they can control their own size. */
     wl_list_for_each(tl, &server->toplevels, link) {
         if (tl->output == out && (tl->workspace == ws || tl->sticky)
-                && (tl->floating || tl->fullscreen))
+                && (tl->floating || tl->fullscreen)) {
+            wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel, WLR_EDGE_NONE);
             wlr_scene_node_raise_to_top(&tl->scene_tree->node);
+        }
     }
 }
 

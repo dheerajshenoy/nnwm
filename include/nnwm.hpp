@@ -72,6 +72,7 @@ extern "C"
 #include <wlr/types/wlr_ext_image_capture_source_v1.h>
 #include <wlr/backend/libinput.h>
 #include <wlr/backend/session.h>
+#include <wlr/util/edges.h>
 #include <wlr/util/log.h>
 #include <libinput.h>
 #ifdef __cplusplus
