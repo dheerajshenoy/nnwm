@@ -92,6 +92,14 @@ process_cursor_move(nnwm_server *server)
     wlr_scene_node_set_position(&toplevel->scene_tree->node,
                                 server->cursor->x - server->grab_x,
                                 server->cursor->y - server->grab_y);
+
+    /* Keep toplevel->output in sync with whichever monitor the cursor is on
+     * so that toggle_float / arrange_windows tile on the correct monitor. */
+    nnwm_output *cur_out = output_at_cursor(server);
+    if (cur_out && cur_out != toplevel->output) {
+        toplevel->output    = cur_out;
+        toplevel->workspace = cur_out->active_workspace;
+    }
 }
 
 void
