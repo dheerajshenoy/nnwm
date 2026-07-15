@@ -399,24 +399,35 @@ xdg_popup_commit(wl_listener *listener, void * /*data*/)
 {
     nnwm_popup *popup = wl_container_of(listener, popup, commit);
 
+    if (!popup)
+        return;
+
     if (popup->xdg_popup->base->initial_commit)
     {
-        if (popup->output && popup->server && popup->parent_tree)
+        if (popup->output && popup->server && popup->root_tree)
         {
             wlr_box output_box;
             nnwm_output *out = nullptr;
-            wl_list_for_each(out, &popup->server->outputs, link)
+            nnwm_output *o;
+            wl_list_for_each(o, &popup->server->outputs, link)
             {
-                if (out->wlr_output == popup->output)
+                if (o->wlr_output == popup->output)
+                {
+                    out = o;
                     break;
+                }
             }
+
             if (out)
                 output_box = out->usable_area;
             else
                 wlr_output_layout_get_box(popup->server->output_layout,
                                           popup->output, &output_box);
             int px = 0, py = 0;
-            wlr_scene_node_coords(&popup->parent_tree->node, &px, &py);
+            /* Use root_tree coords: wlr_xdg_popup_unconstrain_from_box
+             * expects the constraint in the root surface's coordinate space,
+             * not the immediate parent popup's space. */
+            wlr_scene_node_coords(&popup->root_tree->node, &px, &py);
             wlr_box constraint = {
                 output_box.x - px,
                 output_box.y - py,
@@ -541,6 +552,7 @@ server_new_xdg_popup(wl_listener *listener, void *data)
     popup->server     = server;
 
     wlr_scene_tree *parent_tree = nullptr;
+    wlr_scene_tree *root_tree   = nullptr;
 
     if (xdg_popup->parent)
     {
@@ -548,13 +560,52 @@ server_new_xdg_popup(wl_listener *listener, void *data)
             = wlr_xdg_surface_try_from_wlr_surface(xdg_popup->parent);
         if (xdg_parent)
         {
+            /* parent_tree: immediate parent surface — where the popup lives in the scene */
             parent_tree = static_cast<wlr_scene_tree *>(xdg_parent->data);
-            /* Inherit output from the owning toplevel */
-            if (parent_tree && parent_tree->node.data)
+
+            /* Walk up the xdg popup chain to find the root surface (toplevel or
+             * layer surface). root_tree is used for constraint coordinates because
+             * wlr_xdg_popup_unconstrain_from_box expects coords in the root
+             * surface's space, not the immediate parent popup's space. */
+            for (wlr_xdg_surface *cur = xdg_parent; cur; )
             {
-                auto *tl = static_cast<nnwm_toplevel *>(parent_tree->node.data);
-                if (tl && tl->output)
-                    popup->output = tl->output->wlr_output;
+                if (cur->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL)
+                {
+                    wlr_scene_tree *st = static_cast<wlr_scene_tree *>(cur->data);
+                    if (st && st->node.data)
+                    {
+                        auto *tl = static_cast<nnwm_toplevel *>(st->node.data);
+                        if (tl)
+                        {
+                            root_tree    = tl->scene_tree;
+                            popup->output = tl->output
+                                ? tl->output->wlr_output : nullptr;
+                        }
+                    }
+                    break;
+                }
+                if (cur->role != WLR_XDG_SURFACE_ROLE_POPUP
+                    || !cur->popup || !cur->popup->parent)
+                    break;
+                wlr_xdg_surface *up =
+                    wlr_xdg_surface_try_from_wlr_surface(cur->popup->parent);
+                if (up)
+                {
+                    cur = up;
+                }
+                else
+                {
+                    /* Parent is a layer surface */
+                    wlr_layer_surface_v1 *lp =
+                        wlr_layer_surface_v1_try_from_wlr_surface(cur->popup->parent);
+                    if (lp)
+                    {
+                        auto *ls  = static_cast<nnwm_layer_surface *>(lp->data);
+                        root_tree    = ls->scene->tree;
+                        popup->output = lp->output;
+                    }
+                    break;
+                }
             }
         }
         else
@@ -563,9 +614,9 @@ server_new_xdg_popup(wl_listener *listener, void *data)
                 = wlr_layer_surface_v1_try_from_wlr_surface(xdg_popup->parent);
             if (layer_parent)
             {
-                auto *ls
-                    = static_cast<nnwm_layer_surface *>(layer_parent->data);
+                auto *ls      = static_cast<nnwm_layer_surface *>(layer_parent->data);
                 parent_tree   = ls->scene->tree;
+                root_tree     = ls->scene->tree;
                 popup->output = layer_parent->output;
             }
         }
@@ -590,9 +641,11 @@ server_new_xdg_popup(wl_listener *listener, void *data)
         }
         popup->offset_tree = offset_tree;
         parent_tree        = offset_tree;
+        root_tree          = offset_tree;
     }
 
     popup->parent_tree = parent_tree;
+    popup->root_tree   = root_tree;
     xdg_popup->base->data
         = wlr_scene_xdg_surface_create(parent_tree, xdg_popup->base);
 
