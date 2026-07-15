@@ -63,13 +63,13 @@
   and removes its vertical offset, giving the window the full output area.
   Exiting fullscreen restores the titlebar through the normal layout path.
 - **scenefx rounded corners**: when `nnwm.opt.fx.corner_radius` is set, window
-  borders are now drawn with correct rounded outer corners. The top border rect
-  rounds its two top corners; the bottom rect rounds its two bottom corners;
-  left and right strips have no rounding (they fit flush between the other two).
-  The window surface buffers receive a concentric inner radius
-  (`corner_radius − border_width`, floored at 0) so content clips cleanly inside
-  the frame. This replaces the previous `border_bg` full-window backing rect,
-  which was both visually incorrect and less efficient.
+  borders are drawn with correct rounded corners via a single full-window
+  `border_bg` rect with `corner_radius r`. The four border strips are inset by
+  `r` from each corner so they never override the rounding. The window surface
+  receives a concentric inner radius (`corner_radius − border_width`, floored at
+  0) so content clips cleanly inside the frame; the area revealed behind the
+  clipped inner corners shows the `border_bg` color rather than the desktop,
+  giving a consistent border width all the way around each corner.
 - **scenefx window opacity**: `nnwm.opt.fx.opacity` (default `1.0`) sets the
   composited opacity of all window content. The value is applied recursively to
   every surface buffer in the xdg surface tree (main surface and subsurfaces).
