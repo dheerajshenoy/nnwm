@@ -157,6 +157,9 @@ nnwm.opt = {
             radius = 0,     -- corner radius in pixels; 0 = disabled
             smart  = false, -- collapse rounding when only one window is visible
         },
+        opacity           = 1.0,  -- base window opacity (0.0–1.0)
+        focused_opacity   = -1,   -- <0 = inherit opacity; 0.0–1.0 = override
+        unfocused_opacity = -1,   -- <0 = inherit opacity; 0.0–1.0 = override
     },
 
     monitors = { ... },    -- see below
