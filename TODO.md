@@ -86,6 +86,7 @@
 - [x] Don't show titlebar in tabbed layout mode (if activated)
 - [x] Don't show titlebar in fullscreen mode
 - [x] Popup menu appears outside viewport
+- [X] Remove corner radius for fullscreen windows
 - lua helper functions
     - [x] device_name
 - Styles of animation

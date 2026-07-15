@@ -734,11 +734,8 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
 #ifdef HAVE_SCENEFX
     nnwm_config *cfg = toplevel->server->config;
 
-    /* Per-corner radii on the 4 border rects:
-     * top rect rounds its own two top corners; bottom rect rounds its two
-     * bottom corners; left/right strips have no corners to round (they fit
-     * flush between top and bottom). */
-    int r = cfg->fx.corner_radius;
+    /* Fullscreen windows have no borders or rounding */
+    int r = toplevel->fullscreen ? 0 : cfg->fx.corner_radius;
 
     /* border_bg: full-window rect that provides the correctly rounded outer
      * corners. The 4 border strips are inset by r (see update_borders) so
@@ -753,15 +750,12 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
 
     /* Corner radius on titlebar buffer */
     if (toplevel->titlebar)
-        wlr_scene_buffer_set_corner_radius(toplevel->titlebar,
-                                           cfg->fx.corner_radius);
+        wlr_scene_buffer_set_corner_radius(toplevel->titlebar, r);
 
     /* Inner corner radius: surface sits inset by border_width, so its corners
      * need a smaller radius to remain concentric with the outer border corners.
      */
-    int inner_r = cfg->fx.corner_radius > cfg->border.width
-                      ? cfg->fx.corner_radius - cfg->border.width
-                      : 0;
+    int inner_r = r > cfg->border.width ? r - cfg->border.width : 0;
     if (toplevel->scene_surface)
         set_corner_radius_recursive(toplevel->scene_surface, inner_r);
 
@@ -792,14 +786,12 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
             int h       = geo.height + 2 * bw + th;
             toplevel->fx_blur
                 = wlr_scene_blur_create(toplevel->scene_tree, w, h);
-            wlr_scene_blur_set_corner_radius(toplevel->fx_blur,
-                                             cfg->fx.corner_radius);
+            wlr_scene_blur_set_corner_radius(toplevel->fx_blur, r);
             wlr_scene_node_lower_to_bottom(&toplevel->fx_blur->node);
         }
         else
         {
-            wlr_scene_blur_set_corner_radius(toplevel->fx_blur,
-                                             cfg->fx.corner_radius);
+            wlr_scene_blur_set_corner_radius(toplevel->fx_blur, r);
         }
     }
     else if (!eff_blur && toplevel->fx_blur)
@@ -817,7 +809,7 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
         int w               = geo.width + 2 * bw;
         int h               = geo.height + 2 * bw + th;
         toplevel->fx_shadow = wlr_scene_shadow_create(
-            toplevel->scene_tree, w, h, cfg->fx.corner_radius,
+            toplevel->scene_tree, w, h, r,
             cfg->fx.shadow_blur_sigma, cfg->fx.shadow_color);
         wlr_scene_node_set_position(&toplevel->fx_shadow->node,
                                     (int)cfg->fx.shadow_offset_x,
@@ -833,8 +825,7 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
         }
         else
         {
-            wlr_scene_shadow_set_corner_radius(toplevel->fx_shadow,
-                                               cfg->fx.corner_radius);
+            wlr_scene_shadow_set_corner_radius(toplevel->fx_shadow, r);
             wlr_scene_shadow_set_blur_sigma(toplevel->fx_shadow,
                                             cfg->fx.shadow_blur_sigma);
             wlr_scene_shadow_set_color(toplevel->fx_shadow, cfg->fx.shadow_color);

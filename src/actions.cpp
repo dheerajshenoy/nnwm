@@ -47,13 +47,9 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
         if (tl->titlebar)
             wlr_scene_node_set_enabled(&tl->titlebar->node, false);
         wlr_scene_node_set_position(&tl->scene_surface->node, 0, 0);
-
-        if (server->config->fx.corner_radius > 0.0f)
-        {
-            /* Disable Round corners for fullscreen windows */
-        }
     }
 
+    apply_fx_decorations(tl);
     arrange_windows(server, out);
 }
 
