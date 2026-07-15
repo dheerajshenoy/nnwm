@@ -125,6 +125,22 @@
 
 ### Bug Fixes
 
+- **Floating window dragged to another monitor tiles on wrong monitor**: dragging
+  a floating window across monitors and then tiling it (`toggle_float`) placed it
+  in the tiled layout of the original monitor instead of the one it was dropped
+  on. `process_cursor_move` now updates `toplevel->output` and
+  `toplevel->workspace` whenever the cursor crosses into a different output during
+  a drag, so subsequent tiling always targets the correct monitor.
+- **Float→tile animation**: toggling a floating window to tiled mode ran a
+  geometry tween from the floating position to the tile slot, which was
+  disorienting. The tween is now cancelled immediately after `arrange_windows` in
+  the float→tile path and the window snaps directly to its tiled position.
+- **Crash when calling swap/cycle with a floating window focused**:
+  `nnwm.swap.left/right/next/prev`, `nnwm.swap.master`, and `nnwm.cycle` all
+  dereferenced the result of `ws_first` / `ws_next` / `ws_prev` without checking
+  for null. These helpers only consider tiled windows, so a null return was
+  possible whenever the focused window was floating (or no tiled windows existed).
+  All six functions now return early if the focused toplevel is floating.
 - **Layer-shell popup crash**: clicking waybar modules (e.g. wifi, network)
   that open XDG popups no longer crashes the compositor. Previously
   `server_new_xdg_popup` asserted that the popup parent was an XDG surface;
