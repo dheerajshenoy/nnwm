@@ -152,6 +152,13 @@ nnwm.opt = {
         size  = 24,
     },
 
+    fx = {
+        rounding = {
+            radius = 0,     -- corner radius in pixels; 0 = disabled
+            smart  = false, -- collapse rounding when only one window is visible
+        },
+    },
+
     monitors = { ... },    -- see below
 }
 ```
@@ -299,6 +306,10 @@ nnwm.opt = {
     },
 
     client_decorations = false,
+
+    fx = {
+        rounding = { radius = 6, smart = true },
+    },
 
     monitors = {
         { name = "eDP-1", x = 0, y = 0, width = 1920, height = 1200, scale = 1.25 },
