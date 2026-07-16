@@ -109,3 +109,4 @@
 - [ ] temporary mouse cursor size increase to regain attention of the cursor
 - [ ] Touchpad gestures
 - [ ] XWayland
+- [x] The title of the window in tabbar doesn't update until the window is focused
