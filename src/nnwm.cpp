@@ -86,8 +86,9 @@ render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused)
     cairo_t *cr = cairo_create(surf);
 
     /* Background */
-    const float *bg
-        = focused ? cfg->titlebar.focused_bg_color : cfg->titlebar.bg_color;
+    const float *bg = tl->urgent         ? cfg->titlebar.urgent_bg_color
+                      : focused          ? cfg->titlebar.focused_bg_color
+                                         : cfg->titlebar.bg_color;
     cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
     cairo_paint(cr);
 
@@ -123,8 +124,9 @@ render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused)
         pango_layout_get_size(layout, &pw, &ph);
         double ty = (h - ph / (double)PANGO_SCALE) / 2.0;
 
-        const float *tc = focused ? cfg->titlebar.focused_text_color
-                                  : cfg->titlebar.text_color;
+        const float *tc = tl->urgent        ? cfg->titlebar.urgent_text_color
+                          : focused         ? cfg->titlebar.focused_text_color
+                                           : cfg->titlebar.text_color;
         cairo_set_source_rgba(cr, tc[0], tc[1], tc[2], tc[3]);
         cairo_move_to(cr, pad, ty);
         pango_cairo_show_layout(cr, layout);
@@ -953,8 +955,9 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
         int x        = (int)((long)i * width / n);
         int w        = (int)((long)(i + 1) * width / n) - x;
 
-        const float *bg
-            = focused ? cfg->titlebar.focused_bg_color : cfg->titlebar.bg_color;
+        const float *bg = tl->urgent        ? cfg->titlebar.urgent_bg_color
+                          : focused         ? cfg->titlebar.focused_bg_color
+                                           : cfg->titlebar.bg_color;
         cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
         cairo_rectangle(cr, x, 0, w, height);
         cairo_fill(cr);
@@ -992,8 +995,9 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
             pango_layout_get_size(layout, &pw, &ph);
             double ty = (height - ph / (double)PANGO_SCALE) / 2.0;
 
-            const float *tc = focused ? cfg->titlebar.focused_text_color
-                                      : cfg->titlebar.text_color;
+            const float *tc = tl->urgent        ? cfg->titlebar.urgent_text_color
+                              : focused         ? cfg->titlebar.focused_text_color
+                                               : cfg->titlebar.text_color;
             cairo_set_source_rgba(cr, tc[0], tc[1], tc[2], tc[3]);
             cairo_move_to(cr, x + pad, ty);
             pango_cairo_show_layout(cr, layout);
@@ -1579,6 +1583,7 @@ focus_toplevel(nnwm_toplevel *toplevel)
     }
     wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
     wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
+    toplevel->urgent = false;
 
     /* Update border colors, titlebar focus state, and opacity for all windows */
     nnwm_config *cfg = server->config;

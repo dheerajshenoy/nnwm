@@ -57,8 +57,10 @@ MOD = {}
 ---@field text_align?          integer     Text alignment: 0 = left, 1 = center, 2 = right (default: 1)
 ---@field bg_color?            nnwm.color  Background color for unfocused windows (default: {0.2, 0.2, 0.2, 1.0})
 ---@field focused_bg_color?    nnwm.color  Background color for the focused window (default: {0.25, 0.35, 0.55, 1.0})
+---@field urgent_bg_color?     nnwm.color  Background color for urgent (attention-requesting) windows (default: {0.7, 0.2, 0.2, 1.0})
 ---@field text_color?          nnwm.color  Title text color for unfocused windows (default: {1.0, 1.0, 1.0, 1.0})
 ---@field focused_text_color?  nnwm.color  Title text color for the focused window (default: {1.0, 1.0, 1.0, 1.0})
+---@field urgent_text_color?   nnwm.color  Title text color for urgent windows (default: {1.0, 1.0, 1.0, 1.0})
 
 ---@class nnwm.fx.shadow
 ---@field enabled?    boolean     Enable drop shadows (default: false)

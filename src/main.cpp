@@ -2,6 +2,10 @@
 #include "lua/config.hpp"
 #include <cstdio>
 
+void render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused);
+void render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height);
+int ws_count(nnwm_server *server, nnwm_output *out);
+
 extern "C" {
 #include <sys/stat.h>
 #include <sys/inotify.h>
@@ -272,6 +276,49 @@ main(int argc, char *argv[])
                   &server.new_xdg_toplevel);
     server.new_xdg_popup.notify = server_new_xdg_popup;
     wl_signal_add(&server.xdg_shell->events.new_popup, &server.new_xdg_popup);
+
+    server.xdg_activation = wlr_xdg_activation_v1_create(server.wl_display);
+    server.request_activate.notify = [](wl_listener *listener, void *data)
+    {
+        nnwm_server *server = wl_container_of(listener, server, request_activate);
+        auto *event = static_cast<wlr_xdg_activation_v1_request_activate_event *>(data);
+        wlr_xdg_toplevel *xdg_tl
+            = wlr_xdg_toplevel_try_from_wlr_surface(event->surface);
+        if (!xdg_tl)
+            return;
+        nnwm_toplevel *tl;
+        wl_list_for_each(tl, &server->toplevels, link)
+        {
+            if (tl->xdg_toplevel != xdg_tl)
+                continue;
+            wlr_surface *focused = server->seat->keyboard_state.focused_surface;
+            if (tl->xdg_toplevel->base->surface == focused)
+                return;
+            tl->urgent = true;
+            nnwm_config *cfg = server->config;
+            if (cfg->titlebar.height > 0 && tl->titlebar_width > 0)
+            {
+                wlr_surface *fs = server->seat->keyboard_state.focused_surface;
+                render_titlebar(tl, tl->titlebar_width,
+                                tl->xdg_toplevel->base->surface == fs);
+            }
+            if (tl->output && !tl->floating
+                && tl->output->layout_mode[tl->workspace]
+                       == nnwm_layout_mode::TABBED)
+            {
+                int tab_h = cfg->titlebar.height > 0 ? cfg->titlebar.height : 24;
+                int ws    = tl->output->active_workspace;
+                const wlr_box &area = tl->output->usable_area;
+                bool solo = (ws_count(server, tl->output) == 1);
+                int og    = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
+                int cw    = area.width - 2 * og;
+                render_tab_bar(server, tl->output, cw, tab_h);
+            }
+            return;
+        }
+    };
+    wl_signal_add(&server.xdg_activation->events.request_activate,
+                  &server.request_activate);
 
     /*
      * Creates a cursor, which is a wlroots utility for tracking the cursor

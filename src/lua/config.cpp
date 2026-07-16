@@ -905,6 +905,13 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_newtable(L);
     for (int i = 0; i < 4; i++)
     {
+        lua_pushnumber(L, cfg->titlebar.urgent_bg_color[i]);
+        lua_rawseti(L, -2, i + 1);
+    }
+    lua_setfield(L, -2, "urgent_bg_color");
+    lua_newtable(L);
+    for (int i = 0; i < 4; i++)
+    {
         lua_pushnumber(L, cfg->titlebar.text_color[i]);
         lua_rawseti(L, -2, i + 1);
     }
@@ -916,6 +923,13 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         lua_rawseti(L, -2, i + 1);
     }
     lua_setfield(L, -2, "focused_text_color");
+    lua_newtable(L);
+    for (int i = 0; i < 4; i++)
+    {
+        lua_pushnumber(L, cfg->titlebar.urgent_text_color[i]);
+        lua_rawseti(L, -2, i + 1);
+    }
+    lua_setfield(L, -2, "urgent_text_color");
     lua_setfield(L, -2, "titlebar");
 
     /* fx sub-table (scenefx: corner radius and shadows) */
@@ -1379,6 +1393,12 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                               cfg->titlebar.focused_bg_color[3]};
         get_color_field(L, "focused_bg_color", cfg->titlebar.focused_bg_color,
                         dflt_tfbg);
+        float dflt_tubg[4] = {cfg->titlebar.urgent_bg_color[0],
+                              cfg->titlebar.urgent_bg_color[1],
+                              cfg->titlebar.urgent_bg_color[2],
+                              cfg->titlebar.urgent_bg_color[3]};
+        get_color_field(L, "urgent_bg_color", cfg->titlebar.urgent_bg_color,
+                        dflt_tubg);
         float dflt_ttc[4]
             = {cfg->titlebar.text_color[0], cfg->titlebar.text_color[1],
                cfg->titlebar.text_color[2], cfg->titlebar.text_color[3]};
@@ -1389,6 +1409,12 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                               cfg->titlebar.focused_text_color[3]};
         get_color_field(L, "focused_text_color",
                         cfg->titlebar.focused_text_color, dflt_tftc);
+        float dflt_tutc[4] = {cfg->titlebar.urgent_text_color[0],
+                              cfg->titlebar.urgent_text_color[1],
+                              cfg->titlebar.urgent_text_color[2],
+                              cfg->titlebar.urgent_text_color[3]};
+        get_color_field(L, "urgent_text_color", cfg->titlebar.urgent_text_color,
+                        dflt_tutc);
     }
     lua_pop(L, 1);
 
@@ -1845,6 +1871,10 @@ nnwm::config_defaults(void)
     cfg->titlebar.focused_bg_color[1]   = 0.35f;
     cfg->titlebar.focused_bg_color[2]   = 0.55f;
     cfg->titlebar.focused_bg_color[3]   = 1.0f;
+    cfg->titlebar.urgent_bg_color[0]    = 0.7f;
+    cfg->titlebar.urgent_bg_color[1]    = 0.2f;
+    cfg->titlebar.urgent_bg_color[2]    = 0.2f;
+    cfg->titlebar.urgent_bg_color[3]    = 1.0f;
     cfg->titlebar.text_color[0]         = 1.0f;
     cfg->titlebar.text_color[1]         = 1.0f;
     cfg->titlebar.text_color[2]         = 1.0f;
@@ -1853,6 +1883,10 @@ nnwm::config_defaults(void)
     cfg->titlebar.focused_text_color[1] = 1.0f;
     cfg->titlebar.focused_text_color[2] = 1.0f;
     cfg->titlebar.focused_text_color[3] = 1.0f;
+    cfg->titlebar.urgent_text_color[0]  = 1.0f;
+    cfg->titlebar.urgent_text_color[1]  = 1.0f;
+    cfg->titlebar.urgent_text_color[2]  = 1.0f;
+    cfg->titlebar.urgent_text_color[3]  = 1.0f;
 
 #ifdef HAVE_SCENEFX
     cfg->fx.animation.enabled            = true;

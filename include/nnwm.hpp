@@ -52,6 +52,7 @@ extern "C"
 #else
     #include <wlr/types/wlr_layer_shell_v1.h>
 #endif
+#include <wlr/types/wlr_xdg_activation_v1.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
@@ -203,6 +204,8 @@ struct nnwm_server
     struct wlr_xdg_shell *xdg_shell;
     struct wl_listener new_xdg_toplevel;
     struct wl_listener new_xdg_popup;
+    struct wlr_xdg_activation_v1 *xdg_activation;
+    struct wl_listener request_activate;
     struct wl_list toplevels;
 #ifdef HAVE_SCENEFX
     struct wl_list dying_toplevels; /* toplevels fading out after unmap */
@@ -317,6 +320,7 @@ struct nnwm_toplevel
     bool fullscreen;
     bool fake_fullscreen;
     bool sticky;
+    bool urgent;
     struct wlr_xdg_toplevel *xdg_toplevel;
     struct wlr_scene_tree *scene_tree;
     struct wlr_scene_rect *border[4]; /* top, bottom, left, right */

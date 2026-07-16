@@ -176,8 +176,10 @@ struct nnwm_config
         int text_align;              /* 0 = left, 1 = center, 2 = right */
         float bg_color[4];           /* unfocused background RGBA */
         float focused_bg_color[4];   /* focused background RGBA */
+        float urgent_bg_color[4];    /* urgent window background RGBA */
         float text_color[4];         /* unfocused text RGBA */
         float focused_text_color[4]; /* focused text RGBA */
+        float urgent_text_color[4];  /* urgent window text RGBA */
     } titlebar;
 
     struct fx
