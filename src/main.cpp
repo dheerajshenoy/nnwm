@@ -485,6 +485,17 @@ main(int argc, char *argv[])
     /* Set the WAYLAND_DISPLAY environment variable to our socket and run the
      * startup command if requested. */
     setenv("WAYLAND_DISPLAY", socket, true);
+    setenv("XDG_CURRENT_DESKTOP", "sway", false); /* false = don't override if already set */
+    /* Export to systemd user environment and D-Bus so services started via
+     * socket activation (e.g. xdg-desktop-portal-wlr, pipewire) see the
+     * correct display socket and desktop identifier. */
+    {
+        char cmd[256];
+        snprintf(cmd, sizeof(cmd),
+                 "systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP 2>/dev/null;"
+                 "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP 2>/dev/null");
+        system(cmd);
+    }
     server.wayland_started = true;
     nnwm::flush_autostart(&server);
     /* Unset DISPLAY so clients don't try to connect to a non-existent X server.
