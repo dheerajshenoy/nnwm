@@ -143,10 +143,10 @@
     - [x] Disabled while typing
     - [x] Hide cursor when typing
 - [ ] disable-power-key-handling
-- [ ] warp-mouse-to-focus (newly spawned window)
+- [x] warp-mouse-to-focus (newly spawned window)
 - [ ] workspace-auto-back-and-forth
 - [ ] Monitor hot-corners
-- [ ] Key repeat when holding down a key
+- [x] Key repeat when holding down a key
 - [ ] Keybinding overlay
 - [ ] Enable/disable config load fail notification
 - Signals
@@ -154,5 +154,5 @@
     - [ ] On lid open
     - [ ] On monitor connect
     - [ ] On monitor disconnect
-- [ ] Struts specification support
-- [ ] Enable/disable clipboard
+- [x] Struts specification support
+- [x] Enable/disable clipboard
