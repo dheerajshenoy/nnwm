@@ -467,8 +467,8 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     nnwm_toplevel *toplevel = new nnwm_toplevel{};
     toplevel->server        = server;
     toplevel->xdg_toplevel  = xdg_toplevel;
-    toplevel->rule_opacity  = -1.0f;
-    toplevel->rule_blur     = -1;
+    toplevel->rule_opacity = -1.0f;
+    toplevel->rule_blur    = -1;
 #ifdef HAVE_SCENEFX
     toplevel->rule_anim_open_style  = -1;
     toplevel->rule_anim_close_style = -1;
