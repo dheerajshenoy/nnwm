@@ -99,15 +99,15 @@
     - [x] bounce
 - [x] Focused and unfocused opacity
 - [x] Smart corner radius
+- [x] Urgent windows
+- [x] The title of the window in tabbar doesn't update until the window is focused
 - [ ] Hardware-acceleration
 - [ ] Scratchpad
 - [ ] Multi workspace viewing at once (like dwm)
 - [ ] Firefox wierd behavior with window border and scaling
 - [ ] Overview mode that zooms out and shows all workspaces
 - [ ] Handle minimized windows
-- [x] Urgent windows
 - [ ] Jump label support (like MangoWM)
 - [ ] temporary mouse cursor size increase to regain attention of the cursor
 - [ ] Touchpad gestures
 - [ ] XWayland
-- [x] The title of the window in tabbar doesn't update until the window is focused
