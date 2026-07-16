@@ -76,13 +76,19 @@ MOD = {}
 ---@field contrast?    number   Contrast multiplier for blurred content (default: 1.0)
 ---@field saturation?  number   Saturation multiplier for blurred content (default: 1.0)
 
+---@class nnwm.fx.rounding
+---@field radius? integer  Window corner radius in pixels; 0 disables (default: 0)
+---@field smart?  boolean  Collapse corner radius when only one window is visible (default: false)
+
 ---@class nnwm.fx
 ---Only active when built with `USE_SCENEFX=ON` and running on real DRM hardware.
----@field corner_radius? integer        Window corner radius in pixels; 0 disables (default: 0)
----@field opacity?       number         Window content opacity: 0.0 (invisible) – 1.0 (opaque) (default: 1.0)
----@field shadow?        nnwm.fx.shadow
----@field blur?          nnwm.fx.blur
----@field animations?    nnwm.animations  Animation settings (sceneFX only)
+---@field rounding?          nnwm.fx.rounding
+---@field opacity?           number  Base window content opacity: 0.0–1.0 (default: 1.0)
+---@field focused_opacity?   number  Opacity for the focused window; <0 = inherit opacity (default: -1)
+---@field unfocused_opacity? number  Opacity for unfocused windows; <0 = inherit opacity (default: -1)
+---@field shadow?            nnwm.fx.shadow
+---@field blur?              nnwm.fx.blur
+---@field animations?        nnwm.animations  Animation settings (sceneFX only)
 
 ---@class nnwm_anim_type_config
 ---@field style?    string   Style for this animation type (depends on type)

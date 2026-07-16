@@ -126,6 +126,17 @@
 
 ### Bug Fixes
 
+- **Smart corner rounding state desync**: when `fx.rounding.smart = true`, the
+  effective radius is 0 with one tiled window and the configured value with
+  multiple. Previously `update_borders` always read the raw configured radius
+  for the strip-inset calculation, while `apply_fx_decorations` applied the
+  smart/fullscreen logic separately — and `apply_fx_decorations` was only
+  called for the focused window, leaving all other windows' `border_bg` and
+  content clip radii stale whenever ws_count changed. Fixed by introducing
+  `effective_corner_radius()` (respects smart and fullscreen) used by both
+  `update_borders` and `apply_fx_decorations`, and moving all radius-setting
+  (`border_bg`, titlebar, content inner_r) into `update_borders` so every
+  window is correctly updated on each layout pass, not just the focused one.
 - **Floating window dragged to another monitor tiles on wrong monitor**: dragging
   a floating window across monitors and then tiling it (`toggle_float`) placed it
   in the tiled layout of the original monitor instead of the one it was dropped

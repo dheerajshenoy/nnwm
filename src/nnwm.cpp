@@ -231,15 +231,46 @@ lerpi(int a, int b, float t)
 
 /* ---- Borders and surface placement ---- */
 
+#ifdef HAVE_SCENEFX
+static void
+set_corner_radius_recursive(struct wlr_scene_tree *tree, int radius)
+{
+    struct wlr_scene_node *child;
+    wl_list_for_each(child, &tree->children, link)
+    {
+        if (child->type == WLR_SCENE_NODE_BUFFER)
+            wlr_scene_buffer_set_corner_radius(
+                wlr_scene_buffer_from_node(child), radius);
+        else if (child->type == WLR_SCENE_NODE_TREE)
+            set_corner_radius_recursive(wlr_scene_tree_from_node(child),
+                                        radius);
+    }
+}
+
+static int
+effective_corner_radius(nnwm_toplevel *tl)
+{
+    nnwm_config *cfg = tl->server->config;
+    int r = cfg->fx.rounding.radius;
+    if (tl->fullscreen)
+        return 0;
+    if (cfg->fx.rounding.smart && tl->output)
+        return (ws_count(tl->server, tl->output) == 1) ? 0 : r;
+    return r;
+}
+#endif
+
 void
 update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
 {
     nnwm_config *cfg = toplevel->server->config;
     int th           = cfg->titlebar.height;
 #ifdef HAVE_SCENEFX
-    /* Inset the 4 strips by corner_radius so they don't override the
-     * rounded corners provided by border_bg. */
-    int r  = cfg->fx.rounding.radius;
+    /* Inset the 4 strips by the effective corner radius so they don't
+     * override the rounded corners provided by border_bg. Using the
+     * effective radius (respects smart/fullscreen) keeps strips and
+     * border_bg always in sync. */
+    int r  = effective_corner_radius(toplevel);
     int tw = width - 2 * r;
     if (tw < 0)
         tw = 0;
@@ -282,6 +313,14 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
     {
         wlr_scene_node_set_position(&toplevel->border_bg->node, 0, 0);
         wlr_scene_rect_set_size(toplevel->border_bg, width, height);
+        wlr_scene_rect_set_corner_radius(toplevel->border_bg, r);
+    }
+    if (toplevel->titlebar)
+        wlr_scene_buffer_set_corner_radius(toplevel->titlebar, r);
+    if (toplevel->scene_surface)
+    {
+        int inner_r = r > bw ? r - bw : 0;
+        set_corner_radius_recursive(toplevel->scene_surface, inner_r);
     }
     if (toplevel->fx_blur)
     {
@@ -699,21 +738,6 @@ animate_step(nnwm_server *server)
 
 #ifdef HAVE_SCENEFX
 static void
-set_corner_radius_recursive(struct wlr_scene_tree *tree, int radius)
-{
-    struct wlr_scene_node *child;
-    wl_list_for_each(child, &tree->children, link)
-    {
-        if (child->type == WLR_SCENE_NODE_BUFFER)
-            wlr_scene_buffer_set_corner_radius(
-                wlr_scene_buffer_from_node(child), radius);
-        else if (child->type == WLR_SCENE_NODE_TREE)
-            set_corner_radius_recursive(wlr_scene_tree_from_node(child),
-                                        radius);
-    }
-}
-
-static void
 set_opacity_recursive(struct wlr_scene_tree *tree, float opacity)
 {
     struct wlr_scene_node *child;
@@ -734,35 +758,19 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
 #ifdef HAVE_SCENEFX
     nnwm_config *cfg = toplevel->server->config;
 
-    /* Fullscreen windows have no borders or rounding; smart corner radius
-     * collapses to 0 when only one window is tiled on this output. */
-    int r = cfg->fx.rounding.radius;
-    if (toplevel->fullscreen)
-        r = 0;
-    else if (cfg->fx.rounding.smart && toplevel->output)
-        r = (ws_count(toplevel->server, toplevel->output) == 1) ? 0 : r;
+    int r = effective_corner_radius(toplevel);
 
-    /* border_bg: full-window rect that provides the correctly rounded outer
-     * corners. The 4 border strips are inset by r (see update_borders) so
-     * they never cover the corner areas that border_bg rounds. */
+    /* border_bg: full-window rect that provides correctly rounded outer
+     * corners. The 4 border strips are inset by r (see update_borders).
+     * Radius, inner_r, and titlebar radius are all maintained by
+     * update_borders (which uses effective_corner_radius). Here we only
+     * create the node on first use. */
     if (!toplevel->border_bg)
     {
         toplevel->border_bg = wlr_scene_rect_create(toplevel->scene_tree, 0, 0,
                                                     toplevel->border[0]->color);
         wlr_scene_node_lower_to_bottom(&toplevel->border_bg->node);
     }
-    wlr_scene_rect_set_corner_radius(toplevel->border_bg, r);
-
-    /* Corner radius on titlebar buffer */
-    if (toplevel->titlebar)
-        wlr_scene_buffer_set_corner_radius(toplevel->titlebar, r);
-
-    /* Inner corner radius: surface sits inset by border_width, so its corners
-     * need a smaller radius to remain concentric with the outer border corners.
-     */
-    int inner_r = r > cfg->border.width ? r - cfg->border.width : 0;
-    if (toplevel->scene_surface)
-        set_corner_radius_recursive(toplevel->scene_surface, inner_r);
 
     /* Per-window overrides take precedence over global config values */
     float eff_opacity = (toplevel->rule_opacity >= 0.0f)
