@@ -79,6 +79,7 @@
     - [x] wlr-data-control-unstable-v1
     - [x] wlr-output-configuration-unstable-v1
     - [x] wlr-export-dmabuf-unstable-v1
+    - [x] wlr-xdg-activation-v1
     - [ ] wlr-virtual-pointer-unstable-v1
     - [ ] wlr-virtual-keyboard-unstable-v1
     - [ ] wlr-gamma-control-unstable-v1
@@ -104,7 +105,7 @@
 - [ ] Firefox wierd behavior with window border and scaling
 - [ ] Overview mode that zooms out and shows all workspaces
 - [ ] Handle minimized windows
-- [ ] Urgent windows
+- [x] Urgent windows
 - [ ] Jump label support (like MangoWM)
 - [ ] temporary mouse cursor size increase to regain attention of the cursor
 - [ ] Touchpad gestures
