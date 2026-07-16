@@ -1,5 +1,7 @@
 # nnWM TODO
 
+## DONE
+
 - Lua Config Support
     - [x] Keybindings
     - [x] Rules
@@ -9,9 +11,9 @@
         - [x] Workspace
         - [x] opacity
         - [x] blur
-        - [ ] Maximized
-        - [ ] Fakefullscreen
-        - [ ] Focused
+        - [x] Maximized
+        - [x] Fakefullscreen
+        - [x] Focused
     - [ ] Hooks
         - [ ] Window
             - [ ] New
@@ -108,6 +110,10 @@
 - [x] Handle fractional scaling
 - [x] Firefox wierd behavior with window border and scaling
 - [x] Touchpad gestures
+- [x] warp-mouse-to-focus (newly spawned window)
+- [x] Key repeat when holding down a key
+- [x] Struts specification support
+- [x] Enable/disable clipboard
 - [ ] Hardware-acceleration
 - [ ] Scratchpad
 - [ ] Multi workspace viewing at once (like dwm)
@@ -143,10 +149,8 @@
     - [x] Disabled while typing
     - [x] Hide cursor when typing
 - [ ] disable-power-key-handling
-- [x] warp-mouse-to-focus (newly spawned window)
 - [ ] workspace-auto-back-and-forth
 - [ ] Monitor hot-corners
-- [x] Key repeat when holding down a key
 - [ ] Keybinding overlay
 - [ ] Enable/disable config load fail notification
 - Signals
@@ -154,5 +158,5 @@
     - [ ] On lid open
     - [ ] On monitor connect
     - [ ] On monitor disconnect
-- [x] Struts specification support
-- [x] Enable/disable clipboard
+
+## TODO
