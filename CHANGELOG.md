@@ -124,6 +124,20 @@
     windows. Example:
     `nnwm.rule({ app_id = "rofi" }, { anim_open = "fade", anim_close = "fade" })`.
 
+- **Per-corner radius in tabbed and titlebar modes**: when `fx.rounding.radius`
+  is set, corner rounding is now applied selectively per element rather than
+  uniformly:
+  - In **tabbed layout** the tab bar receives `corner_radii_top(r)` (top corners
+    only), and tiled windows receive `corner_radii_bottom(r)` on the `border_bg`
+    and inner content clips — giving a cohesive rounded-rectangle appearance where
+    the tab bar and window frame share the same arc.
+  - With **titlebars enabled** the titlebar buffer receives `corner_radii_top(r)`
+    so its bottom edge meets the content area squarely, while the window surface
+    clips get `corner_radii_bottom(inner_r)` — the `border_bg` outer rect stays
+    fully rounded and the titlebar's top corners align with it.
+  - The tab bar radius also respects `fx.rounding.smart`: with a single tiled
+    window the radius collapses to 0 in step with the window corners.
+
 ### Bug Fixes
 
 - **Smart corner rounding state desync**: when `fx.rounding.smart = true`, the
