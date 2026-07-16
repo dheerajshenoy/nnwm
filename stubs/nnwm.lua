@@ -136,6 +136,7 @@ MOD = {}
 ---@field mouse?              nnwm.mouse
 ---@field titlebar?           nnwm.titlebar
 ---@field fx?                 nnwm.fx
+---@field clipboard?          boolean  Enable clipboard (wl_data_device selection); set false to block all clipboard writes (default: true)
 ---@field client_decorations? boolean
 ---@field seat_name?          string
 ---@field monitors?           nnwm_monitor_config[]

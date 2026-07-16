@@ -286,6 +286,8 @@ seat_request_set_selection(wl_listener *listener, void *data)
 {
     nnwm_server *server
         = wl_container_of(listener, server, request_set_selection);
+    if (!server->config->clipboard_enabled)
+        return;
     auto *event = static_cast<wlr_seat_request_set_selection_event *>(data);
     wlr_seat_set_selection(server->seat, event->source, event->serial);
 }

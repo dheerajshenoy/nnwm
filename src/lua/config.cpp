@@ -1006,6 +1006,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "warp_to_focused_window");
     lua_setfield(L, -2, "mouse");
 
+    lua_pushboolean(L, cfg->clipboard_enabled);
+    lua_setfield(L, -2, "clipboard");
     lua_pushboolean(L, cfg->client_decorations);
     lua_setfield(L, -2, "client_decorations");
 
@@ -1586,6 +1588,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     }
     lua_pop(L, 1);
 
+    cfg->clipboard_enabled
+        = get_bool_field(L, "clipboard", cfg->clipboard_enabled);
     cfg->client_decorations
         = get_bool_field(L, "client_decorations", cfg->client_decorations);
 
@@ -2149,6 +2153,7 @@ nnwm::config_defaults(void)
     cfg->mouse.warp_to_focused_window     = false;
     cfg->new_window_master   = true;
     cfg->center_new_floating = true;
+    cfg->clipboard_enabled   = true;
     cfg->client_decorations  = false;
 
     cfg->titlebar.height                = 0;

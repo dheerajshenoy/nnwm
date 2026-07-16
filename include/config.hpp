@@ -203,6 +203,7 @@ struct nnwm_config
                                   they first map */
 
     /* Decorations */
+    bool clipboard_enabled;
     bool client_decorations; /* true = CSD (client draws titlebar), false = SSD
                                 (no titlebar) */
 
