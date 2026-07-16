@@ -79,11 +79,17 @@ render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused)
 
     tl->titlebar_width = inner_width;
 
-    nnwm_tbuf *tb = tbuf_create(inner_width, h);
+    float scale = (tl->output && tl->output->wlr_output)
+                      ? tl->output->wlr_output->scale : 1.0f;
+    int pw = (int)(inner_width * scale);
+    int ph = (int)(h * scale);
+
+    nnwm_tbuf *tb = tbuf_create(pw, ph);
 
     cairo_surface_t *surf = cairo_image_surface_create_for_data(
-        tb->data, CAIRO_FORMAT_ARGB32, inner_width, h, tb->stride);
+        tb->data, CAIRO_FORMAT_ARGB32, pw, ph, tb->stride);
     cairo_t *cr = cairo_create(surf);
+    cairo_scale(cr, scale, scale);
 
     /* Background */
     const float *bg = tl->urgent         ? cfg->titlebar.urgent_bg_color
@@ -989,10 +995,15 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
             || active_tl->fake_fullscreen))
         active_tl = nullptr;
 
-    nnwm_tbuf *tb         = tbuf_create(width, height);
+    float scale = (out->wlr_output) ? out->wlr_output->scale : 1.0f;
+    int pw      = (int)(width * scale);
+    int ph      = (int)(height * scale);
+
+    nnwm_tbuf *tb         = tbuf_create(pw, ph);
     cairo_surface_t *surf = cairo_image_surface_create_for_data(
-        tb->data, CAIRO_FORMAT_ARGB32, width, height, tb->stride);
+        tb->data, CAIRO_FORMAT_ARGB32, pw, ph, tb->stride);
     cairo_t *cr = cairo_create(surf);
+    cairo_scale(cr, scale, scale);
 
     const float *dflt_bg = cfg->titlebar.bg_color;
     cairo_set_source_rgba(cr, dflt_bg[0], dflt_bg[1], dflt_bg[2], dflt_bg[3]);
@@ -2013,10 +2024,14 @@ show_config_error(nnwm_server *server, const char *message)
         if (W <= 0)
             continue;
 
-        nnwm_tbuf *tb         = tbuf_create(W, bar_h);
+        float escale  = out->wlr_output ? out->wlr_output->scale : 1.0f;
+        int eW        = (int)(W * escale);
+        int ebar_h    = (int)(bar_h * escale);
+        nnwm_tbuf *tb         = tbuf_create(eW, ebar_h);
         cairo_surface_t *surf = cairo_image_surface_create_for_data(
-            tb->data, CAIRO_FORMAT_ARGB32, W, bar_h, tb->stride);
+            tb->data, CAIRO_FORMAT_ARGB32, eW, ebar_h, tb->stride);
         cairo_t *cr = cairo_create(surf);
+        cairo_scale(cr, escale, escale);
 
         cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
         cairo_paint(cr);
@@ -2035,9 +2050,9 @@ show_config_error(nnwm_server *server, const char *message)
         pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
         pango_layout_set_width(layout, (W - 8) * PANGO_SCALE);
 
-        int pw, ph;
-        pango_layout_get_size(layout, &pw, &ph);
-        double ty = (bar_h - ph / (double)PANGO_SCALE) / 2.0;
+        int lpw, lph;
+        pango_layout_get_size(layout, &lpw, &lph);
+        double ty = (bar_h - lph / (double)PANGO_SCALE) / 2.0;
 
         cairo_set_source_rgba(cr, fg[0], fg[1], fg[2], fg[3]);
         cairo_move_to(cr, 8, ty);
