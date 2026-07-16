@@ -28,7 +28,7 @@
     - [x] Sway-like tabbed layout
     - [ ] Dwindle
     - [x] Horizontal scrolling
-    - [ ] Vertical scrolling
+    - [x] Vertical scrolling
 - [x] Gaps
 - [x] Smart border
 - [x] Smart gaps
