@@ -193,6 +193,12 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
         return;
     }
 
+    if (real_motion && server->cursor_hidden_by_typing)
+    {
+        server->cursor_hidden_by_typing = false;
+        wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+    }
+
     /* Track which output the cursor is on */
     {
         nnwm_output *cur_out = output_at_cursor(server);
@@ -379,9 +385,12 @@ server_cursor_axis(wl_listener *listener, void *data)
 {
     nnwm_server *server = wl_container_of(listener, server, cursor_axis);
     auto *event         = static_cast<wlr_pointer_axis_event *>(data);
+    float factor        = server->config->touchpad.scroll_factor;
     wlr_seat_pointer_notify_axis(
-        server->seat, event->time_msec, event->orientation, event->delta,
-        event->delta_discrete, event->source, event->relative_direction);
+        server->seat, event->time_msec, event->orientation,
+        event->delta * factor,
+        (int32_t)(event->delta_discrete * factor),
+        event->source, event->relative_direction);
 }
 
 void

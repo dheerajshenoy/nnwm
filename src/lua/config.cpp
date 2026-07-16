@@ -889,6 +889,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         lua_pushstring(L, tp);
         lua_setfield(L, -2, "tab_position");
     }
+    lua_pushinteger(L, cfg->layout.tab_bar_height);
+    lua_setfield(L, -2, "height");
     lua_setfield(L, -2, "tabbed");
     lua_setfield(L, -2, "layout");
 
@@ -930,6 +932,12 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "repeat_rate");
     lua_pushinteger(L, cfg->keyboard.repeat_delay);
     lua_setfield(L, -2, "repeat_delay");
+    lua_pushstring(L, cfg->keyboard.xkb_rules ? cfg->keyboard.xkb_rules : "");
+    lua_setfield(L, -2, "xkb_rules");
+    lua_pushstring(L, cfg->keyboard.xkb_layout ? cfg->keyboard.xkb_layout : "");
+    lua_setfield(L, -2, "xkb_layout");
+    lua_pushstring(L, cfg->keyboard.xkb_variant ? cfg->keyboard.xkb_variant : "");
+    lua_setfield(L, -2, "xkb_variant");
     lua_pushstring(L, cfg->keyboard.xkb_options ? cfg->keyboard.xkb_options : "");
     lua_setfield(L, -2, "xkb_options");
     lua_setfield(L, -2, "keyboard");
@@ -939,12 +947,32 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
 
     /* touchpad sub-table */
     lua_newtable(L);
+    lua_pushboolean(L, cfg->touchpad.enabled);
+    lua_setfield(L, -2, "enabled");
     lua_pushboolean(L, cfg->touchpad.tap_to_click);
     lua_setfield(L, -2, "tap_to_click");
     lua_pushboolean(L, cfg->touchpad.natural_scroll);
     lua_setfield(L, -2, "natural_scroll");
     lua_pushboolean(L, cfg->touchpad.disable_while_typing);
     lua_setfield(L, -2, "disable_while_typing");
+    lua_pushboolean(L, cfg->touchpad.disable_on_external_mouse);
+    lua_setfield(L, -2, "disable_on_external_mouse");
+    lua_pushboolean(L, cfg->touchpad.drag);
+    lua_setfield(L, -2, "drag");
+    lua_pushnumber(L, cfg->touchpad.scroll_factor);
+    lua_setfield(L, -2, "scroll_factor");
+    {
+        const char *sm = "two_finger";
+        switch (cfg->touchpad.scroll_method)
+        {
+            case 0: sm = "no_scroll";      break;
+            case 2: sm = "edge";           break;
+            case 3: sm = "on_button_down"; break;
+            default: break;
+        }
+        lua_pushstring(L, sm);
+        lua_setfield(L, -2, "scroll_method");
+    }
     lua_setfield(L, -2, "touchpad");
 
     /* mouse sub-table */
@@ -955,6 +983,25 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "cursor_theme");
     lua_pushinteger(L, cfg->cursor_size);
     lua_setfield(L, -2, "cursor_size");
+    lua_pushnumber(L, cfg->mouse.accel_speed);
+    lua_setfield(L, -2, "accel_speed");
+    {
+        const char *ap = "adaptive";
+        switch (cfg->mouse.accel_profile)
+        {
+            case 1: ap = "flat"; break;
+            case 2: ap = "none"; break;
+            default: break;
+        }
+        lua_pushstring(L, ap);
+        lua_setfield(L, -2, "accel_profile");
+    }
+    lua_pushboolean(L, cfg->mouse.natural_scroll);
+    lua_setfield(L, -2, "natural_scroll");
+    lua_pushboolean(L, cfg->mouse.disable_while_typing);
+    lua_setfield(L, -2, "disable_while_typing");
+    lua_pushboolean(L, cfg->mouse.hide_cursor_when_typing);
+    lua_setfield(L, -2, "hide_cursor_when_typing");
     lua_setfield(L, -2, "mouse");
 
     lua_pushboolean(L, cfg->client_decorations);
@@ -1405,6 +1452,9 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                     cfg->layout.tab_position = nnwm_tab_position::TOP;
             }
             lua_pop(L, 1);
+
+            cfg->layout.tab_bar_height
+                = get_int_field(L, "height", cfg->layout.tab_bar_height);
         }
         lua_pop(L, 1);
     }
@@ -1440,7 +1490,16 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
             = get_int_field(L, "repeat_rate", cfg->keyboard.repeat_rate);
         cfg->keyboard.repeat_delay
             = get_int_field(L, "repeat_delay", cfg->keyboard.repeat_delay);
-        char *s = get_string_field(L, "xkb_options", cfg->keyboard.xkb_options);
+        char *s = get_string_field(L, "xkb_rules", cfg->keyboard.xkb_rules);
+        free(cfg->keyboard.xkb_rules);
+        cfg->keyboard.xkb_rules = s;
+        s = get_string_field(L, "xkb_layout", cfg->keyboard.xkb_layout);
+        free(cfg->keyboard.xkb_layout);
+        cfg->keyboard.xkb_layout = s;
+        s = get_string_field(L, "xkb_variant", cfg->keyboard.xkb_variant);
+        free(cfg->keyboard.xkb_variant);
+        cfg->keyboard.xkb_variant = s;
+        s = get_string_field(L, "xkb_options", cfg->keyboard.xkb_options);
         free(cfg->keyboard.xkb_options);
         cfg->keyboard.xkb_options = s;
     }
@@ -1449,12 +1508,35 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     lua_getfield(L, -1, "touchpad");
     if (lua_istable(L, -1))
     {
+        cfg->touchpad.enabled
+            = get_bool_field(L, "enabled", cfg->touchpad.enabled);
         cfg->touchpad.tap_to_click
             = get_bool_field(L, "tap_to_click", cfg->touchpad.tap_to_click);
         cfg->touchpad.natural_scroll
             = get_bool_field(L, "natural_scroll", cfg->touchpad.natural_scroll);
         cfg->touchpad.disable_while_typing = get_bool_field(
             L, "disable_while_typing", cfg->touchpad.disable_while_typing);
+        cfg->touchpad.disable_on_external_mouse = get_bool_field(
+            L, "disable_on_external_mouse",
+            cfg->touchpad.disable_on_external_mouse);
+        cfg->touchpad.drag
+            = get_bool_field(L, "drag", cfg->touchpad.drag);
+        cfg->touchpad.scroll_factor
+            = get_float_field(L, "scroll_factor", cfg->touchpad.scroll_factor);
+        lua_getfield(L, -1, "scroll_method");
+        if (lua_isstring(L, -1))
+        {
+            const char *sm = lua_tostring(L, -1);
+            if (std::strcmp(sm, "no_scroll") == 0)
+                cfg->touchpad.scroll_method = 0;
+            else if (std::strcmp(sm, "edge") == 0)
+                cfg->touchpad.scroll_method = 2;
+            else if (std::strcmp(sm, "on_button_down") == 0)
+                cfg->touchpad.scroll_method = 3;
+            else
+                cfg->touchpad.scroll_method = 1; /* two_finger */
+        }
+        lua_pop(L, 1);
     }
     lua_pop(L, 1);
 
@@ -1467,6 +1549,26 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         free(cfg->cursor_theme);
         cfg->cursor_theme = ct;
         cfg->cursor_size  = get_int_field(L, "cursor_size", cfg->cursor_size);
+        cfg->mouse.accel_speed
+            = get_float_field(L, "accel_speed", cfg->mouse.accel_speed);
+        lua_getfield(L, -1, "accel_profile");
+        if (lua_isstring(L, -1))
+        {
+            const char *ap = lua_tostring(L, -1);
+            if (std::strcmp(ap, "flat") == 0)
+                cfg->mouse.accel_profile = 1;
+            else if (std::strcmp(ap, "none") == 0)
+                cfg->mouse.accel_profile = 2;
+            else
+                cfg->mouse.accel_profile = 0;
+        }
+        lua_pop(L, 1);
+        cfg->mouse.natural_scroll
+            = get_bool_field(L, "natural_scroll", cfg->mouse.natural_scroll);
+        cfg->mouse.disable_while_typing = get_bool_field(
+            L, "disable_while_typing", cfg->mouse.disable_while_typing);
+        cfg->mouse.hide_cursor_when_typing = get_bool_field(
+            L, "hide_cursor_when_typing", cfg->mouse.hide_cursor_when_typing);
     }
     lua_pop(L, 1);
 
@@ -2006,17 +2108,30 @@ nnwm::config_defaults(void)
 
     cfg->keyboard.repeat_rate  = 25;
     cfg->keyboard.repeat_delay = 600;
-    cfg->keyboard.xkb_options           = strdup("");
+    cfg->keyboard.xkb_rules    = strdup("");
+    cfg->keyboard.xkb_layout   = strdup("");
+    cfg->keyboard.xkb_variant  = strdup("");
+    cfg->keyboard.xkb_options  = strdup("");
 
     cfg->cursor_theme = strdup("default");
     cfg->cursor_size  = 24;
     cfg->seat_name    = strdup("seat0");
 
+    cfg->touchpad.enabled              = true;
     cfg->touchpad.tap_to_click         = true;
     cfg->touchpad.natural_scroll       = true;
-    cfg->touchpad.disable_while_typing = true;
+    cfg->touchpad.disable_while_typing     = true;
+    cfg->touchpad.disable_on_external_mouse = false;
+    cfg->touchpad.drag                     = true;
+    cfg->touchpad.scroll_factor        = 1.0f;
+    cfg->touchpad.scroll_method        = 1; /* two_finger */
 
-    cfg->focus_follows_mouse = false;
+    cfg->focus_follows_mouse              = false;
+    cfg->mouse.accel_speed                = 0.0f;
+    cfg->mouse.accel_profile              = 0; /* adaptive */
+    cfg->mouse.natural_scroll             = false;
+    cfg->mouse.disable_while_typing       = false;
+    cfg->mouse.hide_cursor_when_typing    = false;
     cfg->new_window_master   = true;
     cfg->center_new_floating = true;
     cfg->client_decorations  = false;
@@ -2050,6 +2165,7 @@ nnwm::config_defaults(void)
     cfg->titlebar.urgent_text_color[3]  = 1.0f;
     cfg->layout.tab_style             = nnwm_tab_style::NORMAL;
     cfg->layout.tab_position          = nnwm_tab_position::TOP;
+    cfg->layout.tab_bar_height        = 24;
 
 #ifdef HAVE_SCENEFX
     cfg->fx.animation.enabled            = true;
@@ -2088,6 +2204,9 @@ nnwm::config_free(struct nnwm_config *cfg)
         return;
     free(cfg->cursor_theme);
     free(cfg->seat_name);
+    free(cfg->keyboard.xkb_rules);
+    free(cfg->keyboard.xkb_layout);
+    free(cfg->keyboard.xkb_variant);
     free(cfg->keyboard.xkb_options);
     free(cfg->titlebar.font);
     for (int i = 0; i < cfg->monitor_config_count; i++)

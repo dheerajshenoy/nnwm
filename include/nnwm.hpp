@@ -257,6 +257,7 @@ struct nnwm_server
     nnwm_cursor_mode cursor_mode;
     struct nnwm_toplevel *grabbed_toplevel;
     double grab_x, grab_y;
+    bool cursor_hidden_by_typing;
     struct wlr_box grab_geobox;
     uint32_t resize_edges;
 

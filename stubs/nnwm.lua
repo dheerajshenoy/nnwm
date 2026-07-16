@@ -16,6 +16,7 @@ MOD = {}
 -- ── nnwm ─────────────────────────────────────────────────────────────────────
 
 ---@class nnwm.layout.tabbed
+---@field height?       integer                       Tab bar thickness in pixels (default: 24)
 ---@field tab_style?    "normal"|"minimal"            Tab bar style: `"normal"` renders titles, `"minimal"` renders only colored strips (default: "normal")
 ---@field tab_position? "top"|"bottom"|"left"|"right" Tab bar edge in tabbed layout (default: "top")
 
@@ -43,21 +44,34 @@ MOD = {}
 ---@class nnwm.keyboard
 ---@field repeat_rate?   integer  Key repeat rate in keys/sec (default: 25)
 ---@field repeat_delay?  integer  Delay before repeat starts in ms (default: 600)
+---@field xkb_rules?     string   XKB rules file name, e.g. `"evdev"` (default: system default)
+---@field xkb_layout?    string   XKB layout, e.g. `"us"`, `"de"`, `"us,ru"` (default: system default)
+---@field xkb_variant?   string   XKB variant, e.g. `"dvorak"`, `"colemak"` (default: system default)
 ---@field xkb_options?   string   Comma-separated XKB options, e.g. `"caps:escape,compose:ralt"` (default: "")
 
 ---@class nnwm.touchpad
----@field tap_to_click?         boolean  Enable tap-to-click (default: true)
----@field natural_scroll?       boolean  Natural/reverse scroll direction (default: true)
----@field disable_while_typing? boolean  Disable touchpad while typing (default: true)
+---@field enabled?                   boolean                                          Enable the touchpad (default: true)
+---@field tap_to_click?              boolean                                          Enable tap-to-click (default: true)
+---@field drag?                      boolean                                          Enable tap-and-drag (default: true)
+---@field natural_scroll?            boolean                                          Natural/reverse scroll direction (default: true)
+---@field disable_while_typing?      boolean                                          Disable touchpad while typing (default: true)
+---@field disable_on_external_mouse? boolean                                          Disable touchpad when an external mouse is connected (default: false)
+---@field scroll_factor?             number                                           Multiplier applied to scroll delta (default: 1.0)
+---@field scroll_method?             "two_finger"|"edge"|"on_button_down"|"no_scroll" Scroll method (default: "two_finger")
 
 ---@class nnwm.mouse
----@field focus_follows_mouse?  boolean  Automatically focus the window under the cursor (default: false)
----@field cursor_theme?         string   Xcursor theme name (default: "default")
----@field cursor_size?          integer  Cursor size in pixels (default: 24)
+---@field focus_follows_mouse?      boolean                       Automatically focus the window under the cursor (default: false)
+---@field cursor_theme?             string                        Xcursor theme name (default: "default")
+---@field cursor_size?              integer                       Cursor size in pixels (default: 24)
+---@field accel_speed?              number                        Pointer acceleration speed: -1.0 (slowest) to 1.0 (fastest) (default: 0.0)
+---@field accel_profile?            "adaptive"|"flat"|"none"      Pointer acceleration profile (default: "adaptive")
+---@field natural_scroll?           boolean                       Natural/reverse scroll direction (default: false)
+---@field disable_while_typing?     boolean                       Disable mouse input while typing (default: false)
+---@field hide_cursor_when_typing?  boolean                       Hide cursor on keypress; restores on mouse movement (default: false)
 
 ---@class nnwm.titlebar
 ---@field enabled?             boolean     Enable the server-side titlebar (default: false)
----@field height?              integer     Titlebar height in pixels, used when enabled (default: 20). Also controls the tab bar thickness in tabbed layout.
+---@field height?              integer     Titlebar height in pixels, used when enabled (default: 20).
 ---@field font?                string      Pango font description for the title text, e.g. `"Sans Bold 10"` (default: "Sans 10")
 ---@field text_align?          integer     Text alignment: 0 = left, 1 = center, 2 = right (default: 1)
 ---@field bg_color?            nnwm.color  Background color for unfocused windows (default: {0.2, 0.2, 0.2, 1.0})

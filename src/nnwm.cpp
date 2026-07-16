@@ -1089,7 +1089,7 @@ rerender_tab_bar(nnwm_server *server, nnwm_output *out)
     int ws           = out->active_workspace;
     bool solo        = (ws_count(server, out) == 1);
     int og           = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
-    int tab_sz       = cfg->titlebar.height > 0 ? cfg->titlebar.height : 24;
+    int tab_sz       = cfg->layout.tab_bar_height > 0 ? cfg->layout.tab_bar_height : 24;
     const wlr_box &area = out->usable_area;
 
     int tbw, tbh, tbx, tby;
@@ -1291,7 +1291,7 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         bool solo    = (n == 1);
         int bw       = (solo && cfg->border.smart) ? 0 : cfg->border.width;
         int og       = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
-        int tab_sz   = cfg->titlebar.height > 0 ? cfg->titlebar.height : 24;
+        int tab_sz   = cfg->layout.tab_bar_height > 0 ? cfg->layout.tab_bar_height : 24;
         nnwm_tab_position tab_pos = cfg->layout.tab_position;
 
         nnwm_toplevel *active = out->last_focused[ws];

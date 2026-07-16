@@ -1062,6 +1062,14 @@ keyboard_handle_key(wl_listener *listener, void *data)
         wlr_seat_keyboard_notify_key(seat, event->time_msec, event->keycode,
                                      event->state);
     }
+
+    if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED
+        && server->config->mouse.hide_cursor_when_typing
+        && !server->cursor_hidden_by_typing)
+    {
+        wlr_cursor_unset_image(server->cursor);
+        server->cursor_hidden_by_typing = true;
+    }
 }
 
 void
@@ -1081,17 +1089,16 @@ void
 apply_keymap(wlr_keyboard *wlr_keyboard, nnwm_config *cfg)
 {
     struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-    struct xkb_keymap *keymap   = xkb_keymap_new_from_names(
-        context, nullptr, XKB_KEYMAP_COMPILE_NO_FLAGS);
-
-    if (cfg->keyboard.xkb_options && cfg->keyboard.xkb_options[0])
-    {
-        /* Apply XKB options from config */
-        xkb_rule_names names = {};
-        names.options        = cfg->keyboard.xkb_options;
-        keymap = xkb_keymap_new_from_names(context, &names,
-                                           XKB_KEYMAP_COMPILE_NO_FLAGS);
-    }
+    xkb_rule_names names        = {};
+    auto nonempty               = [](const char *s) -> const char * {
+        return (s && s[0]) ? s : nullptr;
+    };
+    names.rules   = nonempty(cfg->keyboard.xkb_rules);
+    names.layout  = nonempty(cfg->keyboard.xkb_layout);
+    names.variant = nonempty(cfg->keyboard.xkb_variant);
+    names.options = nonempty(cfg->keyboard.xkb_options);
+    struct xkb_keymap *keymap = xkb_keymap_new_from_names(
+        context, &names, XKB_KEYMAP_COMPILE_NO_FLAGS);
 
     wlr_keyboard_set_keymap(wlr_keyboard, keymap);
     xkb_keymap_unref(keymap);
@@ -1129,22 +1136,86 @@ server_new_pointer(nnwm_server *server, wlr_input_device *device)
 {
     if (wlr_input_device_is_libinput(device))
     {
-        libinput_device *li = wlr_libinput_get_device_handle(device);
+        libinput_device *li     = wlr_libinput_get_device_handle(device);
+        bool is_touchpad        = libinput_device_config_tap_get_finger_count(li) > 0;
 
-        if (server->config->touchpad.tap_to_click
-            && libinput_device_config_tap_get_finger_count(li) > 0)
-            libinput_device_config_tap_set_enabled(li,
-                                                   LIBINPUT_CONFIG_TAP_ENABLED);
+        if (is_touchpad)
+        {
+            const auto &tp = server->config->touchpad;
 
-        if (server->config->touchpad.natural_scroll
-            && libinput_device_config_tap_get_finger_count(li) > 0
-            && libinput_device_config_scroll_has_natural_scroll(li))
-            libinput_device_config_scroll_set_natural_scroll_enabled(li, true);
+            libinput_device_config_tap_set_enabled(
+                li, tp.tap_to_click ? LIBINPUT_CONFIG_TAP_ENABLED
+                                    : LIBINPUT_CONFIG_TAP_DISABLED);
+            libinput_device_config_tap_set_drag_enabled(
+                li, tp.drag ? LIBINPUT_CONFIG_DRAG_ENABLED
+                            : LIBINPUT_CONFIG_DRAG_DISABLED);
 
-        if (server->config->touchpad.disable_while_typing
-            && libinput_device_config_dwt_is_available(li))
-            libinput_device_config_dwt_set_enabled(li,
-                                                   LIBINPUT_CONFIG_DWT_ENABLED);
+            if (libinput_device_config_scroll_has_natural_scroll(li))
+                libinput_device_config_scroll_set_natural_scroll_enabled(
+                    li, tp.natural_scroll);
+
+            if (libinput_device_config_dwt_is_available(li))
+                libinput_device_config_dwt_set_enabled(
+                    li, tp.disable_while_typing ? LIBINPUT_CONFIG_DWT_ENABLED
+                                                : LIBINPUT_CONFIG_DWT_DISABLED);
+
+            {
+                uint32_t available
+                    = libinput_device_config_send_events_get_modes(li);
+                uint32_t mode = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
+                if (!tp.enabled)
+                    mode = LIBINPUT_CONFIG_SEND_EVENTS_DISABLED;
+                else if (tp.disable_on_external_mouse
+                         && (available
+                             & LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE))
+                    mode = LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE;
+                libinput_device_config_send_events_set_mode(li, mode);
+            }
+
+            {
+                static const libinput_config_scroll_method methods[] = {
+                    LIBINPUT_CONFIG_SCROLL_NO_SCROLL,
+                    LIBINPUT_CONFIG_SCROLL_2FG,
+                    LIBINPUT_CONFIG_SCROLL_EDGE,
+                    LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN,
+                };
+                int idx = tp.scroll_method;
+                if (idx >= 0 && idx <= 3)
+                {
+                    uint32_t available
+                        = libinput_device_config_scroll_get_methods(li);
+                    if (available & methods[idx])
+                        libinput_device_config_scroll_set_method(li,
+                                                                 methods[idx]);
+                }
+            }
+        }
+        else
+        {
+            const auto &m = server->config->mouse;
+
+            if (libinput_device_config_accel_is_available(li))
+            {
+                static const libinput_config_accel_profile profiles[] = {
+                    LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE,
+                    LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT,
+                    LIBINPUT_CONFIG_ACCEL_PROFILE_NONE,
+                };
+                int idx = m.accel_profile;
+                if (idx >= 0 && idx <= 2)
+                    libinput_device_config_accel_set_profile(li, profiles[idx]);
+                libinput_device_config_accel_set_speed(li, m.accel_speed);
+            }
+
+            if (libinput_device_config_scroll_has_natural_scroll(li))
+                libinput_device_config_scroll_set_natural_scroll_enabled(
+                    li, m.natural_scroll);
+
+            if (libinput_device_config_dwt_is_available(li))
+                libinput_device_config_dwt_set_enabled(
+                    li, m.disable_while_typing ? LIBINPUT_CONFIG_DWT_ENABLED
+                                              : LIBINPUT_CONFIG_DWT_DISABLED);
+        }
     }
 
     wlr_cursor_attach_input_device(server->cursor, device);

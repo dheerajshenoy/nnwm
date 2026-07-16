@@ -125,6 +125,7 @@ struct nnwm_config
         float master_ratio_max;
         nnwm_tab_style tab_style;       /* tabbed layout: normal or minimal */
         nnwm_tab_position tab_position; /* tabbed layout: tab bar placement */
+        int tab_bar_height;             /* tabbed layout: bar thickness in pixels */
     } layout;
 
     /* Gaps */
@@ -149,6 +150,9 @@ struct nnwm_config
     {
         int repeat_rate;
         int repeat_delay;
+        char *xkb_rules;
+        char *xkb_layout;
+        char *xkb_variant;
         char *xkb_options;
     } keyboard;
 
@@ -162,10 +166,24 @@ struct nnwm_config
     /* Input (libinput) */
     struct touchpad
     {
+        bool enabled;
         bool tap_to_click;
+        bool drag;
         bool natural_scroll;
         bool disable_while_typing;
+        bool disable_on_external_mouse;
+        float scroll_factor;
+        int scroll_method; /* 0=no_scroll, 1=two_finger, 2=edge, 3=on_button */
     } touchpad;
+
+    struct mouse
+    {
+        float accel_speed;              /* pointer acceleration speed: -1.0–1.0 */
+        int accel_profile;              /* 0=adaptive, 1=flat, 2=none */
+        bool natural_scroll;
+        bool disable_while_typing;
+        bool hide_cursor_when_typing;
+    } mouse;
 
     /* Focus */
     bool focus_follows_mouse;
