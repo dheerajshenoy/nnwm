@@ -52,6 +52,8 @@ extern "C"
 #else
     #include <wlr/types/wlr_layer_shell_v1.h>
 #endif
+#include <wlr/types/wlr_fractional_scale_v1.h>
+#include <wlr/types/wlr_viewporter.h>
 #include <wlr/types/wlr_xdg_activation_v1.h>
 #include <wlr/types/wlr_pointer_gestures_v1.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
