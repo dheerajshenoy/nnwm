@@ -9,6 +9,9 @@
         - [x] Workspace
         - [x] opacity
         - [x] blur
+        - [ ] Maximized
+        - [ ] Fakefullscreen
+        - [ ] Focused
     - [ ] Hooks
         - [ ] Window
             - [ ] New
@@ -29,6 +32,7 @@
     - [ ] Dwindle
     - [x] Horizontal scrolling
     - [x] Vertical scrolling
+    - [ ] Sway like h/v choosable layout
 - [x] Gaps
 - [x] Smart border
 - [x] Smart gaps
@@ -111,8 +115,44 @@
 - [ ] Handle minimized windows
 - [ ] Jump label support (like MangoWM)
 - [ ] temporary mouse cursor size increase to regain attention of the cursor
-- [ ] XWayland
+- [ ] XWayland (possibly use xwayland-satellite ?)
 - Tabbed layout config
-    - [ ] Minimal mode (without text, just bar)
-    - [ ] Location of the tabbar (top, bottom, left, right)
+    - [x] Minimal mode (without text, just bar)
+    - [x] Location of the tabbar (top, bottom, left, right)
 - [ ] Get OBS to work with nnwm
+- [ ] IPC for nnwm
+- Keyboard
+    - [ ] Layout
+    - [ ] Variant
+    - [ ] Rules
+    - [ ] file to load xkb options from
+- Touchpad
+    - [ ] Off
+    - [ ] Drag on/off
+    - [ ] scroll factor
+    - [ ] scroll method
+    - [x] natural scrolling
+    - [ ] tap to click
+    - [x] gestures
+    - [ ] disabled on external mouse
+    - [ ] disabled while typing
+- Mouse
+    - [ ] Acceleration
+    - [ ] Sensitivity
+    - [ ] Natural scrolling
+    - [ ] Disabled while typing
+    - [ ] Hide cursor when typing
+- [ ] disable-power-key-handling
+- [ ] warp-mouse-to-focus (newly spawned window)
+- [ ] workspace-auto-back-and-forth
+- [ ] Monitor hot-corners
+- [ ] Key repeat when holding down a key
+- [ ] Keybinding overlay
+- [ ] Enable/disable config load fail notification
+- Signals
+    - [ ] On lid close
+    - [ ] On lid open
+    - [ ] On monitor connect
+    - [ ] On monitor disconnect
+- [ ] Struts specification support
+- [ ] Enable/disable clipboard
