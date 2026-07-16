@@ -14,14 +14,6 @@
         - [x] Maximized
         - [x] Fakefullscreen
         - [x] Focused
-    - [ ] Hooks
-        - [ ] Window
-            - [ ] New
-            - [ ] Close
-            - [ ] Urgent
-            - [ ] Focus Change
-        - [ ] Startup
-        - [ ] Shutdown
 - [x] Monitor configuration
 - [x] Move to workspace
 - [x] Switch workspace
@@ -31,10 +23,8 @@
 - Layouts
     - [x] Master Stack
     - [x] Sway-like tabbed layout
-    - [ ] Dwindle
     - [x] Horizontal scrolling
     - [x] Vertical scrolling
-    - [ ] Sway like h/v choosable layout
 - [x] Gaps
 - [x] Smart border
 - [x] Smart gaps
@@ -86,9 +76,6 @@
     - [x] wlr-output-configuration-unstable-v1
     - [x] wlr-export-dmabuf-unstable-v1
     - [x] wlr-xdg-activation-v1
-    - [ ] wlr-virtual-pointer-unstable-v1
-    - [ ] wlr-virtual-keyboard-unstable-v1
-    - [ ] wlr-gamma-control-unstable-v1
 - [x] Fake fullscreen mode
 - [x] Don't show titlebar in tabbed layout mode (if activated)
 - [x] Don't show titlebar in fullscreen mode
@@ -114,24 +101,13 @@
 - [x] Key repeat when holding down a key
 - [x] Struts specification support
 - [x] Enable/disable clipboard
-- [ ] Hardware-acceleration
-- [ ] Scratchpad
-- [ ] Multi workspace viewing at once (like dwm)
-- [ ] Overview mode
-- [ ] Handle minimized windows
-- [ ] Jump label support (like MangoWM)
-- [ ] temporary mouse cursor size increase to regain attention of the cursor
-- [ ] XWayland (possibly use xwayland-satellite ?)
 - Tabbed layout config
     - [x] Minimal mode (without text, just bar)
     - [x] Location of the tabbar (top, bottom, left, right)
-- [ ] Get OBS to work with nnwm
-- [ ] IPC for nnwm
 - Keyboard
     - [x] Layout
     - [x] Variant
     - [x] Rules
-    - [ ] file to load xkb options from
 - Touchpad
     - [x] Off
     - [x] Drag on/off
@@ -148,6 +124,9 @@
     - [x] Natural scrolling
     - [x] Disabled while typing
     - [x] Hide cursor when typing
+
+## TODO
+
 - [ ] disable-power-key-handling
 - [ ] workspace-auto-back-and-forth
 - [ ] Monitor hot-corners
@@ -158,5 +137,31 @@
     - [ ] On lid open
     - [ ] On monitor connect
     - [ ] On monitor disconnect
-
-## TODO
+- Keyboard
+    - [ ] file to load xkb options from
+- Lua config
+    - [ ] Hooks
+        - [ ] Window
+            - [ ] New
+            - [ ] Close
+            - [ ] Urgent
+            - [ ] Focus Change
+        - [ ] Startup
+        - [ ] Shutdown
+- Layouts
+    - [ ] Dwindle
+    - [ ] Sway like h/v choosable layout
+- wlroots Protocols
+    - [ ] wlr-virtual-pointer-unstable-v1
+    - [ ] wlr-virtual-keyboard-unstable-v1
+    - [ ] wlr-gamma-control-unstable-v1
+- [ ] Hardware-acceleration
+- [ ] Scratchpad
+- [ ] Multi workspace viewing at once (like dwm)
+- [ ] Overview mode
+- [ ] Handle minimized windows
+- [ ] Jump label support (like MangoWM)
+- [ ] temporary mouse cursor size increase to regain attention of the cursor
+- [ ] XWayland (possibly use xwayland-satellite ?)
+- [ ] Get OBS to work with nnwm
+- [ ] IPC for nnwm
