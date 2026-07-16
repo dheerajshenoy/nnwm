@@ -872,6 +872,24 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "scroll_column_width");
     lua_pushnumber(L, cfg->scroll_row_height);
     lua_setfield(L, -2, "scroll_row_height");
+    /* layout.tabbed sub-table */
+    lua_newtable(L);
+    lua_pushstring(L, cfg->layout.tab_style == nnwm_tab_style::MINIMAL
+                          ? "minimal" : "normal");
+    lua_setfield(L, -2, "tab_style");
+    {
+        const char *tp = "top";
+        switch (cfg->layout.tab_position)
+        {
+            case nnwm_tab_position::BOTTOM: tp = "bottom"; break;
+            case nnwm_tab_position::LEFT:   tp = "left";   break;
+            case nnwm_tab_position::RIGHT:  tp = "right";  break;
+            default: break;
+        }
+        lua_pushstring(L, tp);
+        lua_setfield(L, -2, "tab_position");
+    }
+    lua_setfield(L, -2, "tabbed");
     lua_setfield(L, -2, "layout");
 
     /* gaps sub-table */
@@ -1360,6 +1378,35 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                                    cfg->scroll_column_width);
         cfg->scroll_row_height = get_float_field(L, "scroll_row_height",
                                                  cfg->scroll_row_height);
+        lua_getfield(L, -1, "tabbed");
+        if (lua_istable(L, -1))
+        {
+            lua_getfield(L, -1, "tab_style");
+            if (lua_isstring(L, -1))
+            {
+                const char *ts = lua_tostring(L, -1);
+                cfg->layout.tab_style = (std::strcmp(ts, "minimal") == 0)
+                                            ? nnwm_tab_style::MINIMAL
+                                            : nnwm_tab_style::NORMAL;
+            }
+            lua_pop(L, 1);
+
+            lua_getfield(L, -1, "tab_position");
+            if (lua_isstring(L, -1))
+            {
+                const char *tp = lua_tostring(L, -1);
+                if (std::strcmp(tp, "bottom") == 0)
+                    cfg->layout.tab_position = nnwm_tab_position::BOTTOM;
+                else if (std::strcmp(tp, "left") == 0)
+                    cfg->layout.tab_position = nnwm_tab_position::LEFT;
+                else if (std::strcmp(tp, "right") == 0)
+                    cfg->layout.tab_position = nnwm_tab_position::RIGHT;
+                else
+                    cfg->layout.tab_position = nnwm_tab_position::TOP;
+            }
+            lua_pop(L, 1);
+        }
+        lua_pop(L, 1);
     }
     lua_pop(L, 1);
 
@@ -1479,6 +1526,7 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                               cfg->titlebar.urgent_text_color[3]};
         get_color_field(L, "urgent_text_color", cfg->titlebar.urgent_text_color,
                         dflt_tutc);
+
     }
     lua_pop(L, 1);
 
@@ -2000,6 +2048,8 @@ nnwm::config_defaults(void)
     cfg->titlebar.urgent_text_color[1]  = 1.0f;
     cfg->titlebar.urgent_text_color[2]  = 1.0f;
     cfg->titlebar.urgent_text_color[3]  = 1.0f;
+    cfg->layout.tab_style             = nnwm_tab_style::NORMAL;
+    cfg->layout.tab_position          = nnwm_tab_position::TOP;
 
 #ifdef HAVE_SCENEFX
     cfg->fx.animation.enabled            = true;

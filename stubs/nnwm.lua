@@ -15,12 +15,17 @@ MOD = {}
 
 -- ── nnwm ─────────────────────────────────────────────────────────────────────
 
+---@class nnwm.layout.tabbed
+---@field tab_style?    "normal"|"minimal"            Tab bar style: `"normal"` renders titles, `"minimal"` renders only colored strips (default: "normal")
+---@field tab_position? "top"|"bottom"|"left"|"right" Tab bar edge in tabbed layout (default: "top")
+
 ---@class nnwm.layout
----@field new_window_master?  boolean  When true new windows become master; when false they append to the stack (default: true)
----@field master_ratio?       number   Fraction of screen width for the master column (default: 0.55)
----@field master_ratio_step?  number   Step size for master ratio adjustments (default: 0.05)
----@field master_ratio_min?   number   Minimum master ratio (default: 0.1)
----@field master_ratio_max?   number   Maximum master ratio (default: 0.9)
+---@field new_window_master?  boolean           When true new windows become master; when false they append to the stack (default: true)
+---@field master_ratio?       number            Fraction of screen width for the master column (default: 0.55)
+---@field master_ratio_step?  number            Step size for master ratio adjustments (default: 0.05)
+---@field master_ratio_min?   number            Minimum master ratio (default: 0.1)
+---@field master_ratio_max?   number            Maximum master ratio (default: 0.9)
+---@field tabbed?             nnwm.layout.tabbed
 
 ---@class nnwm.gaps
 ---@field inner?  integer  Gap in pixels between adjacent windows (default: 0)
@@ -52,7 +57,7 @@ MOD = {}
 
 ---@class nnwm.titlebar
 ---@field enabled?             boolean     Enable the server-side titlebar (default: false)
----@field height?              integer     Titlebar height in pixels, used when enabled (default: 20)
+---@field height?              integer     Titlebar height in pixels, used when enabled (default: 20). Also controls the tab bar thickness in tabbed layout.
 ---@field font?                string      Pango font description for the title text, e.g. `"Sans Bold 10"` (default: "Sans 10")
 ---@field text_align?          integer     Text alignment: 0 = left, 1 = center, 2 = right (default: 1)
 ---@field bg_color?            nnwm.color  Background color for unfocused windows (default: {0.2, 0.2, 0.2, 1.0})

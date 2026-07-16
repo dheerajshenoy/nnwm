@@ -1,10 +1,7 @@
 #include "nnwm.hpp"
+#include "nnwm_internal.hpp"
 #include "lua/config.hpp"
 #include <cstdio>
-
-void render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused);
-void render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height);
-int ws_count(nnwm_server *server, nnwm_output *out);
 
 extern "C" {
 #include <sys/stat.h>
@@ -319,13 +316,7 @@ main(int argc, char *argv[])
                 && tl->output->layout_mode[tl->workspace]
                        == nnwm_layout_mode::TABBED)
             {
-                int tab_h = cfg->titlebar.height > 0 ? cfg->titlebar.height : 24;
-                int ws    = tl->output->active_workspace;
-                const wlr_box &area = tl->output->usable_area;
-                bool solo = (ws_count(server, tl->output) == 1);
-                int og    = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
-                int cw    = area.width - 2 * og;
-                render_tab_bar(server, tl->output, cw, tab_h);
+                rerender_tab_bar(server, tl->output);
             }
             return;
         }

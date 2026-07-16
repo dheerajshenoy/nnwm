@@ -577,13 +577,7 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
             && tl->output->layout_mode[tl->workspace]
                    == nnwm_layout_mode::TABBED)
         {
-            int tab_h = cfg->titlebar.height > 0 ? cfg->titlebar.height : 24;
-            int ws    = tl->output->active_workspace;
-            const wlr_box &area = tl->output->usable_area;
-            bool solo = (ws_count(server, tl->output) == 1);
-            int og    = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
-            int cw    = area.width - 2 * og;
-            render_tab_bar(server, tl->output, cw, tab_h);
+            rerender_tab_bar(server, tl->output);
         }
     };
     wl_signal_add(&xdg_toplevel->events.set_title, &toplevel->set_title);

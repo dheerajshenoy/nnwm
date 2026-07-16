@@ -316,15 +316,45 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
     {
     int inner_r       = r > bw ? r - bw : 0;
     bool titlebar_shown = toplevel->titlebar && (th > 0) && !tabbed_tiled;
+    nnwm_tab_position tab_pos = cfg->layout.tab_position;
+
+    /* Corner radii vary by tab bar position: round the corners that are
+     * NOT adjacent to the tab bar. */
+    struct fx_corner_radii bg_radii, surf_radii;
+    if (tabbed_tiled)
+    {
+        switch (tab_pos)
+        {
+            case nnwm_tab_position::BOTTOM:
+                bg_radii   = corner_radii_top(r);
+                surf_radii = corner_radii_top(inner_r);
+                break;
+            case nnwm_tab_position::LEFT:
+                bg_radii   = corner_radii_right(r);
+                surf_radii = corner_radii_right(inner_r);
+                break;
+            case nnwm_tab_position::RIGHT:
+                bg_radii   = corner_radii_left(r);
+                surf_radii = corner_radii_left(inner_r);
+                break;
+            default: /* TOP */
+                bg_radii   = corner_radii_bottom(r);
+                surf_radii = corner_radii_bottom(inner_r);
+                break;
+        }
+    }
+    else
+    {
+        bg_radii   = corner_radii_all(r);
+        surf_radii = titlebar_shown ? corner_radii_bottom(inner_r)
+                                    : corner_radii_all(inner_r);
+    }
+
     if (toplevel->border_bg)
     {
         wlr_scene_node_set_position(&toplevel->border_bg->node, 0, 0);
         wlr_scene_rect_set_size(toplevel->border_bg, width, height);
-        if (tabbed_tiled)
-            wlr_scene_rect_set_corner_radii(toplevel->border_bg,
-                                            corner_radii_bottom(r));
-        else
-            wlr_scene_rect_set_corner_radius(toplevel->border_bg, r);
+        wlr_scene_rect_set_corner_radii(toplevel->border_bg, bg_radii);
     }
     if (toplevel->titlebar)
     {
@@ -337,8 +367,7 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
     if (toplevel->scene_surface)
     {
         if (tabbed_tiled || titlebar_shown)
-            set_corner_radii_recursive(toplevel->scene_surface,
-                                       corner_radii_bottom(inner_r));
+            set_corner_radii_recursive(toplevel->scene_surface, surf_radii);
         else
             set_corner_radius_recursive(toplevel->scene_surface, inner_r);
     }
@@ -896,14 +925,55 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
 
 /* ---- Tabbed layout tab bar rendering ---- */
 
+/* Render a single tab's text, centered in (tx, ty, tw, th) of the buffer.
+ * For vertical tabs the cairo context must already be set up with the
+ * appropriate rotation/translation. */
+static void
+draw_tab_text(cairo_t *cr, nnwm_config *cfg, const char *title,
+              double tx, double ty, double tw, double th,
+              const float *tc)
+{
+    if (!title || !title[0] || tw < 4 || th < 4)
+        return;
+
+    PangoLayout *layout = pango_cairo_create_layout(cr);
+    PangoFontDescription *fd = pango_font_description_from_string(
+        cfg->titlebar.font ? cfg->titlebar.font : "Sans 10");
+    const char *fam = pango_font_description_get_family(fd);
+    char fallback[256];
+    std::snprintf(fallback, sizeof(fallback),
+                  "%s,DejaVu Sans,Noto Sans,Liberation Sans,Arial",
+                  fam ? fam : "Sans");
+    pango_font_description_set_family(fd, fallback);
+    pango_layout_set_font_description(layout, fd);
+    pango_font_description_free(fd);
+    pango_layout_set_text(layout, title, -1);
+    pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
+    pango_layout_set_width(layout, (int)((tw - 8) * PANGO_SCALE));
+    pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
+
+    int pw, ph;
+    pango_layout_get_size(layout, &pw, &ph);
+    double text_y = ty + (th - ph / (double)PANGO_SCALE) / 2.0;
+
+    cairo_set_source_rgba(cr, tc[0], tc[1], tc[2], tc[3]);
+    cairo_move_to(cr, tx + 4, text_y);
+    pango_cairo_show_layout(cr, layout);
+    g_object_unref(layout);
+}
+
 void
 render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
 {
     if (!out->tab_bar || width <= 0 || height <= 0)
         return;
 
-    nnwm_config *cfg = server->config;
-    int ws           = out->active_workspace;
+    nnwm_config *cfg     = server->config;
+    int ws               = out->active_workspace;
+    nnwm_tab_style style = cfg->layout.tab_style;
+    nnwm_tab_position pos = cfg->layout.tab_position;
+    bool vertical        = (pos == nnwm_tab_position::LEFT
+                             || pos == nnwm_tab_position::RIGHT);
 
     int n = ws_count(server, out);
     if (n == 0)
@@ -912,9 +982,6 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
         return;
     }
 
-    /* Use last_focused[ws] so the tab stays highlighted even when a layer-shell
-     * surface (e.g. rofi) temporarily holds keyboard focus. Validate it is
-     * still a tiled window (it may have become floating since last focus). */
     nnwm_toplevel *active_tl = out->last_focused[ws];
     if (active_tl
         && (active_tl->output != out || active_tl->workspace != ws
@@ -940,56 +1007,62 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
             continue;
 
         bool focused = (tl == active_tl);
-        int x        = (int)((long)i * width / n);
-        int w        = (int)((long)(i + 1) * width / n) - x;
 
-        const float *bg = tl->urgent        ? cfg->titlebar.urgent_bg_color
-                          : focused         ? cfg->titlebar.focused_bg_color
-                                           : cfg->titlebar.bg_color;
-        cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
-        cairo_rectangle(cr, x, 0, w, height);
-        cairo_fill(cr);
+        const float *bg = tl->urgent ? cfg->titlebar.urgent_bg_color
+                          : focused  ? cfg->titlebar.focused_bg_color
+                                     : cfg->titlebar.bg_color;
+        const float *tc = tl->urgent ? cfg->titlebar.urgent_text_color
+                          : focused  ? cfg->titlebar.focused_text_color
+                                     : cfg->titlebar.text_color;
 
-        /* Tab separator */
-        if (i < n - 1)
+        if (!vertical)
         {
-            cairo_set_source_rgba(cr, 0, 0, 0, 0.4);
-            cairo_rectangle(cr, x + w - 1, 0, 1, height);
+            /* Horizontal bar (TOP / BOTTOM) */
+            int x = (int)((long)i * width / n);
+            int w = (int)((long)(i + 1) * width / n) - x;
+
+            cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
+            cairo_rectangle(cr, x, 0, w, height);
             cairo_fill(cr);
+
+            if (i < n - 1)
+            {
+                cairo_set_source_rgba(cr, 0, 0, 0, 0.4);
+                cairo_rectangle(cr, x + w - 1, 0, 1, height);
+                cairo_fill(cr);
+            }
+
+            if (style == nnwm_tab_style::NORMAL)
+                draw_tab_text(cr, cfg, tl->xdg_toplevel->title,
+                              x, 0, w, height, tc);
         }
-
-        const char *title = tl->xdg_toplevel->title;
-        if (title && title[0])
+        else
         {
-            PangoLayout *layout      = pango_cairo_create_layout(cr);
-            PangoFontDescription *fd = pango_font_description_from_string(
-                cfg->titlebar.font ? cfg->titlebar.font : "Sans 10");
-            const char *fam = pango_font_description_get_family(fd);
-            char fallback[256];
-            std::snprintf(fallback, sizeof(fallback),
-                          "%s,DejaVu Sans,Noto Sans,Liberation Sans,Arial",
-                          fam ? fam : "Sans");
-            pango_font_description_set_family(fd, fallback);
-            pango_layout_set_font_description(layout, fd);
-            pango_font_description_free(fd);
-            pango_layout_set_text(layout, title, -1);
-            pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
+            /* Vertical bar (LEFT / RIGHT) — tabs stacked top-to-bottom */
+            int y = (int)((long)i * height / n);
+            int h = (int)((long)(i + 1) * height / n) - y;
 
-            int pad = 4;
-            pango_layout_set_width(layout, (w - 2 * pad) * PANGO_SCALE);
-            pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
+            cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
+            cairo_rectangle(cr, 0, y, width, h);
+            cairo_fill(cr);
 
-            int pw, ph;
-            pango_layout_get_size(layout, &pw, &ph);
-            double ty = (height - ph / (double)PANGO_SCALE) / 2.0;
+            if (i < n - 1)
+            {
+                cairo_set_source_rgba(cr, 0, 0, 0, 0.4);
+                cairo_rectangle(cr, 0, y + h - 1, width, 1);
+                cairo_fill(cr);
+            }
 
-            const float *tc = tl->urgent        ? cfg->titlebar.urgent_text_color
-                              : focused         ? cfg->titlebar.focused_text_color
-                                               : cfg->titlebar.text_color;
-            cairo_set_source_rgba(cr, tc[0], tc[1], tc[2], tc[3]);
-            cairo_move_to(cr, x + pad, ty);
-            pango_cairo_show_layout(cr, layout);
-            g_object_unref(layout);
+            if (style == nnwm_tab_style::NORMAL)
+            {
+                /* Rotate text 90° CCW so it reads bottom-to-top */
+                cairo_save(cr);
+                cairo_translate(cr, width / 2.0, y + h / 2.0);
+                cairo_rotate(cr, -M_PI / 2.0);
+                draw_tab_text(cr, cfg, tl->xdg_toplevel->title,
+                              -h / 2.0, -width / 2.0, h, width, tc);
+                cairo_restore(cr);
+            }
         }
         i++;
     }
@@ -1002,6 +1075,55 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
     wlr_buffer_drop(&tb->base);
     wlr_scene_node_set_enabled(&out->tab_bar->node, true);
     wlr_scene_node_raise_to_top(&out->tab_bar->node);
+}
+
+/* Re-render the tab bar at the correct dimensions for the current config,
+ * used by title-change and urgent notification paths. */
+void
+rerender_tab_bar(nnwm_server *server, nnwm_output *out)
+{
+    if (!out || out->layout_mode[out->active_workspace] != nnwm_layout_mode::TABBED)
+        return;
+
+    nnwm_config *cfg = server->config;
+    int ws           = out->active_workspace;
+    bool solo        = (ws_count(server, out) == 1);
+    int og           = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
+    int tab_sz       = cfg->titlebar.height > 0 ? cfg->titlebar.height : 24;
+    const wlr_box &area = out->usable_area;
+
+    int tbw, tbh, tbx, tby;
+    switch (cfg->layout.tab_position)
+    {
+        case nnwm_tab_position::BOTTOM:
+            tbw = area.width - 2 * og;
+            tbh = tab_sz;
+            tbx = area.x + og;
+            tby = area.y + area.height - og - tab_sz;
+            break;
+        case nnwm_tab_position::LEFT:
+            tbw = tab_sz;
+            tbh = area.height - 2 * og;
+            tbx = area.x + og;
+            tby = area.y + og;
+            break;
+        case nnwm_tab_position::RIGHT:
+            tbw = tab_sz;
+            tbh = area.height - 2 * og;
+            tbx = area.x + area.width - og - tab_sz;
+            tby = area.y + og;
+            break;
+        default: /* TOP */
+            tbw = area.width - 2 * og;
+            tbh = tab_sz;
+            tbx = area.x + og;
+            tby = area.y + og;
+            break;
+    }
+
+    render_tab_bar(server, out, tbw, tbh);
+    if (out->tab_bar)
+        wlr_scene_node_set_position(&out->tab_bar->node, tbx, tby);
 }
 
 /* ---- Output / workspace helpers ---- */
@@ -1165,25 +1287,55 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
      */
     if (out->layout_mode[ws] == nnwm_layout_mode::TABBED)
     {
-        int n     = ws_count(server, out);
-        bool solo = (n == 1);
-        int bw    = (solo && cfg->border.smart) ? 0 : cfg->border.width;
-        int og    = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
-        int tab_h = cfg->titlebar.height > 0 ? cfg->titlebar.height : 24;
+        int n        = ws_count(server, out);
+        bool solo    = (n == 1);
+        int bw       = (solo && cfg->border.smart) ? 0 : cfg->border.width;
+        int og       = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
+        int tab_sz   = cfg->titlebar.height > 0 ? cfg->titlebar.height : 24;
+        nnwm_tab_position tab_pos = cfg->layout.tab_position;
 
-        /* Use last_focused[ws] so the visible window survives layer-shell focus
-         * steals (e.g. rofi). Validate it is still a tiled window on this
-         * workspace (it may have become floating/fullscreen since last focus).
-         */
         nnwm_toplevel *active = out->last_focused[ws];
         if (!active || active->output != out || active->workspace != ws
             || active->floating || active->fullscreen || active->fake_fullscreen)
             active = ws_first(server, out);
 
-        int cx = area.x + og;
-        int cy = area.y + og + tab_h;
-        int cw = area.width - 2 * og;
-        int ch = area.height - 2 * og - tab_h;
+        /* Content area and tab bar rect, both relative to output origin */
+        int cx, cy, cw, ch, tbx, tby, tbw, tbh;
+        switch (tab_pos)
+        {
+            case nnwm_tab_position::BOTTOM:
+                cw  = area.width - 2 * og;
+                ch  = area.height - 2 * og - tab_sz;
+                cx  = area.x + og;
+                cy  = area.y + og;
+                tbw = cw; tbh = tab_sz;
+                tbx = cx; tby = cy + ch;
+                break;
+            case nnwm_tab_position::LEFT:
+                cw  = area.width - 2 * og - tab_sz;
+                ch  = area.height - 2 * og;
+                cx  = area.x + og + tab_sz;
+                cy  = area.y + og;
+                tbw = tab_sz; tbh = ch;
+                tbx = area.x + og; tby = cy;
+                break;
+            case nnwm_tab_position::RIGHT:
+                cw  = area.width - 2 * og - tab_sz;
+                ch  = area.height - 2 * og;
+                cx  = area.x + og;
+                cy  = area.y + og;
+                tbw = tab_sz; tbh = ch;
+                tbx = cx + cw; tby = cy;
+                break;
+            default: /* TOP */
+                cw  = area.width - 2 * og;
+                ch  = area.height - 2 * og - tab_sz;
+                cx  = area.x + og;
+                cy  = area.y + og + tab_sz;
+                tbw = cw; tbh = tab_sz;
+                tbx = cx; tby = area.y + og;
+                break;
+        }
 
         wl_list_for_each(tl, &server->toplevels, link)
         {
@@ -1200,16 +1352,23 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
 
         if (n > 0)
         {
-            render_tab_bar(server, out, cw, tab_h);
-            wlr_scene_node_set_position(&out->tab_bar->node, cx, area.y + og);
+            render_tab_bar(server, out, tbw, tbh);
+            wlr_scene_node_set_position(&out->tab_bar->node, tbx, tby);
             wlr_scene_node_raise_to_top(&out->tab_bar->node);
 #ifdef HAVE_SCENEFX
             {
             int tab_r = cfg->fx.rounding.radius;
             if (cfg->fx.rounding.smart && solo)
                 tab_r = 0;
-            wlr_scene_buffer_set_corner_radii(out->tab_bar,
-                                              corner_radii_top(tab_r));
+            struct fx_corner_radii tab_cr;
+            switch (tab_pos)
+            {
+                case nnwm_tab_position::BOTTOM: tab_cr = corner_radii_bottom(tab_r); break;
+                case nnwm_tab_position::LEFT:   tab_cr = corner_radii_left(tab_r);   break;
+                case nnwm_tab_position::RIGHT:  tab_cr = corner_radii_right(tab_r);  break;
+                default:                        tab_cr = corner_radii_top(tab_r);    break;
+            }
+            wlr_scene_buffer_set_corner_radii(out->tab_bar, tab_cr);
             }
 #endif
         }

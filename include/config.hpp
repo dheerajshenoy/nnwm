@@ -12,6 +12,20 @@ extern "C"
 }
 #endif
 
+enum class nnwm_tab_style
+{
+    NORMAL = 0,
+    MINIMAL
+};
+
+enum class nnwm_tab_position
+{
+    TOP = 0,
+    BOTTOM,
+    LEFT,
+    RIGHT,
+};
+
 #ifdef HAVE_SCENEFX
 enum class nnwm_easing
 {
@@ -109,6 +123,8 @@ struct nnwm_config
         float master_ratio_step;
         float master_ratio_min;
         float master_ratio_max;
+        nnwm_tab_style tab_style;       /* tabbed layout: normal or minimal */
+        nnwm_tab_position tab_position; /* tabbed layout: tab bar placement */
     } layout;
 
     /* Gaps */
@@ -198,7 +214,7 @@ struct nnwm_config
         float shadow_offset_x;   /* pixels */
         float shadow_offset_y;   /* pixels */
         float opacity; /* window content opacity: 0.0–1.0 (default: 1.0) */
-        float focused_opacity;  /* <0 = inherit opacity; 0.0–1.0 = override */
+        float focused_opacity;   /* <0 = inherit opacity; 0.0–1.0 = override */
         float unfocused_opacity; /* <0 = inherit opacity; 0.0–1.0 = override */
         bool blur_enabled;
         int blur_passes;       /* number of dual-kawase passes (default: 3) */
