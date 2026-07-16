@@ -123,6 +123,9 @@ extern "C"
     void
     wlr_scene_buffer_set_corner_radius(struct wlr_scene_buffer *scene_buffer,
                                        int corner_radius);
+    void
+    wlr_scene_buffer_set_corner_radii(struct wlr_scene_buffer *scene_buffer,
+                                      struct fx_corner_radii corner_radii);
     void wlr_scene_buffer_set_opacity(struct wlr_scene_buffer *scene_buffer,
                                       float opacity);
     struct wlr_scene_blur *wlr_scene_blur_create(struct wlr_scene_tree *parent,
@@ -131,6 +134,8 @@ extern "C"
                                  int height);
     void wlr_scene_blur_set_corner_radius(struct wlr_scene_blur *blur,
                                           int corner_radius);
+    void wlr_scene_blur_set_corner_radii(struct wlr_scene_blur *blur,
+                                         struct fx_corner_radii corner_radii);
     void wlr_scene_set_blur_data(struct wlr_scene *scene, int num_passes,
                                  int radius, float noise, float brightness,
                                  float contrast, float saturation);

@@ -233,18 +233,23 @@ lerpi(int a, int b, float t)
 
 #ifdef HAVE_SCENEFX
 static void
-set_corner_radius_recursive(struct wlr_scene_tree *tree, int radius)
+set_corner_radii_recursive(struct wlr_scene_tree *tree, struct fx_corner_radii radii)
 {
     struct wlr_scene_node *child;
     wl_list_for_each(child, &tree->children, link)
     {
         if (child->type == WLR_SCENE_NODE_BUFFER)
-            wlr_scene_buffer_set_corner_radius(
-                wlr_scene_buffer_from_node(child), radius);
+            wlr_scene_buffer_set_corner_radii(
+                wlr_scene_buffer_from_node(child), radii);
         else if (child->type == WLR_SCENE_NODE_TREE)
-            set_corner_radius_recursive(wlr_scene_tree_from_node(child),
-                                        radius);
+            set_corner_radii_recursive(wlr_scene_tree_from_node(child), radii);
     }
+}
+
+static void
+set_corner_radius_recursive(struct wlr_scene_tree *tree, int radius)
+{
+    set_corner_radii_recursive(tree, corner_radii_all(radius));
 }
 
 static int
@@ -317,18 +322,35 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
                                 bw, bw + (tabbed_tiled ? 0 : th));
 
 #ifdef HAVE_SCENEFX
+    {
+    int inner_r       = r > bw ? r - bw : 0;
+    bool titlebar_shown = toplevel->titlebar && (th > 0) && !tabbed_tiled;
     if (toplevel->border_bg)
     {
         wlr_scene_node_set_position(&toplevel->border_bg->node, 0, 0);
         wlr_scene_rect_set_size(toplevel->border_bg, width, height);
-        wlr_scene_rect_set_corner_radius(toplevel->border_bg, r);
+        if (tabbed_tiled)
+            wlr_scene_rect_set_corner_radii(toplevel->border_bg,
+                                            corner_radii_bottom(r));
+        else
+            wlr_scene_rect_set_corner_radius(toplevel->border_bg, r);
     }
     if (toplevel->titlebar)
-        wlr_scene_buffer_set_corner_radius(toplevel->titlebar, r);
+    {
+        if (titlebar_shown)
+            wlr_scene_buffer_set_corner_radii(toplevel->titlebar,
+                                              corner_radii_top(inner_r));
+        else
+            wlr_scene_buffer_set_corner_radius(toplevel->titlebar, 0);
+    }
     if (toplevel->scene_surface)
     {
-        int inner_r = r > bw ? r - bw : 0;
-        set_corner_radius_recursive(toplevel->scene_surface, inner_r);
+        if (tabbed_tiled || titlebar_shown)
+            set_corner_radii_recursive(toplevel->scene_surface,
+                                       corner_radii_bottom(inner_r));
+        else
+            set_corner_radius_recursive(toplevel->scene_surface, inner_r);
+    }
     }
     if (toplevel->fx_blur)
     {
@@ -768,6 +790,10 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
 
     int r = effective_corner_radius(toplevel);
 
+    bool tabbed_tiled = !toplevel->floating && toplevel->output
+        && toplevel->output->layout_mode[toplevel->workspace]
+               == nnwm_layout_mode::TABBED;
+
     /* border_bg: full-window rect that provides correctly rounded outer
      * corners. The 4 border strips are inset by r (see update_borders).
      * Radius, inner_r, and titlebar radius are all maintained by
@@ -817,12 +843,20 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
             int h       = geo.height + 2 * bw + th;
             toplevel->fx_blur
                 = wlr_scene_blur_create(toplevel->scene_tree, w, h);
-            wlr_scene_blur_set_corner_radius(toplevel->fx_blur, r);
+            if (tabbed_tiled)
+                wlr_scene_blur_set_corner_radii(toplevel->fx_blur,
+                                                corner_radii_bottom(r));
+            else
+                wlr_scene_blur_set_corner_radius(toplevel->fx_blur, r);
             wlr_scene_node_lower_to_bottom(&toplevel->fx_blur->node);
         }
         else
         {
-            wlr_scene_blur_set_corner_radius(toplevel->fx_blur, r);
+            if (tabbed_tiled)
+                wlr_scene_blur_set_corner_radii(toplevel->fx_blur,
+                                                corner_radii_bottom(r));
+            else
+                wlr_scene_blur_set_corner_radius(toplevel->fx_blur, r);
         }
     }
     else if (!eff_blur && toplevel->fx_blur)
@@ -1176,6 +1210,15 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
             render_tab_bar(server, out, cw, tab_h);
             wlr_scene_node_set_position(&out->tab_bar->node, cx, area.y + og);
             wlr_scene_node_raise_to_top(&out->tab_bar->node);
+#ifdef HAVE_SCENEFX
+            {
+            int tab_r = cfg->fx.rounding.radius;
+            if (cfg->fx.rounding.smart && solo)
+                tab_r = 0;
+            wlr_scene_buffer_set_corner_radii(out->tab_bar,
+                                              corner_radii_top(tab_r));
+            }
+#endif
         }
         else if (out->tab_bar)
         {
