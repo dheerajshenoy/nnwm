@@ -107,8 +107,12 @@
 - [ ] Hardware-acceleration
 - [ ] Scratchpad
 - [ ] Multi workspace viewing at once (like dwm)
-- [ ] Overview mode that zooms out and shows all workspaces
+- [ ] Overview mode
 - [ ] Handle minimized windows
 - [ ] Jump label support (like MangoWM)
 - [ ] temporary mouse cursor size increase to regain attention of the cursor
 - [ ] XWayland
+- Tabbed layout config
+    - [ ] Minimal mode (without text, just bar)
+    - [ ] Location of the tabbar (top, bottom, left, right)
+- [ ] Get OBS to work with nnwm
