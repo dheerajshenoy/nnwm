@@ -53,6 +53,7 @@ struct nnwm_toplevel *get_focused_toplevel(struct nnwm_server *server);
 /* ---- Layout ---- */
 void arrange_windows(struct nnwm_server *server, struct nnwm_output *out);
 void arrange_all_outputs(struct nnwm_server *server);
+void arrange_scratchpad(struct nnwm_server *server);
 
 /* ---- Cursor / pointer ---- */
 struct nnwm_toplevel *tab_toplevel_at(struct nnwm_server *server,

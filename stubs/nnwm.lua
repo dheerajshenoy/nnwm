@@ -277,6 +277,21 @@ function nnwm.move_to_workspace(n) end
 --- active workspace's layout; if floating it stays above all workspaces.
 function nnwm.toggle_sticky() end
 
+--- Move the focused window into the scratchpad.
+--- The scratchpad is a global overlay workspace that can hold multiple windows
+--- and supports tiling layouts. The window is removed from its current
+--- workspace and placed in the scratchpad tree. If the scratchpad is currently
+--- visible, the window is immediately tiled into it.
+function nnwm.move_to_scratchpad() end
+
+--- Toggle the scratchpad overlay on or off.
+--- When shown, the scratchpad appears on top of the focused output with a
+--- semi-transparent dim background. When hidden, focus returns to the
+--- previously focused workspace window. While the scratchpad is visible,
+--- layout toggle functions (e.g. `toggle_vertical_tile`, `layout_next`)
+--- affect the scratchpad layout (HTILE/VTILE) instead of the active workspace.
+function nnwm.scratchpad_toggle() end
+
 --- Toggle the focused window between floating and tiled mode.
 --- When made floating the window is centered on screen; when returned to tiled
 --- the layout is re-arranged automatically.

@@ -620,6 +620,20 @@ l_nnwm_toggle_sticky(lua_State *L)
 }
 
 static int
+l_nnwm_move_to_scratchpad(lua_State *L)
+{
+    nnwm::scratchpad::move_to(get_server(L));
+    return 0;
+}
+
+static int
+l_nnwm_scratchpad_toggle(lua_State *L)
+{
+    nnwm::scratchpad::toggle(get_server(L));
+    return 0;
+}
+
+static int
 l_nnwm_focus_monitor_next(lua_State *L)
 {
     nnwm::monitor::focus_next(get_server(L));
@@ -804,6 +818,8 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"toggle_fullscreen", l_nnwm_toggle_fullscreen},
     {"toggle_fake_fullscreen", l_nnwm_toggle_fake_fullscreen},
     {"toggle_sticky", l_nnwm_toggle_sticky},
+    {"move_to_scratchpad", l_nnwm_move_to_scratchpad},
+    {"scratchpad_toggle", l_nnwm_scratchpad_toggle},
     {"focus_monitor_next", l_nnwm_focus_monitor_next},
     {"focus_monitor_prev", l_nnwm_focus_monitor_prev},
     {"move_to_monitor_next", l_nnwm_move_to_monitor_next},

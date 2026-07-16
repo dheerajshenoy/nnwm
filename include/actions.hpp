@@ -106,6 +106,14 @@ void
 toggle_sticky(nnwm_server *server);
 } // namespace window
 
+namespace scratchpad
+{
+void
+move_to(nnwm_server *server);
+void
+toggle(nnwm_server *server);
+} // namespace scratchpad
+
 } // namespace nnwm
 
 #endif /* __cplusplus */

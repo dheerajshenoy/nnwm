@@ -203,7 +203,12 @@ struct nnwm_server
     /* Scene sub-trees ordered back-to-front for proper layering */
     struct wlr_scene_tree
         *scene_layers[4]; /* indexed by zwlr_layer_shell_v1_layer */
-    struct wlr_scene_tree *scene_windows; /* xdg toplevels live here */
+    struct wlr_scene_tree *scene_windows;    /* xdg toplevels live here */
+    struct wlr_scene_rect *scene_scratch_dim; /* dim overlay behind scratchpad */
+    struct wlr_scene_tree *scene_scratchpad;  /* scratchpad windows */
+
+    bool scratchpad_visible;
+    nnwm_layout_mode scratchpad_layout;
 
     struct wl_list layer_surfaces; /* nnwm_layer_surface::link */
 
@@ -348,6 +353,7 @@ struct nnwm_toplevel
     bool fake_fullscreen;
     bool sticky;
     bool urgent;
+    bool in_scratchpad;
     struct wlr_xdg_toplevel *xdg_toplevel;
     struct wlr_scene_tree *scene_tree;
     struct wlr_scene_rect *border[4]; /* top, bottom, left, right */

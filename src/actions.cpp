@@ -742,9 +742,120 @@ nnwm::window::toggle_sticky(nnwm_server *server)
     arrange_windows(server, tl->output);
 }
 
+/* ---- Scratchpad ---- */
+
+void
+nnwm::scratchpad::move_to(nnwm_server *server)
+{
+    nnwm_toplevel *tl = get_focused_toplevel(server);
+    if (!tl || tl->in_scratchpad)
+        return;
+
+    nnwm_output *out = tl->output;
+
+    /* Clear last-focused tracking */
+    if (out)
+    {
+        if (out->last_focused[tl->workspace] == tl)
+            out->last_focused[tl->workspace] = nullptr;
+        if (out->prev_focused[tl->workspace] == tl)
+            out->prev_focused[tl->workspace] = nullptr;
+    }
+
+    tl->in_scratchpad = true;
+    tl->floating      = false;
+
+    /* Reparent scene tree to scratchpad tree */
+    wlr_scene_node_reparent(&tl->scene_tree->node, server->scene_scratchpad);
+    wlr_scene_node_set_enabled(&tl->scene_tree->node, server->scratchpad_visible);
+
+    /* Focus next window on current workspace */
+    if (out)
+    {
+        nnwm_toplevel *next = out->last_focused[out->active_workspace];
+        if (!next)
+            next = ws_first(server, out);
+        if (next)
+            focus_toplevel(next);
+        else
+            wlr_seat_keyboard_clear_focus(server->seat);
+        arrange_windows(server, out);
+    }
+
+    if (server->scratchpad_visible)
+        arrange_scratchpad(server);
+}
+
+void
+nnwm::scratchpad::toggle(nnwm_server *server)
+{
+    server->scratchpad_visible = !server->scratchpad_visible;
+
+    nnwm_output *out = server->focused_output;
+    if (!out && !wl_list_empty(&server->outputs))
+        out = wl_container_of(server->outputs.next, out, link);
+
+    if (server->scratchpad_visible)
+    {
+        /* Show: enable scene nodes and arrange scratchpad windows */
+        wlr_scene_node_set_enabled(&server->scene_scratch_dim->node, true);
+        wlr_scene_node_set_enabled(&server->scene_scratchpad->node, true);
+
+        /* Enable all scratchpad window nodes */
+        nnwm_toplevel *tl;
+        wl_list_for_each(tl, &server->toplevels, link)
+        {
+            if (tl->in_scratchpad)
+                wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
+        }
+
+        arrange_scratchpad(server);
+
+        /* Focus first scratchpad window */
+        nnwm_toplevel *first = nullptr;
+        wl_list_for_each(tl, &server->toplevels, link)
+        {
+            if (tl->in_scratchpad)
+            {
+                first = tl;
+                break;
+            }
+        }
+        if (first)
+            focus_toplevel(first);
+    }
+    else
+    {
+        /* Hide: disable scene nodes */
+        wlr_scene_node_set_enabled(&server->scene_scratch_dim->node, false);
+        wlr_scene_node_set_enabled(&server->scene_scratchpad->node, false);
+
+        /* Re-focus last active window on focused output */
+        if (out)
+        {
+            nnwm_toplevel *next = out->last_focused[out->active_workspace];
+            if (!next)
+                next = ws_first(server, out);
+            if (next)
+                focus_toplevel(next);
+            else
+                wlr_seat_keyboard_clear_focus(server->seat);
+        }
+    }
+}
+
 void
 nnwm::layout::toggle_vertical_tile(nnwm_server *server)
 {
+    if (server->scratchpad_visible)
+    {
+        server->scratchpad_layout
+            = (server->scratchpad_layout == nnwm_layout_mode::VTILE)
+                  ? nnwm_layout_mode::HTILE
+                  : nnwm_layout_mode::VTILE;
+        arrange_scratchpad(server);
+        return;
+    }
     nnwm_output *out = server->focused_output;
     if (!out)
         return;
@@ -758,6 +869,8 @@ nnwm::layout::toggle_vertical_tile(nnwm_server *server)
 void
 nnwm::layout::toggle_tabbed(nnwm_server *server)
 {
+    if (server->scratchpad_visible)
+        return;
     nnwm_output *out = server->focused_output;
     if (!out)
         return;
@@ -771,6 +884,8 @@ nnwm::layout::toggle_tabbed(nnwm_server *server)
 void
 nnwm::layout::toggle_horizontal_scroll(nnwm_server *server)
 {
+    if (server->scratchpad_visible)
+        return;
     nnwm_output *out = server->focused_output;
     if (!out)
         return;
@@ -784,6 +899,8 @@ nnwm::layout::toggle_horizontal_scroll(nnwm_server *server)
 void
 nnwm::layout::toggle_vertical_scroll(nnwm_server *server)
 {
+    if (server->scratchpad_visible)
+        return;
     nnwm_output *out = server->focused_output;
     if (!out)
         return;
@@ -797,6 +914,15 @@ nnwm::layout::toggle_vertical_scroll(nnwm_server *server)
 void
 nnwm::layout::next(nnwm_server *server)
 {
+    if (server->scratchpad_visible)
+    {
+        server->scratchpad_layout
+            = (server->scratchpad_layout == nnwm_layout_mode::HTILE)
+                  ? nnwm_layout_mode::VTILE
+                  : nnwm_layout_mode::HTILE;
+        arrange_scratchpad(server);
+        return;
+    }
     nnwm_output *out = server->focused_output;
     if (!out)
         return;
@@ -809,6 +935,15 @@ nnwm::layout::next(nnwm_server *server)
 void
 nnwm::layout::prev(nnwm_server *server)
 {
+    if (server->scratchpad_visible)
+    {
+        server->scratchpad_layout
+            = (server->scratchpad_layout == nnwm_layout_mode::HTILE)
+                  ? nnwm_layout_mode::VTILE
+                  : nnwm_layout_mode::HTILE;
+        arrange_scratchpad(server);
+        return;
+    }
     nnwm_output *out = server->focused_output;
     if (!out)
         return;

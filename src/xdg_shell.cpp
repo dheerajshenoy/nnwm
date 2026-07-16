@@ -160,6 +160,49 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
     int ws           = toplevel->workspace;
     nnwm_output *out = toplevel->output;
 
+    /* Handle scratchpad windows separately */
+    if (toplevel->in_scratchpad)
+    {
+        bool was_focused_scratch
+            = (server->seat->keyboard_state.focused_surface
+               == toplevel->xdg_toplevel->base->surface);
+
+        wl_list_remove(&toplevel->link);
+#ifdef HAVE_SCENEFX
+        if (toplevel->dying)
+            wl_list_insert(&server->dying_toplevels, &toplevel->dying_link);
+#endif
+
+        if (was_focused_scratch && server->scratchpad_visible)
+        {
+            /* Focus next scratchpad window, or fall back to regular workspace */
+            nnwm_toplevel *next = nullptr;
+            nnwm_toplevel *t;
+            wl_list_for_each(t, &server->toplevels, link)
+            {
+                if (t->in_scratchpad) { next = t; break; }
+            }
+            if (next)
+                focus_toplevel(next);
+            else if (out)
+            {
+                nnwm_toplevel *wsnext = out->last_focused[out->active_workspace];
+                if (!wsnext) wsnext = ws_first(server, out);
+                if (wsnext)
+                    focus_toplevel(wsnext);
+                else
+                    wlr_seat_keyboard_clear_focus(server->seat);
+            }
+        }
+        arrange_scratchpad(server);
+
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        process_cursor_motion(
+            server, (uint32_t)(now.tv_sec * 1000 + now.tv_nsec / 1000000));
+        return;
+    }
+
     bool was_focused = out && out->last_focused[ws] == toplevel;
     if (out && out->last_focused[ws] == toplevel)
         out->last_focused[ws] = nullptr;

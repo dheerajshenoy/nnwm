@@ -202,6 +202,17 @@ main(int argc, char *argv[])
         = wlr_scene_tree_create(&server.scene->tree);
     server.scene_windows
         = wlr_scene_tree_create(&server.scene->tree);
+    /* Scratchpad overlay: dim rect + scratchpad window tree, above normal windows */
+    {
+        const float dim_color[4] = {0.0f, 0.0f, 0.0f, 0.5f};
+        server.scene_scratch_dim = wlr_scene_rect_create(
+            &server.scene->tree, 0, 0, dim_color);
+        wlr_scene_node_set_enabled(&server.scene_scratch_dim->node, false);
+    }
+    server.scene_scratchpad = wlr_scene_tree_create(&server.scene->tree);
+    wlr_scene_node_set_enabled(&server.scene_scratchpad->node, false);
+    server.scratchpad_visible = false;
+    server.scratchpad_layout  = nnwm_layout_mode::HTILE;
     server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP]
         = wlr_scene_tree_create(&server.scene->tree);
     server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY]

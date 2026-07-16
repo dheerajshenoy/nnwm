@@ -1544,6 +1544,175 @@ arrange_all_outputs(nnwm_server *server)
     wl_list_for_each(out, &server->outputs, link) arrange_windows(server, out);
 }
 
+/* ---- Scratchpad layout ---- */
+
+static int
+scratch_count(nnwm_server *server)
+{
+    int n = 0;
+    nnwm_toplevel *t;
+    wl_list_for_each(t, &server->toplevels, link)
+        if (t->in_scratchpad) n++;
+    return n;
+}
+
+void
+arrange_scratchpad(nnwm_server *server)
+{
+    if (!server->scratchpad_visible)
+        return;
+
+    nnwm_output *out = server->focused_output;
+    if (!out && !wl_list_empty(&server->outputs))
+        out = wl_container_of(server->outputs.next, out, link);
+    if (!out)
+        return;
+
+    int n = scratch_count(server);
+    if (n == 0)
+    {
+        server->scratchpad_visible = false;
+        wlr_scene_node_set_enabled(&server->scene_scratch_dim->node, false);
+        wlr_scene_node_set_enabled(&server->scene_scratchpad->node, false);
+        return;
+    }
+
+    /* Position the dim rect over the focused output */
+    wlr_box area;
+    wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
+    wlr_scene_rect_set_size(server->scene_scratch_dim, area.width, area.height);
+    wlr_scene_node_set_position(&server->scene_scratch_dim->node, area.x, area.y);
+
+    nnwm_config *cfg = server->config;
+    bool solo        = (n == 1);
+    int bw           = (solo && cfg->border.smart) ? 0 : cfg->border.width;
+    int ig           = (solo && cfg->gap.smart) ? 0 : cfg->gap.inner;
+    int og           = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
+    int th           = cfg->titlebar.height;
+
+    int x0 = area.x + og;
+    int y0 = area.y + og;
+    int W  = area.width - 2 * og;
+    int H  = area.height - 2 * og;
+
+    wlr_surface *focused_surface = server->seat->keyboard_state.focused_surface;
+
+    nnwm_toplevel *tl;
+    if (server->scratchpad_layout == nnwm_layout_mode::HTILE)
+    {
+        /* HTILE: master on left, stack in right column */
+        if (n == 1)
+        {
+            wl_list_for_each(tl, &server->toplevels, link)
+            {
+                if (!tl->in_scratchpad) continue;
+                wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+                                           WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                                               | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
+                wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw,
+                                          H - 2 * bw - th);
+                tl_set_geometry(tl, x0, y0, W, H, bw);
+                render_titlebar(tl, W - 2 * bw,
+                                tl->xdg_toplevel->base->surface == focused_surface);
+                break;
+            }
+        }
+        else
+        {
+            int mw = (int)(W * cfg->layout.master_ratio);
+            int sw = W - mw - ig;
+            int ns = n - 1;
+            int sh = (H - (ns - 1) * ig) / ns;
+
+            int i = 0;
+            wl_list_for_each(tl, &server->toplevels, link)
+            {
+                if (!tl->in_scratchpad) continue;
+                bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
+                if (i == 0)
+                {
+                    wlr_xdg_toplevel_set_tiled(
+                        tl->xdg_toplevel, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                                              | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
+                    wlr_xdg_toplevel_set_size(tl->xdg_toplevel, mw - 2 * bw,
+                                              H - 2 * bw - th);
+                    tl_set_geometry(tl, x0, y0, mw, H, bw);
+                    render_titlebar(tl, mw - 2 * bw, focused);
+                }
+                else
+                {
+                    int sy = y0 + (i - 1) * (sh + ig);
+                    int h  = (i < ns) ? sh : H - (i - 1) * (sh + ig);
+                    wlr_xdg_toplevel_set_tiled(
+                        tl->xdg_toplevel, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                                              | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
+                    wlr_xdg_toplevel_set_size(tl->xdg_toplevel, sw - 2 * bw,
+                                              h - 2 * bw - th);
+                    tl_set_geometry(tl, x0 + mw + ig, sy, sw, h, bw);
+                    render_titlebar(tl, sw - 2 * bw, focused);
+                }
+                ++i;
+            }
+        }
+    }
+    else /* VTILE: master on top, stack horizontally below */
+    {
+        if (n == 1)
+        {
+            wl_list_for_each(tl, &server->toplevels, link)
+            {
+                if (!tl->in_scratchpad) continue;
+                wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+                                           WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                                               | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
+                wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw,
+                                          H - 2 * bw - th);
+                tl_set_geometry(tl, x0, y0, W, H, bw);
+                render_titlebar(tl, W - 2 * bw,
+                                tl->xdg_toplevel->base->surface == focused_surface);
+                break;
+            }
+        }
+        else
+        {
+            int mh = (int)(H * cfg->layout.master_ratio);
+            int sh = H - mh - ig;
+            int ns = n - 1;
+            int sw = (W - (ns - 1) * ig) / ns;
+
+            int i = 0;
+            wl_list_for_each(tl, &server->toplevels, link)
+            {
+                if (!tl->in_scratchpad) continue;
+                bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
+                if (i == 0)
+                {
+                    wlr_xdg_toplevel_set_tiled(
+                        tl->xdg_toplevel, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                                              | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
+                    wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw,
+                                              mh - 2 * bw - th);
+                    tl_set_geometry(tl, x0, y0, W, mh, bw);
+                    render_titlebar(tl, W - 2 * bw, focused);
+                }
+                else
+                {
+                    int sx = x0 + (i - 1) * (sw + ig);
+                    int w  = (i < ns) ? sw : W - (i - 1) * (sw + ig);
+                    wlr_xdg_toplevel_set_tiled(
+                        tl->xdg_toplevel, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                                              | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
+                    wlr_xdg_toplevel_set_size(tl->xdg_toplevel, w - 2 * bw,
+                                              sh - 2 * bw - th);
+                    tl_set_geometry(tl, sx, y0 + mh + ig, w, sh, bw);
+                    render_titlebar(tl, w - 2 * bw, focused);
+                }
+                ++i;
+            }
+        }
+    }
+}
+
 /* ---- Focus management ---- */
 
 void
