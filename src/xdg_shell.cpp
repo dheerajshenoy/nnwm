@@ -522,11 +522,26 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     toplevel->set_title.notify = [](wl_listener *listener, void *)
     {
         nnwm_toplevel *tl = wl_container_of(listener, tl, set_title);
-        if (tl->server->config->titlebar.height <= 0 || tl->titlebar_width <= 0)
-            return;
-        wlr_surface *fs = tl->server->seat->keyboard_state.focused_surface;
-        render_titlebar(tl, tl->titlebar_width,
-                        tl->xdg_toplevel->base->surface == fs);
+        nnwm_server *server = tl->server;
+        nnwm_config *cfg    = server->config;
+        if (cfg->titlebar.height > 0 && tl->titlebar_width > 0)
+        {
+            wlr_surface *fs = server->seat->keyboard_state.focused_surface;
+            render_titlebar(tl, tl->titlebar_width,
+                            tl->xdg_toplevel->base->surface == fs);
+        }
+        if (tl->output && !tl->floating
+            && tl->output->layout_mode[tl->workspace]
+                   == nnwm_layout_mode::TABBED)
+        {
+            int tab_h = cfg->titlebar.height > 0 ? cfg->titlebar.height : 24;
+            int ws    = tl->output->active_workspace;
+            const wlr_box &area = tl->output->usable_area;
+            bool solo = (ws_count(server, tl->output) == 1);
+            int og    = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
+            int cw    = area.width - 2 * og;
+            render_tab_bar(server, tl->output, cw, tab_h);
+        }
     };
     wl_signal_add(&xdg_toplevel->events.set_title, &toplevel->set_title);
 
