@@ -4,6 +4,24 @@
 
 ### Features
 
+- **Touchpad gesture bindings**: `nnwm.gesture(fingers, direction, callback)`
+  registers a swipe gesture binding. When a touchpad swipe ends without being
+  cancelled the dominant axis and sign of the accumulated displacement determine
+  direction (`"up"`, `"down"`, `"left"`, `"right"`), and the callback is called
+  if fingers and direction match. Pinch and hold events are forwarded to clients
+  via `pointer-gestures-unstable-v1` so applications (e.g. browsers) retain
+  native pinch-to-zoom. Example:
+  ```lua
+  nnwm.gesture(3, "left",  function() nnwm.focus_prev() end)
+  nnwm.gesture(3, "right", function() nnwm.focus_next() end)
+  nnwm.gesture(4, "up",    function() nnwm.toggle_fullscreen() end)
+  ```
+- **Urgent window highlighting**: when a client requests activation for a
+  background window (via `xdg-activation-v1`), that window's titlebar and tab
+  bar tab are immediately redrawn in the configurable urgent colors
+  (`nnwm.opt.titlebar.urgent_bg_color`, default dark red; `urgent_text_color`,
+  default white). Urgency is cleared the moment the window receives keyboard
+  focus.
 - **Scroll layout focus tracking**: focusing a window in scroll layout (via
   keybinding, click, or focus-follows-mouse) automatically scrolls the viewport
   to center it, matching the behavior of niri and similar scrolling compositors.
