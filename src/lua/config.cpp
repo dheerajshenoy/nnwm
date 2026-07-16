@@ -690,6 +690,8 @@ l_nnwm_rule(lua_State *L)
     r.floating        = -1;
     r.fullscreen      = -1;
     r.fake_fullscreen = -1;
+    r.maximize        = -1;
+    r.focused         = -1;
     r.sticky          = -1;
     r.workspace  = -1;
     r.opacity    = -1.0f;
@@ -725,6 +727,16 @@ l_nnwm_rule(lua_State *L)
     lua_getfield(L, 2, "fake_fullscreen");
     if (lua_isboolean(L, -1))
         r.fake_fullscreen = lua_toboolean(L, -1) ? 1 : 0;
+    lua_pop(L, 1);
+
+    lua_getfield(L, 2, "maximize");
+    if (lua_isboolean(L, -1))
+        r.maximize = lua_toboolean(L, -1) ? 1 : 0;
+    lua_pop(L, 1);
+
+    lua_getfield(L, 2, "focused");
+    if (lua_isboolean(L, -1))
+        r.focused = lua_toboolean(L, -1) ? 1 : 0;
     lua_pop(L, 1);
 
     lua_getfield(L, 2, "sticky");

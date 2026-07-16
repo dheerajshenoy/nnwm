@@ -79,6 +79,8 @@ struct nnwm_window_rule
     int floating;        /* -1=unset, 0=false, 1=true */
     int fullscreen;      /* -1=unset, 0=false, 1=true */
     int fake_fullscreen; /* -1=unset, 0=false, 1=true */
+    int maximize;        /* -1=unset, 0=false, 1=true */
+    int focused;         /* -1=unset, 1=focus+switch workspace on map */
     int sticky;          /* -1=unset, 0=false, 1=true */
     int workspace;       /* -1=unset, 0-8 = workspace index */
     char *monitor;       /* NULL=unset, output name e.g. "DP-1" */

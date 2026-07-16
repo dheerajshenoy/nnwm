@@ -352,14 +352,16 @@ struct nnwm_toplevel
     bool floating;
     bool fullscreen;
     bool fake_fullscreen;
+    bool maximize;
     bool sticky;
     bool urgent;
     bool in_scratchpad;
     struct wlr_xdg_toplevel *xdg_toplevel;
     struct wlr_scene_tree *scene_tree;
     struct wlr_scene_rect *border[4]; /* top, bottom, left, right */
-    float rule_opacity; /* per-window override: <0 = use global cfg->opacity */
-    int rule_blur;      /* per-window override: -1=global, 0=off, 1=on */
+    float rule_opacity;  /* per-window override: <0 = use global cfg->opacity */
+    int rule_blur;       /* per-window override: -1=global, 0=off, 1=on */
+    bool rule_focused;   /* switch to window's workspace and focus on map */
 #ifdef HAVE_SCENEFX
     struct wlr_scene_rect
         *border_bg; /* full-window rect behind content, for rounded corners */

@@ -1694,6 +1694,24 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         }
     }
 
+    /* Maximize: fill usable area while keeping tiled state */
+    wl_list_for_each(tl, &server->toplevels, link)
+    {
+        if (tl->output != out || (tl->workspace != ws && !tl->sticky))
+            continue;
+        if (!tl->maximize || tl->floating || tl->fullscreen || tl->fake_fullscreen)
+            continue;
+        wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+                                   WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                                       | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
+        wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw, H - 2 * bw - th);
+        tl_set_geometry(tl, x0, y0, W, H, bw);
+        render_titlebar(tl, W - 2 * bw,
+                        tl->xdg_toplevel->base->surface
+                            == focused_surface);
+        wlr_scene_node_raise_to_top(&tl->scene_tree->node);
+    }
+
     /* Floating and fullscreen windows must always sit above tiled ones.
      * Clear the tiled state so clients know they can control their own size. */
     wl_list_for_each(tl, &server->toplevels, link)

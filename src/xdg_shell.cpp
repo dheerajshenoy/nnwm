@@ -47,6 +47,10 @@ apply_window_rules(nnwm_server *server, nnwm_toplevel *toplevel)
             toplevel->fullscreen = (bool)r.fullscreen;
         if (r.fake_fullscreen >= 0)
             toplevel->fake_fullscreen = (bool)r.fake_fullscreen;
+        if (r.maximize >= 0)
+            toplevel->maximize = (bool)r.maximize;
+        if (r.focused > 0)
+            toplevel->rule_focused = true;
         if (r.sticky >= 0)
             toplevel->sticky = (bool)r.sticky;
         if (r.workspace >= 0)
@@ -136,6 +140,10 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
         wl_list_insert(&server->toplevels, &toplevel->link);
     else
         wl_list_insert(server->toplevels.prev, &toplevel->link);
+
+    if (toplevel->rule_focused && out)
+        nnwm::workspace::switch_to(server, toplevel->workspace);
+
     focus_toplevel(toplevel);
     arrange_windows(server, out);
 }
@@ -510,8 +518,9 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     nnwm_toplevel *toplevel = new nnwm_toplevel{};
     toplevel->server        = server;
     toplevel->xdg_toplevel  = xdg_toplevel;
-    toplevel->rule_opacity = -1.0f;
-    toplevel->rule_blur    = -1;
+    toplevel->rule_opacity  = -1.0f;
+    toplevel->rule_blur     = -1;
+    toplevel->rule_focused  = false;
 #ifdef HAVE_SCENEFX
     toplevel->rule_anim_open_style  = -1;
     toplevel->rule_anim_close_style = -1;

@@ -150,9 +150,12 @@ MOD = {}
 ---@field title  string? fnmatch glob matched against the window title
 
 ---@class nnwm_window_rule_action
----@field floating    boolean? Make the window floating (true) or tiled (false)
----@field fullscreen  boolean? Make the window fullscreen
----@field sticky      boolean? Make the window sticky (appears on all workspaces; tiles or floats as normal)
+---@field floating         boolean? Make the window floating (true) or tiled (false)
+---@field fullscreen       boolean? Make the window fullscreen
+---@field fake_fullscreen  boolean? Make the window fake-fullscreen (fills usable area, not a true fullscreen)
+---@field maximize         boolean? Maximize the window to fill the full usable area while remaining tiled
+---@field focused          boolean? Switch to the window's workspace and focus it on spawn
+---@field sticky           boolean? Make the window sticky (appears on all workspaces; tiles or floats as normal)
 ---@field workspace   integer? Assign to workspace 1–9
 ---@field monitor     string?  Assign to the output with this name (e.g. `"DP-1"`)
 ---@field opacity     number?  Override global opacity for this window: 0.0 (invisible) – 1.0 (opaque). Requires `USE_SCENEFX=ON`.
