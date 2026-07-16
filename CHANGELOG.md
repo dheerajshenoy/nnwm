@@ -4,6 +4,19 @@
 
 ### Features
 
+- **Scratchpad workspace**: A global overlay workspace that can hold multiple
+  windows with full tiling support. `nnwm.move_to_scratchpad()` sends the
+  focused window to the scratchpad. `nnwm.scratchpad_toggle()` shows or hides
+  the scratchpad on the focused output with a semi-transparent dim background.
+  When visible, scratchpad windows tile like a regular workspace (HTILE by
+  default). Layout toggle functions (`toggle_vertical_tile`, `layout_next`,
+  `layout_prev`) redirect to the scratchpad layout while the overlay is open.
+  The scratchpad is global — shared across all outputs and workspaces. Closing
+  the last scratchpad window automatically hides the overlay. Example:
+  ```lua
+  nnwm.key({"super", "s"}, nnwm.scratchpad_toggle)
+  nnwm.key({"super", "shift", "s"}, nnwm.move_to_scratchpad)
+  ```
 - **Fractional scale and viewporter support**: `wp_viewporter` and
   `wp_fractional_scale_v1` are now advertised as Wayland globals. Clients such
   as Firefox use these protocols to discover the output scale factor and render

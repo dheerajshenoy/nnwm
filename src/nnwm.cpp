@@ -273,36 +273,25 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
     nnwm_config *cfg = toplevel->server->config;
     int th           = cfg->titlebar.height;
 #ifdef HAVE_SCENEFX
-    /* Inset the 4 strips by the effective corner radius so they don't
-     * override the rounded corners provided by border_bg. Using the
-     * effective radius (respects smart/fullscreen) keeps strips and
-     * border_bg always in sync. */
-    int r  = effective_corner_radius(toplevel);
-    int tw = width - 2 * r;
-    if (tw < 0)
-        tw = 0;
-    int sh = height - 2 * r;
-    if (sh < 0)
-        sh = 0;
+    int r = effective_corner_radius(toplevel);
 #else
-    int r = 0, tw = width, sh = height - 2 * bw;
-#endif
+    /* Non-scenefx: four strips form the border frame. */
+    int sh = height - 2 * bw;
 
-    /* border[0]: top */
-    wlr_scene_node_set_position(&toplevel->border[0]->node, r, 0);
-    wlr_scene_rect_set_size(toplevel->border[0], tw, bw);
+    wlr_scene_node_set_position(&toplevel->border[0]->node, 0, 0);
+    wlr_scene_rect_set_size(toplevel->border[0], width, bw);
 
-    /* border[1]: bottom */
-    wlr_scene_node_set_position(&toplevel->border[1]->node, r, height - bw);
-    wlr_scene_rect_set_size(toplevel->border[1], tw, bw);
+    wlr_scene_node_set_position(&toplevel->border[1]->node, 0, height - bw);
+    wlr_scene_rect_set_size(toplevel->border[1], width, bw);
 
-    /* border[2]: left */
-    wlr_scene_node_set_position(&toplevel->border[2]->node, 0, r);
+    wlr_scene_node_set_position(&toplevel->border[2]->node, 0, bw);
     wlr_scene_rect_set_size(toplevel->border[2], bw, sh);
 
-    /* border[3]: right */
-    wlr_scene_node_set_position(&toplevel->border[3]->node, width - bw, r);
+    wlr_scene_node_set_position(&toplevel->border[3]->node, width - bw, bw);
     wlr_scene_rect_set_size(toplevel->border[3], bw, sh);
+
+    int r = 0;
+#endif
 
     /* In tabbed layout, tiled windows never show their per-window titlebar
      * (the shared tab bar replaces it), and the surface sits at (bw, bw)
@@ -669,15 +658,13 @@ tl_start_border_color(nnwm_toplevel *tl, const float to[4])
         for (int i = 0; i < 4; i++)
             tl->bcol_to[i] = to[i];
         tl->bcol_anim = false;
-        for (int b = 0; b < 4; b++)
-            wlr_scene_rect_set_color(tl->border[b], to);
         if (tl->border_bg)
             wlr_scene_rect_set_color(tl->border_bg, to);
         return;
     }
+    const float *cur = tl->border_bg ? tl->border_bg->color : to;
     for (int i = 0; i < 4; i++)
-        tl->bcol_from[i]
-            = tl->bcol_anim ? tl->bcol_to[i] : tl->border[0]->color[i];
+        tl->bcol_from[i] = tl->bcol_anim ? tl->bcol_to[i] : cur[i];
     for (int i = 0; i < 4; i++)
         tl->bcol_to[i] = to[i];
     tl->bcol_duration_ms = eff_duration(cfg, cfg->fx.animation.focus_duration_ms);
@@ -742,8 +729,6 @@ animate_step_one(nnwm_server * /*server*/, nnwm_toplevel *tl, double now)
         float col[4];
         for (int i = 0; i < 4; i++)
             col[i] = lerpf(tl->bcol_from[i], tl->bcol_to[i], t);
-        for (int i = 0; i < 4; i++)
-            wlr_scene_rect_set_color(tl->border[i], col);
         if (tl->border_bg)
             wlr_scene_rect_set_color(tl->border_bg, col);
         if (t >= 1.0f)
@@ -806,6 +791,9 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
         toplevel->border_bg = wlr_scene_rect_create(toplevel->scene_tree, 0, 0,
                                                     toplevel->border[0]->color);
         wlr_scene_node_lower_to_bottom(&toplevel->border_bg->node);
+        /* border_bg is the sole border element in HAVE_SCENEFX — hide strips */
+        for (int i = 0; i < 4; i++)
+            wlr_scene_node_set_enabled(&toplevel->border[i]->node, false);
     }
 
     /* Per-window overrides take precedence over global config values */
@@ -1059,7 +1047,8 @@ output_at_cursor(nnwm_server *server)
 #define WS_TILED(t, out)                                                       \
     ((t)->output == (out)                                                      \
      && ((t)->workspace == (out)->active_workspace || (t)->sticky)             \
-     && !(t)->floating && !(t)->fullscreen && !(t)->fake_fullscreen)
+     && !(t)->floating && !(t)->fullscreen && !(t)->fake_fullscreen            \
+     && !(t)->in_scratchpad)
 
 nnwm_toplevel *
 ws_first(nnwm_server *server, nnwm_output *out)
