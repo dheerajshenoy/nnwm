@@ -68,6 +68,7 @@ MOD = {}
 ---@field natural_scroll?           boolean                       Natural/reverse scroll direction (default: false)
 ---@field disable_while_typing?     boolean                       Disable mouse input while typing (default: false)
 ---@field hide_cursor_when_typing?  boolean                       Hide cursor on keypress; restores on mouse movement (default: false)
+---@field warp_to_focused_window?   boolean                       Warp cursor to the center of a window when it gains focus (default: false)
 
 ---@class nnwm.titlebar
 ---@field enabled?             boolean     Enable the server-side titlebar (default: false)

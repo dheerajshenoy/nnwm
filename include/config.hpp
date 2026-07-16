@@ -183,6 +183,7 @@ struct nnwm_config
         bool natural_scroll;
         bool disable_while_typing;
         bool hide_cursor_when_typing;
+        bool warp_to_focused_window;
     } mouse;
 
     /* Focus */

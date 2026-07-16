@@ -1954,6 +1954,18 @@ focus_toplevel(nnwm_toplevel *toplevel)
             || out->layout_mode[ws] == nnwm_layout_mode::VSCROLL)
             arrange_windows(server, out);
     }
+
+    if (cfg->mouse.warp_to_focused_window)
+    {
+        int nx, ny;
+        if (wlr_scene_node_coords(&toplevel->scene_tree->node, &nx, &ny))
+        {
+            wlr_box geo = toplevel->xdg_toplevel->base->geometry;
+            wlr_cursor_warp(server->cursor, nullptr,
+                            nx + geo.x + geo.width / 2.0,
+                            ny + geo.y + geo.height / 2.0);
+        }
+    }
 }
 
 void

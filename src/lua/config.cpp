@@ -1002,6 +1002,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "disable_while_typing");
     lua_pushboolean(L, cfg->mouse.hide_cursor_when_typing);
     lua_setfield(L, -2, "hide_cursor_when_typing");
+    lua_pushboolean(L, cfg->mouse.warp_to_focused_window);
+    lua_setfield(L, -2, "warp_to_focused_window");
     lua_setfield(L, -2, "mouse");
 
     lua_pushboolean(L, cfg->client_decorations);
@@ -1569,6 +1571,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
             L, "disable_while_typing", cfg->mouse.disable_while_typing);
         cfg->mouse.hide_cursor_when_typing = get_bool_field(
             L, "hide_cursor_when_typing", cfg->mouse.hide_cursor_when_typing);
+        cfg->mouse.warp_to_focused_window = get_bool_field(
+            L, "warp_to_focused_window", cfg->mouse.warp_to_focused_window);
     }
     lua_pop(L, 1);
 
@@ -2132,6 +2136,7 @@ nnwm::config_defaults(void)
     cfg->mouse.natural_scroll             = false;
     cfg->mouse.disable_while_typing       = false;
     cfg->mouse.hide_cursor_when_typing    = false;
+    cfg->mouse.warp_to_focused_window     = false;
     cfg->new_window_master   = true;
     cfg->center_new_floating = true;
     cfg->client_decorations  = false;
