@@ -4,6 +4,18 @@
 
 ### Features
 
+- **Tabbed layout variants**: Two new configuration options control the
+  appearance and position of the tab bar in tabbed layout. `tab_style` (`"normal"`
+  or `"minimal"`) determines whether window titles are rendered in the tabs —
+  `"minimal"` shows colored strips only. `tab_position` (`"top"`, `"bottom"`,
+  `"left"`, `"right"`) controls which edge the tab bar occupies. For left/right
+  bars the tab bar is rendered vertically and window titles are rotated 90°.
+  Corner radii on both the tab bar and window content adapt automatically so
+  rounded corners only appear on the exposed edges. Example:
+  ```lua
+  nnwm.opt.layout.tabbed.tab_style    = "minimal"
+  nnwm.opt.layout.tabbed.tab_position = "bottom"
+  ```
 - **Scratchpad workspace**: A global overlay workspace that can hold multiple
   windows with full tiling support. `nnwm.move_to_scratchpad()` sends the
   focused window to the scratchpad. `nnwm.scratchpad_toggle()` shows or hides
