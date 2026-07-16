@@ -4,6 +4,11 @@
 
 ### Features
 
+- **Fractional scale and viewporter support**: `wp_viewporter` and
+  `wp_fractional_scale_v1` are now advertised as Wayland globals. Clients such
+  as Firefox use these protocols to discover the output scale factor and render
+  at the correct buffer resolution. Without them clients fall back to 1× and the
+  compositor upscales the result, producing blurry windows on scaled displays.
 - **Touchpad gesture bindings**: `nnwm.gesture(fingers, direction, callback)`
   registers a swipe gesture binding. When a touchpad swipe ends without being
   cancelled the dominant axis and sign of the accumulated displacement determine
