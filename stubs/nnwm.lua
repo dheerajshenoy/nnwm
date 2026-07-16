@@ -172,6 +172,7 @@ MOD = {}
 ---@field transform string?   Rotation: "none", "90", "180", "270", "flipped", "flipped-90", "flipped-180", "flipped-270"
 ---@field hdr       boolean?  Enable HDR (wlroots 0.20+)
 ---@field disabled  boolean?  Disable this output
+---@field struts    { top?: integer, bottom?: integer, left?: integer, right?: integer }?  Reserved pixels on each edge, applied after layer-shell exclusive zones
 nnwm = {}
 nnwm.opt = {} ---@type nnwm_opts
 

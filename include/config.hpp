@@ -112,6 +112,9 @@ struct nnwm_monitor_config
 
     bool hdr;      /* enable HDR (BT.2020 + ST.2084 PQ); wlroots 0.20+ */
     bool disabled; /* disable this output entirely */
+
+    /* Reserved pixels on each edge, applied after layer-shell exclusive zones */
+    int strut_top, strut_bottom, strut_left, strut_right;
 };
 
 struct nnwm_config

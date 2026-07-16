@@ -466,6 +466,12 @@ struct nnwm_keyboard
     struct wl_listener modifiers;
     struct wl_listener key;
     struct wl_listener destroy;
+
+    /* keybinding repeat */
+    struct wl_event_source *repeat_timer;
+    uint32_t repeat_modifiers;
+    xkb_keysym_t repeat_sym;
+    bool repeat_started; /* false = waiting for initial delay, true = repeating */
 };
 
 struct nnwm_decoration

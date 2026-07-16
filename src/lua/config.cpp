@@ -1381,6 +1381,16 @@ read_monitor_configs(lua_State *L, struct nnwm_config *cfg)
         mc.hdr      = get_bool_field(L, "hdr", false);
         mc.disabled = get_bool_field(L, "disabled", false);
 
+        lua_getfield(L, -1, "struts");
+        if (lua_istable(L, -1))
+        {
+            mc.strut_top    = get_int_field(L, "top",    0);
+            mc.strut_bottom = get_int_field(L, "bottom", 0);
+            mc.strut_left   = get_int_field(L, "left",   0);
+            mc.strut_right  = get_int_field(L, "right",  0);
+        }
+        lua_pop(L, 1);
+
         lua_pop(L, 1);
         idx++;
     }

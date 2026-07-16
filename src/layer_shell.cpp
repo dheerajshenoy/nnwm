@@ -1,6 +1,8 @@
 #include "nnwm.hpp"
 #include "nnwm_internal.hpp"
 
+#include <cstdio>
+#include <cstring>
 #include <ctime>
 
 /* ---- layer shell ---- */
@@ -36,6 +38,31 @@ arrange_layers(nnwm_server *server, wlr_output *output)
             if ((int)ls->wlr_layer_surface->current.layer != layer)
                 continue;
             wlr_scene_layer_surface_v1_configure(ls->scene, &full_area, &usable);
+        }
+    }
+
+    /* Apply user-defined struts from monitor config */
+    nnwm_config *cfg = server->config;
+    for (int i = 0; i < cfg->monitor_config_count; i++)
+    {
+        const nnwm_monitor_config &mc = cfg->monitor_configs[i];
+        bool match = (mc.name && std::strcmp(mc.name,
+                                             output->name) == 0)
+                     || (!mc.name && !mc.description);
+        if (!match && mc.description)
+        {
+            char desc[256];
+            snprintf(desc, sizeof(desc), "%s %s %s",
+                     output->make, output->model, output->serial);
+            match = std::strstr(desc, mc.description) != nullptr;
+        }
+        if (match)
+        {
+            usable.x      += mc.strut_left;
+            usable.y      += mc.strut_top;
+            usable.width  -= mc.strut_left + mc.strut_right;
+            usable.height -= mc.strut_top  + mc.strut_bottom;
+            break;
         }
     }
 

@@ -1019,6 +1019,9 @@ keyboard_handle_key(wl_listener *listener, void *data)
     bool handled       = false;
     uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->wlr_keyboard);
 
+    if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED)
+        wl_event_source_timer_update(keyboard->repeat_timer, 0);
+
     if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED)
     {
         for (int i = 0; i < nsyms; i++)
@@ -1046,6 +1049,16 @@ keyboard_handle_key(wl_listener *listener, void *data)
         for (int i = 0; i < n_base; i++)
             handled
                 = handle_keybinding(server, modifiers, base_syms[i]) || handled;
+        if (handled && n_base > 0)
+        {
+            nnwm_config *cfg         = server->config;
+            keyboard->repeat_modifiers = modifiers;
+            keyboard->repeat_sym       = base_syms[0];
+            keyboard->repeat_started   = false;
+            if (cfg->keyboard.repeat_delay > 0)
+                wl_event_source_timer_update(keyboard->repeat_timer,
+                                             cfg->keyboard.repeat_delay);
+        }
     }
 
     if (!handled && !server->session_lock
@@ -1054,6 +1067,16 @@ keyboard_handle_key(wl_listener *listener, void *data)
     {
         for (int i = 0; i < nsyms; i++)
             handled = handle_keybinding(server, modifiers, syms[i]) || handled;
+        if (handled && nsyms > 0)
+        {
+            nnwm_config *cfg         = server->config;
+            keyboard->repeat_modifiers = modifiers;
+            keyboard->repeat_sym       = syms[0];
+            keyboard->repeat_started   = false;
+            if (cfg->keyboard.repeat_delay > 0)
+                wl_event_source_timer_update(keyboard->repeat_timer,
+                                             cfg->keyboard.repeat_delay);
+        }
     }
 
     if (!handled)
@@ -1072,10 +1095,31 @@ keyboard_handle_key(wl_listener *listener, void *data)
     }
 }
 
+static int
+keyboard_repeat_cb(void *data)
+{
+    nnwm_keyboard *keyboard = static_cast<nnwm_keyboard *>(data);
+    nnwm_server *server     = keyboard->server;
+    nnwm_config *cfg        = server->config;
+
+    handle_keybinding(server, keyboard->repeat_modifiers, keyboard->repeat_sym);
+
+    if (!keyboard->repeat_started)
+    {
+        keyboard->repeat_started = true;
+        if (cfg->keyboard.repeat_rate > 0)
+            wl_event_source_timer_update(keyboard->repeat_timer,
+                                         1000 / cfg->keyboard.repeat_rate);
+    }
+    return 0;
+}
+
 void
 keyboard_handle_destroy(wl_listener *listener, void * /*data*/)
 {
     nnwm_keyboard *keyboard = wl_container_of(listener, keyboard, destroy);
+    if (keyboard->repeat_timer)
+        wl_event_source_remove(keyboard->repeat_timer);
     wl_list_remove(&keyboard->modifiers.link);
     wl_list_remove(&keyboard->key.link);
     wl_list_remove(&keyboard->destroy.link);
@@ -1114,6 +1158,10 @@ server_new_keyboard(nnwm_server *server, wlr_input_device *device)
     nnwm_keyboard *keyboard = new nnwm_keyboard{};
     keyboard->server        = server;
     keyboard->wlr_keyboard  = wlr_keyboard_from_input_device(device);
+
+    struct wl_event_loop *loop = wl_display_get_event_loop(server->wl_display);
+    keyboard->repeat_timer = wl_event_loop_add_timer(loop, keyboard_repeat_cb,
+                                                     keyboard);
 
     apply_keymap(keyboard->wlr_keyboard, server->config);
 
