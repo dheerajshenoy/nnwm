@@ -122,26 +122,26 @@
 - [ ] Get OBS to work with nnwm
 - [ ] IPC for nnwm
 - Keyboard
-    - [ ] Layout
-    - [ ] Variant
-    - [ ] Rules
+    - [x] Layout
+    - [x] Variant
+    - [x] Rules
     - [ ] file to load xkb options from
 - Touchpad
-    - [ ] Off
-    - [ ] Drag on/off
-    - [ ] scroll factor
-    - [ ] scroll method
+    - [x] Off
+    - [x] Drag on/off
+    - [x] scroll factor
+    - [x] scroll method
     - [x] natural scrolling
-    - [ ] tap to click
+    - [x] tap to click
     - [x] gestures
-    - [ ] disabled on external mouse
-    - [ ] disabled while typing
+    - [x] disabled on external mouse
+    - [x] disabled while typing
 - Mouse
-    - [ ] Acceleration
-    - [ ] Sensitivity
-    - [ ] Natural scrolling
-    - [ ] Disabled while typing
-    - [ ] Hide cursor when typing
+    - [x] Acceleration
+    - [x] Sensitivity
+    - [x] Natural scrolling
+    - [x] Disabled while typing
+    - [x] Hide cursor when typing
 - [ ] disable-power-key-handling
 - [ ] warp-mouse-to-focus (newly spawned window)
 - [ ] workspace-auto-back-and-forth
