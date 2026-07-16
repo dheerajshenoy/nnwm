@@ -53,6 +53,7 @@ extern "C"
     #include <wlr/types/wlr_layer_shell_v1.h>
 #endif
 #include <wlr/types/wlr_xdg_activation_v1.h>
+#include <wlr/types/wlr_pointer_gestures_v1.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
@@ -168,6 +169,15 @@ struct nnwm_lua_keybinding
     int func_ref; /* Lua registry reference */
 };
 
+enum class nnwm_gesture_dir { UP, DOWN, LEFT, RIGHT };
+
+struct nnwm_lua_gesture
+{
+    int fingers;
+    nnwm_gesture_dir dir;
+    int func_ref;
+};
+
 struct nnwm_decoration; /* forward declaration — defined below nnwm_toplevel */
 
 /* For brevity's sake, struct members are annotated where they are used. */
@@ -210,6 +220,18 @@ struct nnwm_server
 #ifdef HAVE_SCENEFX
     struct wl_list dying_toplevels; /* toplevels fading out after unmap */
 #endif
+
+    struct wlr_pointer_gestures_v1 *pointer_gestures;
+    struct wl_listener cursor_swipe_begin;
+    struct wl_listener cursor_swipe_update;
+    struct wl_listener cursor_swipe_end;
+    struct wl_listener cursor_pinch_begin;
+    struct wl_listener cursor_pinch_update;
+    struct wl_listener cursor_pinch_end;
+    struct wl_listener cursor_hold_begin;
+    struct wl_listener cursor_hold_end;
+    int swipe_fingers;
+    double swipe_dx, swipe_dy;
 
     struct wlr_cursor *cursor;
     struct wlr_xcursor_manager *cursor_mgr;
@@ -287,6 +309,9 @@ struct nnwm_server
     struct nnwm_lua_keybinding *lua_keybindings;
     int lua_keybinding_count;
     int lua_keybinding_cap;
+    struct nnwm_lua_gesture *lua_gestures;
+    int lua_gesture_count;
+    int lua_gesture_cap;
 };
 
 struct nnwm_output

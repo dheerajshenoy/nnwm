@@ -343,6 +343,53 @@ l_nnwm_key(lua_State *L)
     return 0;
 }
 
+/* ---- nnwm.gesture() C function ---- */
+
+static int
+l_nnwm_gesture(lua_State *L)
+{
+    if (!lua_isinteger(L, 1) || !lua_isstring(L, 2) || !lua_isfunction(L, 3))
+        return luaL_error(
+            L, "nnwm.gesture(fingers, direction, callback) expected");
+
+    nnwm_server *server = get_server(L);
+    int fingers         = (int)lua_tointeger(L, 1);
+    const char *dir_str = lua_tostring(L, 2);
+
+    nnwm_gesture_dir dir;
+    if (strcmp(dir_str, "up") == 0)
+        dir = nnwm_gesture_dir::UP;
+    else if (strcmp(dir_str, "down") == 0)
+        dir = nnwm_gesture_dir::DOWN;
+    else if (strcmp(dir_str, "left") == 0)
+        dir = nnwm_gesture_dir::LEFT;
+    else if (strcmp(dir_str, "right") == 0)
+        dir = nnwm_gesture_dir::RIGHT;
+    else
+        return luaL_error(L,
+                          "nnwm.gesture: direction must be \"up\", \"down\","
+                          " \"left\", or \"right\"");
+
+    lua_pushvalue(L, 3);
+    int func_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+    if (server->lua_gesture_count >= server->lua_gesture_cap)
+    {
+        server->lua_gesture_cap
+            = server->lua_gesture_cap ? server->lua_gesture_cap * 2 : 16;
+        server->lua_gestures = static_cast<struct nnwm_lua_gesture *>(
+            std::realloc(server->lua_gestures,
+                         sizeof(struct nnwm_lua_gesture)
+                             * server->lua_gesture_cap));
+    }
+
+    auto &g    = server->lua_gestures[server->lua_gesture_count++];
+    g.fingers  = fingers;
+    g.dir      = dir;
+    g.func_ref = func_ref;
+    return 0;
+}
+
 /* ---- Lua action wrappers ---- */
 
 static int
@@ -731,6 +778,7 @@ l_nnwm_rule(lua_State *L)
 
 static const struct luaL_Reg nnwm_funcs[] = {
     {"key", l_nnwm_key},
+    {"gesture", l_nnwm_gesture},
     {"quit", l_nnwm_quit},
     {"close", l_nnwm_close},
     {"spawn", l_nnwm_spawn},
@@ -1677,6 +1725,11 @@ nnwm::lua_init(struct nnwm_server *server)
     server->lua_keybindings      = nullptr;
     server->lua_keybinding_count = 0;
     server->lua_keybinding_cap   = 0;
+
+    /* Initialize gesture registry */
+    server->lua_gestures      = nullptr;
+    server->lua_gesture_count = 0;
+    server->lua_gesture_cap   = 0;
 }
 
 void
@@ -1693,6 +1746,14 @@ nnwm::lua_fini(struct nnwm_server *server)
     server->lua_keybindings      = nullptr;
     server->lua_keybinding_count = 0;
     server->lua_keybinding_cap   = 0;
+
+    for (int i = 0; i < server->lua_gesture_count; i++)
+        luaL_unref(server->lua, LUA_REGISTRYINDEX,
+                   server->lua_gestures[i].func_ref);
+    std::free(server->lua_gestures);
+    server->lua_gestures      = nullptr;
+    server->lua_gesture_count = 0;
+    server->lua_gesture_cap   = 0;
 
     lua_close(server->lua);
     server->lua = nullptr;
@@ -1740,6 +1801,12 @@ nnwm::lua_reload(struct nnwm_server *server, struct nnwm_config *cfg)
         luaL_unref(server->lua, LUA_REGISTRYINDEX,
                    server->lua_keybindings[i].func_ref);
     server->lua_keybinding_count = 0;
+
+    /* Clear existing gesture registrations */
+    for (int i = 0; i < server->lua_gesture_count; i++)
+        luaL_unref(server->lua, LUA_REGISTRYINDEX,
+                   server->lua_gestures[i].func_ref);
+    server->lua_gesture_count = 0;
 
     /* Clear existing window rules */
     free_window_rules(cfg);
@@ -1791,6 +1858,36 @@ nnwm::lua_handle_keybinding(struct nnwm_server *server, uint32_t mods,
         }
     }
     return 0;
+}
+
+void
+nnwm::lua_handle_gesture(struct nnwm_server *server, int fingers,
+                         double dx, double dy)
+{
+    if (!server->lua || server->lua_gesture_count == 0)
+        return;
+
+    nnwm_gesture_dir dir;
+    if (std::fabs(dx) >= std::fabs(dy))
+        dir = (dx >= 0) ? nnwm_gesture_dir::RIGHT : nnwm_gesture_dir::LEFT;
+    else
+        dir = (dy >= 0) ? nnwm_gesture_dir::DOWN : nnwm_gesture_dir::UP;
+
+    for (int i = 0; i < server->lua_gesture_count; i++)
+    {
+        auto &g = server->lua_gestures[i];
+        if (g.fingers == fingers && g.dir == dir)
+        {
+            lua_rawgeti(server->lua, LUA_REGISTRYINDEX, g.func_ref);
+            if (lua_pcall(server->lua, 0, 0, 0) != LUA_OK)
+            {
+                std::fprintf(stderr, "nnwm: gesture error: %s\n",
+                             lua_tostring(server->lua, -1));
+                lua_pop(server->lua, 1);
+            }
+            return;
+        }
+    }
 }
 
 /* ---- non-keybinding config management ---- */

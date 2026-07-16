@@ -357,6 +357,89 @@ main(int argc, char *argv[])
     server.cursor_frame.notify = server_cursor_frame;
     wl_signal_add(&server.cursor->events.frame, &server.cursor_frame);
 
+    /* Touchpad gestures */
+    server.pointer_gestures = wlr_pointer_gestures_v1_create(server.wl_display);
+
+    server.cursor_swipe_begin.notify = [](wl_listener *l, void *data)
+    {
+        nnwm_server *s = wl_container_of(l, s, cursor_swipe_begin);
+        auto *e = static_cast<wlr_pointer_swipe_begin_event *>(data);
+        s->swipe_fingers = (int)e->fingers;
+        s->swipe_dx = s->swipe_dy = 0.0;
+        wlr_pointer_gestures_v1_send_swipe_begin(s->pointer_gestures, s->seat,
+                                                 e->time_msec, e->fingers);
+    };
+    wl_signal_add(&server.cursor->events.swipe_begin, &server.cursor_swipe_begin);
+
+    server.cursor_swipe_update.notify = [](wl_listener *l, void *data)
+    {
+        nnwm_server *s = wl_container_of(l, s, cursor_swipe_update);
+        auto *e = static_cast<wlr_pointer_swipe_update_event *>(data);
+        s->swipe_dx += e->dx;
+        s->swipe_dy += e->dy;
+        wlr_pointer_gestures_v1_send_swipe_update(s->pointer_gestures, s->seat,
+                                                  e->time_msec, e->dx, e->dy);
+    };
+    wl_signal_add(&server.cursor->events.swipe_update, &server.cursor_swipe_update);
+
+    server.cursor_swipe_end.notify = [](wl_listener *l, void *data)
+    {
+        nnwm_server *s = wl_container_of(l, s, cursor_swipe_end);
+        auto *e = static_cast<wlr_pointer_swipe_end_event *>(data);
+        wlr_pointer_gestures_v1_send_swipe_end(s->pointer_gestures, s->seat,
+                                               e->time_msec, e->cancelled);
+        if (!e->cancelled)
+            nnwm::lua_handle_gesture(s, s->swipe_fingers,
+                                     s->swipe_dx, s->swipe_dy);
+    };
+    wl_signal_add(&server.cursor->events.swipe_end, &server.cursor_swipe_end);
+
+    server.cursor_pinch_begin.notify = [](wl_listener *l, void *data)
+    {
+        nnwm_server *s = wl_container_of(l, s, cursor_pinch_begin);
+        auto *e = static_cast<wlr_pointer_pinch_begin_event *>(data);
+        wlr_pointer_gestures_v1_send_pinch_begin(s->pointer_gestures, s->seat,
+                                                 e->time_msec, e->fingers);
+    };
+    wl_signal_add(&server.cursor->events.pinch_begin, &server.cursor_pinch_begin);
+
+    server.cursor_pinch_update.notify = [](wl_listener *l, void *data)
+    {
+        nnwm_server *s = wl_container_of(l, s, cursor_pinch_update);
+        auto *e = static_cast<wlr_pointer_pinch_update_event *>(data);
+        wlr_pointer_gestures_v1_send_pinch_update(s->pointer_gestures, s->seat,
+                                                  e->time_msec, e->dx, e->dy,
+                                                  e->scale, e->rotation);
+    };
+    wl_signal_add(&server.cursor->events.pinch_update, &server.cursor_pinch_update);
+
+    server.cursor_pinch_end.notify = [](wl_listener *l, void *data)
+    {
+        nnwm_server *s = wl_container_of(l, s, cursor_pinch_end);
+        auto *e = static_cast<wlr_pointer_pinch_end_event *>(data);
+        wlr_pointer_gestures_v1_send_pinch_end(s->pointer_gestures, s->seat,
+                                               e->time_msec, e->cancelled);
+    };
+    wl_signal_add(&server.cursor->events.pinch_end, &server.cursor_pinch_end);
+
+    server.cursor_hold_begin.notify = [](wl_listener *l, void *data)
+    {
+        nnwm_server *s = wl_container_of(l, s, cursor_hold_begin);
+        auto *e = static_cast<wlr_pointer_hold_begin_event *>(data);
+        wlr_pointer_gestures_v1_send_hold_begin(s->pointer_gestures, s->seat,
+                                                e->time_msec, e->fingers);
+    };
+    wl_signal_add(&server.cursor->events.hold_begin, &server.cursor_hold_begin);
+
+    server.cursor_hold_end.notify = [](wl_listener *l, void *data)
+    {
+        nnwm_server *s = wl_container_of(l, s, cursor_hold_end);
+        auto *e = static_cast<wlr_pointer_hold_end_event *>(data);
+        wlr_pointer_gestures_v1_send_hold_end(s->pointer_gestures, s->seat,
+                                              e->time_msec, e->cancelled);
+    };
+    wl_signal_add(&server.cursor->events.hold_end, &server.cursor_hold_end);
+
     /*
      * Configures a seat, which is a single "seat" at which a user sits and
      * operates the computer. This conceptually includes up to one keyboard,
@@ -461,6 +544,14 @@ main(int argc, char *argv[])
     wl_list_remove(&server.cursor_button.link);
     wl_list_remove(&server.cursor_axis.link);
     wl_list_remove(&server.cursor_frame.link);
+    wl_list_remove(&server.cursor_swipe_begin.link);
+    wl_list_remove(&server.cursor_swipe_update.link);
+    wl_list_remove(&server.cursor_swipe_end.link);
+    wl_list_remove(&server.cursor_pinch_begin.link);
+    wl_list_remove(&server.cursor_pinch_update.link);
+    wl_list_remove(&server.cursor_pinch_end.link);
+    wl_list_remove(&server.cursor_hold_begin.link);
+    wl_list_remove(&server.cursor_hold_end.link);
 
     wl_list_remove(&server.new_input.link);
     wl_list_remove(&server.request_cursor.link);

@@ -169,6 +169,20 @@ nnwm.opt = {} ---@type nnwm_opts
 ---@param callback fun()     Function to call when the combo is pressed
 function nnwm.key(combo, callback) end
 
+---Register a touchpad swipe gesture binding. The callback is fired when a
+---swipe with the given number of fingers ends in the given direction.
+---Direction is determined by the dominant axis of the total displacement.
+---
+---```lua
+---nnwm.gesture(3, "left",  function() nnwm.switch_workspace(1) end)
+---nnwm.gesture(3, "right", function() nnwm.switch_workspace(2) end)
+---nnwm.gesture(4, "up",    function() nnwm.toggle_fullscreen() end)
+---```
+---@param fingers   integer  Number of fingers (e.g. 3 or 4)
+---@param direction string   `"up"` | `"down"` | `"left"` | `"right"`
+---@param callback  fun()    Function to call when the gesture is recognized
+function nnwm.gesture(fingers, direction, callback) end
+
 ---Register a window rule. When a new window maps, all rules are tested in
 ---order; matching rules are applied. All fields in `match` must match (AND
 ---logic). Both `app_id` and `title` support fnmatch globs (`*`, `?`, `[…]`).
