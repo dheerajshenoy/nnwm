@@ -4,16 +4,16 @@
 
 - Lua Config Support
     - [x] Keybindings
-    - [x] Rules
-        - [x] Floating
-        - [x] Fullscreen
-        - [x] Monitor
-        - [x] Workspace
-        - [x] opacity
-        - [x] blur
-        - [x] Maximized
-        - [x] Fakefullscreen
-        - [x] Focused
+- Window Rules
+    - [x] Floating
+    - [x] Fullscreen
+    - [x] Monitor
+    - [x] Workspace
+    - [x] opacity
+    - [x] blur
+    - [x] Maximized
+    - [x] Fakefullscreen
+    - [x] Focused
 - [x] Monitor configuration
 - [x] Move to workspace
 - [x] Switch workspace
@@ -165,3 +165,10 @@
 - [ ] XWayland (possibly use xwayland-satellite ?)
 - [ ] Get OBS to work with nnwm
 - [ ] IPC for nnwm
+- Layer rules
+    - [ ] layer z-order
+    - [ ] opacity
+- Window Rules
+    - [ ] blur
+    - [ ] animation
+    - [ ] border
