@@ -1676,8 +1676,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 = get_int_field(L, "radius", cfg->fx.rounding.radius);
             cfg->fx.rounding.smart
                 = get_bool_field(L, "smart", cfg->fx.rounding.smart);
-            lua_pop(L, 1);
         }
+        lua_pop(L, 1);
         lua_getfield(L, -1, "shadow");
         if (lua_istable(L, -1))
         {
