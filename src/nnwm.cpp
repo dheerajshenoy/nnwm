@@ -11,6 +11,8 @@
 extern "C"
 {
 #include <wlr/interfaces/wlr_buffer.h>
+#include <wlr/render/drm_format_set.h>
+#include <wlr/render/pass.h>
 }
 
 namespace
@@ -1150,10 +1152,36 @@ static constexpr int OVERVIEW_ROWS  = (NNWM_NUM_WORKSPACES + OVERVIEW_COLS - 1) 
 static constexpr double OVERVIEW_OUTER = 32.0;
 static constexpr double OVERVIEW_INNER = 12.0;
 
+struct ov_surf_data {
+    wlr_render_pass *pass;
+    const pixman_region32_t *clip;
+    int orig_x, orig_y;  /* XDG surface origin in buffer pixels */
+    double win_scale;    /* logical-to-buffer-pixel scale (s * dpi) */
+};
+
+static void
+ov_surface_iter(wlr_surface *surface, int sx, int sy, void *ud)
+{
+    auto *d   = static_cast<ov_surf_data *>(ud);
+    wlr_texture *tex = wlr_surface_get_texture(surface);
+    if (!tex) return;
+    int dx = d->orig_x + (int)std::round(sx * d->win_scale);
+    int dy = d->orig_y + (int)std::round(sy * d->win_scale);
+    int dw = (int)std::round(surface->current.width  * d->win_scale);
+    int dh = (int)std::round(surface->current.height * d->win_scale);
+    if (dw <= 0 || dh <= 0) return;
+    wlr_render_texture_options opts = {};
+    opts.texture     = tex;
+    opts.dst_box     = {dx, dy, dw, dh};
+    opts.clip        = d->clip;
+    opts.filter_mode = WLR_SCALE_FILTER_BILINEAR;
+    wlr_render_pass_add_texture(d->pass, &opts);
+}
+
 void
 render_overview(nnwm_server *server, nnwm_output *out)
 {
-    if (!out->overview_buf) return;
+    if (!out->overview_buf || !out->overview_labels) return;
 
     wlr_box out_box;
     wlr_output_layout_get_box(server->output_layout, out->wlr_output, &out_box);
@@ -1165,16 +1193,6 @@ render_overview(nnwm_server *server, nnwm_output *out)
     int buf_w   = (int)(W * dpi);
     int buf_h   = (int)(H * dpi);
 
-    nnwm_tbuf *tb = tbuf_create(buf_w, buf_h);
-    cairo_surface_t *surf = cairo_image_surface_create_for_data(
-        tb->data, CAIRO_FORMAT_ARGB32, buf_w, buf_h, tb->stride);
-    cairo_t *cr = cairo_create(surf);
-    cairo_scale(cr, dpi, dpi);
-
-    /* Full-output dark overlay */
-    cairo_set_source_rgba(cr, 0.07, 0.07, 0.10, 0.93);
-    cairo_paint(cr);
-
     double slot_w = (W - 2.0 * OVERVIEW_OUTER - (OVERVIEW_COLS - 1) * OVERVIEW_INNER) / OVERVIEW_COLS;
     double slot_h = (H - 2.0 * OVERVIEW_OUTER - (OVERVIEW_ROWS - 1) * OVERVIEW_INNER) / OVERVIEW_ROWS;
 
@@ -1182,26 +1200,221 @@ render_overview(nnwm_server *server, nnwm_output *out)
     double ua_w = ua.width  > 0 ? (double)ua.width  : (double)W;
     double ua_h = ua.height > 0 ? (double)ua.height : (double)H;
     double s    = std::min(slot_w / ua_w, slot_h / ua_h);
-
-    /* Center window content within each slot */
     double cx_off = (slot_w - ua_w * s) / 2.0;
     double cy_off = (slot_h - ua_h * s) / 2.0;
 
-    for (int ws = 0; ws < NNWM_NUM_WORKSPACES; ws++)
-    {
+    nnwm_config *cfg = server->config;
+    int bw = cfg->border.width;
+    int th = cfg->titlebar.height;
+
+    /* ============================================================
+     * GPU RENDER PASS: dark background + wallpaper + window textures
+     * ============================================================ */
+    const wlr_drm_format_set *fmts =
+        wlr_renderer_get_texture_formats(server->renderer,
+                                         server->renderer->render_buffer_caps);
+    const wlr_drm_format *fmt =
+        fmts ? wlr_drm_format_set_get(fmts, DRM_FORMAT_ARGB8888) : nullptr;
+
+    wlr_buffer *gpu_buf = nullptr;
+    wlr_render_pass *pass = nullptr;
+    if (fmt) {
+        gpu_buf = wlr_allocator_create_buffer(server->allocator, buf_w, buf_h, fmt);
+        if (gpu_buf)
+            pass = wlr_renderer_begin_buffer_pass(server->renderer, gpu_buf, nullptr);
+    }
+
+    if (pass) {
+        /* Dark background fill */
+        {
+            float a = 0.93f;
+            wlr_render_rect_options bg = {};
+            bg.box        = {0, 0, buf_w, buf_h};
+            bg.color      = {0.07f * a, 0.07f * a, 0.10f * a, a};
+            bg.blend_mode = WLR_RENDER_BLEND_MODE_NONE;
+            wlr_render_pass_add_rect(pass, &bg);
+        }
+
+        /* Locate background layer surface for this output (wallpaper) */
+        wlr_texture *bg_tex = nullptr;
+        {
+            nnwm_layer_surface *ls;
+            wl_list_for_each(ls, &server->layer_surfaces, link) {
+                if (ls->wlr_layer_surface->output != out->wlr_output) continue;
+                if (ls->wlr_layer_surface->current.layer
+                        != ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND) continue;
+                bg_tex = wlr_surface_get_texture(ls->wlr_layer_surface->surface);
+                if (bg_tex) break;
+            }
+        }
+
+        for (int ws = 0; ws < NNWM_NUM_WORKSPACES; ws++) {
+            int    col    = ws % OVERVIEW_COLS;
+            int    row    = ws / OVERVIEW_COLS;
+            double sx     = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
+            double sy     = OVERVIEW_OUTER + row * (slot_h + OVERVIEW_INNER);
+            bool   active = (ws == out->active_workspace);
+
+            int psx = (int)(sx * dpi), psy = (int)(sy * dpi);
+            int psw = (int)(slot_w * dpi), psh = (int)(slot_h * dpi);
+            if (psw <= 0 || psh <= 0) continue;
+
+            pixman_region32_t clip;
+            pixman_region32_init_rect(&clip, psx, psy,
+                                      (uint32_t)psw, (uint32_t)psh);
+
+            /* Slot background rect */
+            {
+                wlr_render_rect_options slot_bg = {};
+                slot_bg.box    = {psx, psy, psw, psh};
+                slot_bg.color  = active
+                    ? wlr_render_color{0.18f, 0.22f, 0.35f, 1.0f}
+                    : wlr_render_color{0.12f, 0.12f, 0.18f, 1.0f};
+                slot_bg.blend_mode = WLR_RENDER_BLEND_MODE_NONE;
+                wlr_render_pass_add_rect(pass, &slot_bg);
+            }
+
+            /* Wallpaper texture stretched to fill slot */
+            if (bg_tex) {
+                wlr_render_texture_options tex = {};
+                tex.texture     = bg_tex;
+                tex.dst_box     = {psx, psy, psw, psh};
+                tex.clip        = &clip;
+                tex.filter_mode = WLR_SCALE_FILTER_BILINEAR;
+                wlr_render_pass_add_texture(pass, &tex);
+            }
+
+            /* Window textures for this workspace */
+            double win_scale = s * dpi;
+            nnwm_toplevel *tl;
+            wl_list_for_each(tl, &server->toplevels, link) {
+                if (tl->output != out) continue;
+                if (tl->workspace != ws && !tl->sticky) continue;
+                if (tl->in_scratchpad) continue;
+                if (tl->cur_w <= 0 || tl->cur_h <= 0) continue;
+
+                bool tabbed_tiled = !tl->floating
+                    && tl->output->layout_mode[tl->workspace]
+                           == nnwm_layout_mode::TABBED;
+                int eff_th = (tabbed_tiled || th <= 0) ? 0 : th;
+
+                /* XDG surface origin in layout space */
+                int surf_lx = tl->cur_x + bw;
+                int surf_ly = tl->cur_y + bw + eff_th;
+
+                /* Map to buffer pixels via overview slot origin */
+                int orig_x = (int)((sx + cx_off + (surf_lx - ua.x) * s) * dpi);
+                int orig_y = (int)((sy + cy_off + (surf_ly - ua.y) * s) * dpi);
+
+                ov_surf_data d{pass, &clip, orig_x, orig_y, win_scale};
+                wlr_surface_for_each_surface(
+                    tl->xdg_toplevel->base->surface,
+                    ov_surface_iter, &d);
+            }
+
+            pixman_region32_fini(&clip);
+        }
+
+        wlr_render_pass_submit(pass);
+        wlr_scene_buffer_set_buffer(out->overview_buf, gpu_buf);
+        wlr_scene_buffer_set_dest_size(out->overview_buf, W, H);
+        wlr_buffer_drop(gpu_buf);
+        wlr_scene_node_set_position(&out->overview_buf->node, out_box.x, out_box.y);
+        wlr_scene_node_set_enabled(&out->overview_buf->node, true);
+        wlr_scene_node_raise_to_top(&out->overview_buf->node);
+    } else {
+        wlr_scene_node_set_enabled(&out->overview_buf->node, false);
+    }
+
+    /* ============================================================
+     * CAIRO OVERLAY: slot borders + workspace labels
+     * Fully transparent when GPU pass succeeded (GPU content shows through).
+     * Falls back to full schematic rendering if GPU pass failed.
+     * ============================================================ */
+    nnwm_tbuf *tb = tbuf_create(buf_w, buf_h);
+    cairo_surface_t *csurf = cairo_image_surface_create_for_data(
+        tb->data, CAIRO_FORMAT_ARGB32, buf_w, buf_h, tb->stride);
+    cairo_t *cr = cairo_create(csurf);
+    cairo_scale(cr, dpi, dpi);
+
+    if (pass) {
+        /* Transparent base — GPU content shows through */
+        cairo_set_operator(cr, CAIRO_OPERATOR_CLEAR);
+        cairo_paint(cr);
+        cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
+    } else {
+        /* Fallback: full schematic dark overlay */
+        cairo_set_source_rgba(cr, 0.07, 0.07, 0.10, 0.93);
+        cairo_paint(cr);
+    }
+
+    for (int ws = 0; ws < NNWM_NUM_WORKSPACES; ws++) {
         int    col    = ws % OVERVIEW_COLS;
         int    row    = ws / OVERVIEW_COLS;
         double sx     = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
         double sy     = OVERVIEW_OUTER + row * (slot_h + OVERVIEW_INNER);
         bool   active = (ws == out->active_workspace);
+        bool   any    = false;
 
-        /* Slot background */
-        if (active)
-            cairo_set_source_rgba(cr, 0.18, 0.22, 0.35, 1.0);
-        else
-            cairo_set_source_rgba(cr, 0.12, 0.12, 0.18, 1.0);
-        cairo_rectangle(cr, sx, sy, slot_w, slot_h);
-        cairo_fill(cr);
+        if (!pass) {
+            /* Fallback: schematic slot bg + window rects */
+            if (active)
+                cairo_set_source_rgba(cr, 0.18, 0.22, 0.35, 1.0);
+            else
+                cairo_set_source_rgba(cr, 0.12, 0.12, 0.18, 1.0);
+            cairo_rectangle(cr, sx, sy, slot_w, slot_h);
+            cairo_fill(cr);
+
+            nnwm_toplevel *tl;
+            wl_list_for_each(tl, &server->toplevels, link) {
+                if (tl->output != out) continue;
+                if (tl->workspace != ws && !tl->sticky) continue;
+                if (tl->in_scratchpad) continue;
+                if (tl->cur_w <= 0 || tl->cur_h <= 0) continue;
+                any = true;
+                bool focused = (tl == out->last_focused[ws]);
+                double wx = sx + cx_off + (tl->cur_x - ua.x) * s;
+                double wy = sy + cy_off + (tl->cur_y - ua.y) * s;
+                double ww = tl->cur_w * s;
+                double wh = tl->cur_h * s;
+                if (focused)
+                    cairo_set_source_rgba(cr, 0.28, 0.48, 0.82, 0.90);
+                else
+                    cairo_set_source_rgba(cr, 0.18, 0.22, 0.40, 0.85);
+                cairo_rectangle(cr, wx, wy, ww, wh);
+                cairo_fill(cr);
+                cairo_set_line_width(cr, 1.0);
+                if (focused)
+                    cairo_set_source_rgba(cr, 0.50, 0.70, 1.0, 0.9);
+                else
+                    cairo_set_source_rgba(cr, 0.35, 0.38, 0.58, 0.8);
+                cairo_rectangle(cr, wx + 0.5, wy + 0.5, ww - 1.0, wh - 1.0);
+                cairo_stroke(cr);
+                const char *title = tl->xdg_toplevel->title;
+                if (title && title[0] && ww > 18 && wh > 8) {
+                    double fs = std::max(6.0, std::min(wh * 0.32, 11.0));
+                    cairo_select_font_face(cr, "Sans",
+                        CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+                    cairo_set_font_size(cr, fs);
+                    cairo_text_extents_t te;
+                    cairo_text_extents(cr, title, &te);
+                    double tx = wx + (ww - te.width) / 2.0 - te.x_bearing;
+                    double ty = wy + (wh - te.height) / 2.0 - te.y_bearing;
+                    if (te.width > ww - 4.0) tx = wx + 2.0 - te.x_bearing;
+                    cairo_set_source_rgba(cr, 0.92, 0.92, 0.92, 0.9);
+                    cairo_move_to(cr, tx, ty);
+                    cairo_show_text(cr, title);
+                }
+            }
+        } else {
+            nnwm_toplevel *tl;
+            wl_list_for_each(tl, &server->toplevels, link) {
+                if (tl->output != out) continue;
+                if (tl->workspace != ws && !tl->sticky) continue;
+                if (tl->in_scratchpad) continue;
+                if (tl->cur_w > 0 && tl->cur_h > 0) { any = true; break; }
+            }
+        }
 
         /* Slot border */
         cairo_set_line_width(cr, active ? 2.0 : 1.0);
@@ -1212,64 +1425,7 @@ render_overview(nnwm_server *server, nnwm_output *out)
         cairo_rectangle(cr, sx + 0.5, sy + 0.5, slot_w - 1.0, slot_h - 1.0);
         cairo_stroke(cr);
 
-        /* Window rectangles */
-        nnwm_toplevel *tl;
-        bool any = false;
-        wl_list_for_each(tl, &server->toplevels, link)
-        {
-            if (tl->output != out) continue;
-            if (tl->workspace != ws && !tl->sticky) continue;
-            if (tl->in_scratchpad) continue;
-            if (tl->cur_w <= 0 || tl->cur_h <= 0) continue;
-            any = true;
-
-            bool focused = (tl == out->last_focused[ws]);
-            double wx = sx + cx_off + (tl->cur_x - ua.x) * s;
-            double wy = sy + cy_off + (tl->cur_y - ua.y) * s;
-            double ww = tl->cur_w * s;
-            double wh = tl->cur_h * s;
-
-            /* Fill */
-            if (focused)
-                cairo_set_source_rgba(cr, 0.28, 0.48, 0.82, 0.90);
-            else
-                cairo_set_source_rgba(cr, 0.18, 0.22, 0.40, 0.85);
-            cairo_rectangle(cr, wx, wy, ww, wh);
-            cairo_fill(cr);
-
-            /* Outline */
-            cairo_set_line_width(cr, 1.0);
-            if (focused)
-                cairo_set_source_rgba(cr, 0.50, 0.70, 1.0, 0.9);
-            else
-                cairo_set_source_rgba(cr, 0.35, 0.38, 0.58, 0.8);
-            cairo_rectangle(cr, wx + 0.5, wy + 0.5, ww - 1.0, wh - 1.0);
-            cairo_stroke(cr);
-
-            /* Title */
-            if (ww > 18 && wh > 8)
-            {
-                const char *title = tl->xdg_toplevel->title;
-                if (title && title[0])
-                {
-                    double fs = std::max(6.0, std::min(wh * 0.32, 11.0));
-                    cairo_select_font_face(cr, "Sans",
-                        CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-                    cairo_set_font_size(cr, fs);
-                    cairo_text_extents_t te;
-                    cairo_text_extents(cr, title, &te);
-                    double tx = wx + (ww - te.width) / 2.0 - te.x_bearing;
-                    double ty = wy + (wh - te.height) / 2.0 - te.y_bearing;
-                    if (te.width > ww - 4.0)
-                        tx = wx + 2.0 - te.x_bearing;
-                    cairo_set_source_rgba(cr, 0.92, 0.92, 0.92, 0.9);
-                    cairo_move_to(cr, tx, ty);
-                    cairo_show_text(cr, title);
-                }
-            }
-        }
-
-        /* Workspace index label */
+        /* Workspace number label */
         char label[4];
         std::snprintf(label, sizeof(label), "%d", ws + 1);
         double fs_label = any ? std::max(8.0, slot_h * 0.10)
@@ -1281,34 +1437,30 @@ render_overview(nnwm_server *server, nnwm_output *out)
         cairo_text_extents_t lte;
         cairo_text_extents(cr, label, &lte);
         double lx, ly;
-        if (any)
-        {
-            /* Top-left corner of slot */
+        if (any) {
             lx = sx + 5.0 - lte.x_bearing;
             ly = sy + 4.0 - lte.y_bearing;
-        }
-        else
-        {
-            /* Center of empty slot */
+        } else {
             lx = sx + (slot_w - lte.width) / 2.0 - lte.x_bearing;
             ly = sy + (slot_h - lte.height) / 2.0 - lte.y_bearing;
         }
-        cairo_set_source_rgba(cr, 0.72, 0.72, 0.78, any ? 0.45 : 0.38);
+        cairo_set_source_rgba(cr, 0.90, 0.90, 0.95, any ? 0.80 : 0.55);
         cairo_move_to(cr, lx, ly);
         cairo_show_text(cr, label);
     }
 
-    cairo_surface_flush(surf);
-    cairo_surface_destroy(surf);
+    cairo_surface_flush(csurf);
+    cairo_surface_destroy(csurf);
     cairo_destroy(cr);
 
-    wlr_scene_buffer_set_buffer(out->overview_buf, &tb->base);
-    wlr_scene_buffer_set_dest_size(out->overview_buf, W, H);
+    wlr_scene_buffer_set_buffer(out->overview_labels, &tb->base);
+    wlr_scene_buffer_set_dest_size(out->overview_labels, W, H);
     wlr_buffer_drop(&tb->base);
 
-    wlr_scene_node_set_position(&out->overview_buf->node, out_box.x, out_box.y);
-    wlr_scene_node_set_enabled(&out->overview_buf->node, true);
-    wlr_scene_node_raise_to_top(&out->overview_buf->node);
+    wlr_scene_node_set_position(&out->overview_labels->node, out_box.x, out_box.y);
+    wlr_scene_node_set_enabled(&out->overview_labels->node, true);
+    /* labels must be above the GPU content buffer */
+    wlr_scene_node_raise_to_top(&out->overview_labels->node);
 }
 
 void
@@ -1317,6 +1469,8 @@ exit_overview(nnwm_server *server, nnwm_output *out)
     out->overview = false;
     if (out->overview_buf)
         wlr_scene_node_set_enabled(&out->overview_buf->node, false);
+    if (out->overview_labels)
+        wlr_scene_node_set_enabled(&out->overview_labels->node, false);
 
     nnwm_toplevel *tl = out->last_focused[out->active_workspace];
     if (!tl) tl = ws_first(server, out);

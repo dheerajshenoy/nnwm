@@ -355,7 +355,8 @@ struct nnwm_output
                                                pixels for HSCROLL/VSCROLL */
     struct wlr_scene_buffer *tab_bar;
     struct wlr_scene_buffer *error_bar;
-    struct wlr_scene_buffer *overview_buf;
+    struct wlr_scene_buffer *overview_buf;    /* GPU content: wallpaper + windows */
+    struct wlr_scene_buffer *overview_labels; /* Cairo overlay: borders + labels */
     bool overview;
     struct nnwm_toplevel *last_focused[NNWM_NUM_WORKSPACES];
     struct nnwm_toplevel

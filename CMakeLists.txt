@@ -25,6 +25,7 @@ pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols)
 pkg_check_modules(LIBINPUT REQUIRED libinput)
 pkg_check_modules(LUA REQUIRED lua5.4)
 pkg_check_modules(PANGOCAIRO REQUIRED pangocairo)
+pkg_check_modules(PIXMAN REQUIRED pixman-1)
 
 if(USE_SCENEFX)
     include(ExternalProject)
@@ -194,6 +195,7 @@ target_include_directories(nnwm PRIVATE
     ${LIBINPUT_INCLUDE_DIRS}
     ${LUA_INCLUDE_DIRS}
     ${PANGOCAIRO_INCLUDE_DIRS}
+    ${PIXMAN_INCLUDE_DIRS}
 )
 
 target_compile_definitions(nnwm PRIVATE WLR_USE_UNSTABLE _DEFAULT_SOURCE)
@@ -217,6 +219,7 @@ target_link_libraries(nnwm PRIVATE
     ${LIBINPUT_LIBRARIES}
     ${LUA_LIBRARIES}
     ${PANGOCAIRO_LIBRARIES}
+    ${PIXMAN_LIBRARIES}
 )
 
 target_compile_options(nnwm PRIVATE
