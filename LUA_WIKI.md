@@ -104,6 +104,143 @@ Available layouts (in cycle order): `tile` → `tabbed`.
 
 ---
 
+## Introspection
+
+These functions return live snapshots of compositor state. All fields are copied
+at call time; the tables are plain Lua values with no connection back to the
+compositor.
+
+### `nnwm.current_window()`
+
+Returns a snapshot of the currently focused window, or `nil` if no window has
+keyboard focus.
+
+| Field           | Type    | Description                                      |
+|-----------------|---------|--------------------------------------------------|
+| `title`         | string  | Window title (empty string if unset)             |
+| `app_id`        | string  | Application ID (empty string if unset)           |
+| `floating`      | boolean | Whether the window is floating                   |
+| `fullscreen`    | boolean | Whether the window is fullscreen                 |
+| `fake_fullscreen` | boolean | Whether fake-fullscreen is active               |
+| `maximized`     | boolean | Whether the window is maximized                  |
+| `sticky`        | boolean | Whether the window is sticky (all workspaces)    |
+| `workspace`     | integer | 1-based workspace index                          |
+| `x`, `y`        | integer | Global compositor coordinates                    |
+| `width`, `height` | integer | Window dimensions including border             |
+| `output`        | string  | Name of the output the window is on, or `nil`    |
+
+```lua
+local win = nnwm.current_window()
+if win then
+    print(win.title, win.app_id, win.workspace)
+end
+```
+
+### `nnwm.current_workspace()`
+
+Returns a snapshot of the active workspace on the focused output, or `nil`.
+
+| Field          | Type    | Description                                       |
+|----------------|---------|---------------------------------------------------|
+| `index`        | integer | 1-based workspace index                           |
+| `layout`       | string  | Layout name: `"htile"`, `"vtile"`, `"tabbed"`, `"hscroll"`, `"vscroll"` |
+| `master_ratio` | number  | Current master split ratio for this workspace     |
+| `window_count` | integer | Number of tiled windows on this workspace         |
+| `output`       | string  | Name of the output                                |
+
+### `nnwm.current_output()`
+
+Returns a snapshot of the currently focused output, or `nil`.
+
+| Field              | Type    | Description                                   |
+|--------------------|---------|-----------------------------------------------|
+| `name`             | string  | Connector name, e.g. `"eDP-1"`               |
+| `description`      | string  | EDID description string                       |
+| `width`, `height`  | integer | Mode resolution in pixels                     |
+| `scale`            | number  | Output scale factor                           |
+| `x`, `y`           | integer | Global layout position                        |
+| `active_workspace` | integer | 1-based active workspace index                |
+
+---
+
+## Event Hooks
+
+### `nnwm.on(event, callback)`
+
+Register a Lua callback for a compositor event. Multiple callbacks can be
+registered for the same event; all are called in registration order. Registering
+hooks at module load time (outside any callback) is safe — they persist across
+config hot-reloads only for the lifetime of the compositor process.
+
+```lua
+nnwm.on("window_focus", function(win)
+    -- win is an nnwm.Window snapshot table
+    print("focused:", win.title)
+end)
+
+nnwm.on("workspace_switch", function(ws)
+    -- ws is an nnwm.Workspace snapshot table
+    print("switched to workspace", ws.index)
+end)
+
+nnwm.on("startup", function()
+    -- no argument; compositor is fully running
+    nnwm.spawn("dunst")
+end)
+```
+
+### Events
+
+| Event name         | Argument type    | When it fires                                                 |
+|--------------------|------------------|---------------------------------------------------------------|
+| `"startup"`        | *(none)*         | First event-loop tick — after autostart, after `WAYLAND_DISPLAY` is set |
+| `"shutdown"`       | *(none)*         | Compositor is about to exit, before clients are destroyed     |
+| `"window_focus"`   | `nnwm.Window`    | A window receives keyboard focus                              |
+| `"window_open"`    | `nnwm.Window`    | A window is mapped (first appears on screen)                  |
+| `"window_close"`   | `nnwm.Window`    | A window unmaps (closes or hides)                             |
+| `"workspace_switch"` | `nnwm.Workspace` | The active workspace changes on any output                  |
+| `"output_connect"` | `nnwm.Output`    | A new monitor is connected                                    |
+
+The `nnwm.Window`, `nnwm.Workspace`, and `nnwm.Output` tables passed to
+callbacks have the same fields as `nnwm.current_window()`,
+`nnwm.current_workspace()`, and `nnwm.current_output()` respectively — they are
+plain snapshot tables with no live connection.
+
+---
+
+## Timers
+
+### `nnwm.timer(ms, callback)`
+
+Run `callback` once after `ms` milliseconds. The timer is driven by the Wayland
+event loop and fires reliably on the compositor thread — no shell scripts or
+external processes required.
+
+```lua
+nnwm.timer(500, function()
+    nnwm.spawn("notify-send 'nnwm started'")
+end)
+```
+
+### `nnwm.interval(ms, callback)`
+
+Run `callback` every `ms` milliseconds, repeating indefinitely until the
+compositor exits.
+
+```lua
+-- Check battery every 60 seconds
+nnwm.interval(60000, function()
+    nnwm.spawn("~/.local/bin/battery-notify.sh")
+end)
+
+-- Rotate wallpaper every 10 minutes
+nnwm.interval(600000, function()
+    nnwm.spawn("swaybg -i $(shuf -n1 ~/wallpapers)")
+end)
+```
+
+---
+
 ## Configuration
 
 All settings live inside `nnwm.opt = { ... }` (preferred) or directly on the
@@ -161,9 +298,9 @@ nnwm.opt = {
         focused_opacity   = -1,   -- <0 = inherit opacity; 0.0–1.0 = override
         unfocused_opacity = -1,   -- <0 = inherit opacity; 0.0–1.0 = override
     },
-
-    monitors = { ... },    -- see below
 }
+
+-- Monitor configuration is done with nnwm.monitor() calls (see below)
 ```
 
 Colors accept `{r, g, b, a}` float tables or hex strings: `"RRGGBB"`,
@@ -185,19 +322,14 @@ Colors accept `{r, g, b, a}` float tables or hex strings: `"RRGGBB"`,
 
 ## Monitor Configuration
 
-`nnwm.opt.monitors` is an array of tables. Each entry is matched against
-connected outputs; the first match wins. Unmatched outputs use their preferred
-mode and auto-layout.
+### `nnwm.monitor(config)`
 
-### Match fields
+Configure an output. Call once for each monitor that needs non-default settings.
+Rules are evaluated in call order; the first matching rule wins. Unmatched
+outputs use their preferred mode and auto-layout position.
 
-| Field         | Description                                                                   |
-|---------------|-------------------------------------------------------------------------------|
-| `name`        | Connector name, e.g. `"eDP-1"`, `"DP-1"`, `"HDMI-A-1"`                      |
-| `description` | Combined EDID string `"make model serial"` (serial is `"Unknown"` if absent) |
-
-Both fields are optional and checked with AND logic. To find the exact values
-for your hardware, run nnwm once and check the log:
+Match by `name` (exact connector name, e.g. `"eDP-1"`) or `description` (EDID
+substring). To find the exact values for your hardware:
 
 ```sh
 WLR_LOG_LEVEL=info nnwm 2>/tmp/nnwm.log
@@ -206,10 +338,12 @@ grep "new output" /tmp/nnwm.log
 # → description = "AU Optronics 0xE3AC Unknown"
 ```
 
-### Setting fields
+### Fields
 
 | Field       | Type    | Description                                                                            |
 |-------------|---------|----------------------------------------------------------------------------------------|
+| `name`      | string  | Connector name, e.g. `"eDP-1"`, `"DP-1"`, `"HDMI-A-1"`                               |
+| `description` | string | EDID description substring to match                                                  |
 | `width`     | integer | Mode width in pixels                                                                   |
 | `height`    | integer | Mode height in pixels                                                                  |
 | `refresh`   | integer | Refresh rate in Hz; `0` = use preferred                                                |
@@ -219,30 +353,30 @@ grep "new output" /tmp/nnwm.log
 | `transform` | string  | Rotation: `"none"`, `"90"`, `"180"`, `"270"`, `"flipped"`, `"flipped-90"`, `"flipped-180"`, `"flipped-270"` |
 | `hdr`       | bool    | Enable HDR — wlroots 0.20+                                                             |
 | `disabled`  | bool    | Disable this output entirely                                                            |
+| `struts`    | table   | Reserve screen edges: `{ top=N, bottom=N, left=N, right=N }` (pixels)                 |
 
 ### Example
 
 ```lua
-nnwm.opt.monitors = {
-    {
-        name   = "eDP-1",
-        x = 0, y = 0,
-        width = 1920, height = 1200,
-        scale = 1.25,
-    },
-    {
-        description = "HP Inc. HP P24h G5 3CM5031JJC",
-        x = 1536, y = 0,
-        width = 1920, height = 1080,
-        scale = 1.0,
-    },
-    {
-        description = "HP Inc. HP 524pu 1H35321M53",
-        x = 3456, y = 0,
-        width = 1920, height = 1080,
-        scale = 1.0,
-    },
-}
+nnwm.monitor({ name = "eDP-1", x = 0, y = 0, width = 1920, height = 1200, scale = 1.25 })
+
+nnwm.monitor({
+    description = "HP Inc. HP P24h G5 3CM5031JJC",
+    x = 1536, y = 0,
+    width = 1920, height = 1080,
+    scale = 1.0,
+    struts = { top = 32 },   -- reserve space for a panel
+})
+
+nnwm.monitor({
+    description = "HP Inc. HP 524pu 1H35321M53",
+    x = 3456, y = 0,
+    width = 1920, height = 1080,
+    scale = 1.0,
+})
+
+-- Disable an unused output
+nnwm.monitor({ name = "HDMI-A-2", disabled = true })
 ```
 
 ---
@@ -317,11 +451,10 @@ nnwm.opt = {
         unfocused_opacity = 0.8,
     },
 
-    monitors = {
-        { name = "eDP-1", x = 0, y = 0, width = 1920, height = 1200, scale = 1.25 },
-        { description = "HP Inc. HP P24h G5 3CM5031JJC", x = 1536, y = 0, width = 1920, height = 1080 },
-    },
 }
+
+nnwm.monitor({ name = "eDP-1", x = 0, y = 0, width = 1920, height = 1200, scale = 1.25 })
+nnwm.monitor({ description = "HP Inc. HP P24h G5 3CM5031JJC", x = 1536, y = 0, width = 1920, height = 1080 })
 
 local mod = "Super"
 
