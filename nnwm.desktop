@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=nnwm
+Comment=A wlroots-based tiling Wayland compositor
+Exec=nnwm
+TryExec=nnwm
+Type=Application

@@ -222,3 +222,8 @@ target_compile_options(nnwm PRIVATE
     $<$<CONFIG:Debug>:-O0>
     $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
 )
+
+include(GNUInstallDirs)
+
+install(TARGETS nnwm RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES nnwm.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/wayland-sessions)
