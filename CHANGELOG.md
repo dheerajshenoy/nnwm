@@ -1,5 +1,7 @@
 # nnwm CHANGELOG
 
+## 0.1.1
+
 ## 0.1.0
 
 ### Features
@@ -58,6 +60,18 @@
   - `nnwm.current_output()` — returns an `nnwm.Output` snapshot for the focused
     output, or `nil`. Fields: `name`, `description`, `width`, `height`, `scale`,
     `x`, `y`, `active_workspace`.
+- **`nnwm.focus_dir(direction)`**: geometric directional focus that crosses
+  monitor boundaries. `direction` is `"left"`, `"right"`, `"up"`, or `"down"`.
+  The nearest window in the requested direction (by center-to-center distance on
+  the primary axis, breaking ties by perpendicular distance) on the current
+  output is focused. If no window exists in that direction, the nearest monitor
+  in that direction is focused instead and its last active window is selected.
+  ```lua
+  nnwm.key({"Super", "h"}, function() nnwm.focus_dir("left")  end)
+  nnwm.key({"Super", "l"}, function() nnwm.focus_dir("right") end)
+  nnwm.key({"Super", "k"}, function() nnwm.focus_dir("up")    end)
+  nnwm.key({"Super", "j"}, function() nnwm.focus_dir("down")  end)
+  ```
 - **`nnwm.monitor()` API**: monitor configuration is now done with individual
   `nnwm.monitor({ ... })` function calls instead of the `nnwm.opt.monitors`
   array. Each call registers one output rule in declaration order; the first
