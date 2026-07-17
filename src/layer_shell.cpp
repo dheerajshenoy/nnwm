@@ -153,10 +153,13 @@ server_new_layer_surface(wl_listener *listener, void *data)
     wlr_layer_surface_v1 *wlr_ls =
         static_cast<wlr_layer_surface_v1*>(data);
 
-    if (!wlr_ls->output && !wl_list_empty(&server->outputs))
+    if (!wlr_ls->output)
     {
-        nnwm_output *o = wl_container_of(server->outputs.next, o, link);
-        wlr_ls->output = o->wlr_output;
+        nnwm_output *o = server->focused_output;
+        if (!o && !wl_list_empty(&server->outputs))
+            o = wl_container_of(server->outputs.next, o, link);
+        if (o)
+            wlr_ls->output = o->wlr_output;
     }
 
     nnwm_layer_surface *ls = new nnwm_layer_surface{};

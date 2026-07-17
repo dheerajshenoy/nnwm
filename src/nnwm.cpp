@@ -1588,7 +1588,7 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
         }
         else if (n > 1)
         {
-            int mh = (int)(H * cfg->layout.master_ratio);
+            int mh = (int)(H * out->master_ratio[ws]);
             int sh = H - mh - ig;
             int ns = n - 1;
             int sw = (W - (ns - 1) * ig) / ns;
@@ -1657,7 +1657,7 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
     }
     else if (n > 1)
     {
-        int mw = (int)(W * cfg->layout.master_ratio);
+        int mw = (int)(W * out->master_ratio[ws]);
         int sw = W - mw - ig;
         int ns = n - 1;
         int sh = (H - (ns - 1) * ig) / ns;
@@ -1807,7 +1807,7 @@ arrange_scratchpad(nnwm_server *server)
         }
         else
         {
-            int mw = (int)(W * cfg->layout.master_ratio);
+            int mw = (int)(W * out->master_ratio[out->active_workspace]);
             int sw = W - mw - ig;
             int ns = n - 1;
             int sh = (H - (ns - 1) * ig) / ns;
@@ -1863,7 +1863,7 @@ arrange_scratchpad(nnwm_server *server)
         }
         else
         {
-            int mh = (int)(H * cfg->layout.master_ratio);
+            int mh = (int)(H * out->master_ratio[out->active_workspace]);
             int sh = H - mh - ig;
             int ns = n - 1;
             int sw = (W - (ns - 1) * ig) / ns;

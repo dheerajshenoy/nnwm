@@ -199,11 +199,19 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
         wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
     }
 
-    /* Track which output the cursor is on */
+    /* Track which output the cursor is on. When focus_follows_mouse is off,
+     * only update focused_output if no window currently holds keyboard focus
+     * — spawned programs should appear on the keyboard-focused output. */
     {
         nnwm_output *cur_out = output_at_cursor(server);
         if (cur_out)
-            server->focused_output = cur_out;
+        {
+            bool no_focus = !server->seat->keyboard_state.focused_surface
+                            || !wlr_xdg_toplevel_try_from_wlr_surface(
+                                server->seat->keyboard_state.focused_surface);
+            if (server->config->focus_follows_mouse || no_focus)
+                server->focused_output = cur_out;
+        }
     }
 
     double sx, sy;

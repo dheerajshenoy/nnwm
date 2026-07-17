@@ -656,21 +656,29 @@ nnwm::monitor::move_to_prev(nnwm_server *server)
 void
 nnwm::layout::master_ratio_grow(nnwm_server *server)
 {
+    nnwm_output *out = server->focused_output;
+    if (!out)
+        return;
     nnwm_config *cfg = server->config;
-    cfg->layout.master_ratio += cfg->layout.master_ratio_step;
-    if (cfg->layout.master_ratio > cfg->layout.master_ratio_max)
-        cfg->layout.master_ratio = cfg->layout.master_ratio_max;
-    arrange_all_outputs(server);
+    int ws = out->active_workspace;
+    out->master_ratio[ws] += cfg->layout.master_ratio_step;
+    if (out->master_ratio[ws] > cfg->layout.master_ratio_max)
+        out->master_ratio[ws] = cfg->layout.master_ratio_max;
+    arrange_windows(server, out);
 }
 
 void
 nnwm::layout::master_ratio_shrink(nnwm_server *server)
 {
+    nnwm_output *out = server->focused_output;
+    if (!out)
+        return;
     nnwm_config *cfg = server->config;
-    cfg->layout.master_ratio -= cfg->layout.master_ratio_step;
-    if (cfg->layout.master_ratio < cfg->layout.master_ratio_min)
-        cfg->layout.master_ratio = cfg->layout.master_ratio_min;
-    arrange_all_outputs(server);
+    int ws = out->active_workspace;
+    out->master_ratio[ws] -= cfg->layout.master_ratio_step;
+    if (out->master_ratio[ws] < cfg->layout.master_ratio_min)
+        out->master_ratio[ws] = cfg->layout.master_ratio_min;
+    arrange_windows(server, out);
 }
 
 void

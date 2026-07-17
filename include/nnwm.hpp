@@ -330,6 +330,7 @@ struct nnwm_output
     struct wlr_box usable_area; /* output area minus exclusive-zone struts */
     int active_workspace;
     nnwm_layout_mode layout_mode[NNWM_NUM_WORKSPACES];
+    float master_ratio[NNWM_NUM_WORKSPACES];
     int scroll_offset[NNWM_NUM_WORKSPACES]; /* horizontal scroll offset in
                                                pixels for HSCROLL/VSCROLL */
     struct wlr_scene_buffer *tab_bar;

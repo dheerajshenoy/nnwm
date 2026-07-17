@@ -498,6 +498,7 @@ server_new_output(wl_listener *listener, void *data)
     for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
     {
         output->layout_mode[i]   = nnwm_layout_mode::HTILE;
+        output->master_ratio[i]  = server->config->layout.master_ratio;
         output->scroll_offset[i] = 0;
     }
     output->tab_bar = wlr_scene_buffer_create(server->scene_windows, nullptr);
