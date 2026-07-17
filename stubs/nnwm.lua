@@ -21,12 +21,14 @@ MOD = {}
 ---@field tab_position? "top"|"bottom"|"left"|"right" Tab bar edge in tabbed layout (default: "top")
 
 ---@class nnwm.layout
----@field new_window_master?  boolean           When true new windows become master; when false they append to the stack (default: true)
----@field master_ratio?       number            Fraction of screen width for the master column (default: 0.55)
----@field master_ratio_step?  number            Step size for master ratio adjustments (default: 0.05)
----@field master_ratio_min?   number            Minimum master ratio (default: 0.1)
----@field master_ratio_max?   number            Maximum master ratio (default: 0.9)
----@field tabbed?             nnwm.layout.tabbed
+---@field new_window_master?   boolean            When true new windows become master; when false they append to the stack (default: true)
+---@field master_ratio?        number             Fraction of screen width/height for the master pane (default: 0.55)
+---@field master_ratio_step?   number             Step size for master ratio adjustments (default: 0.05)
+---@field master_ratio_min?    number             Minimum master ratio (default: 0.1)
+---@field master_ratio_max?    number             Maximum master ratio (default: 0.9)
+---@field scroll_column_width? number             Fraction of output width per column in hscroll layout: 0.0–1.0 (default: 0.5)
+---@field scroll_row_height?   number             Fraction of output height per row in vscroll layout: 0.0–1.0 (default: 0.5)
+---@field tabbed?              nnwm.layout.tabbed
 
 ---@class nnwm.gaps
 ---@field inner?  integer  Gap in pixels between adjacent windows (default: 0)
@@ -333,6 +335,12 @@ function nnwm.toggle_fullscreen() end
 --- preserved). Useful for apps like OBS or Steam.
 function nnwm.toggle_fake_fullscreen() end
 
+--- Toggle the focused window between maximized and normal.
+--- When maximized the window expands to fill the full usable area (respecting
+--- borders and the titlebar) and is raised above other tiled windows.
+--- Unlike fullscreen, borders and the titlebar remain visible.
+function nnwm.toggle_maximize() end
+
 --- Move keyboard focus to the next monitor (output), wrapping around.
 --- Restores the last focused window on the target monitor.
 function nnwm.focus_monitor_next() end
@@ -351,9 +359,20 @@ function nnwm.move_to_monitor_prev() end
 
 -- ── nnwm.layout ──────────────────────────────────────────────────────────────
 
----@class nnwm.layout.tabbed
-nnwm.layout = {}
+nnwm.layout        = {}
+nnwm.layout.vtile  = {}
 nnwm.layout.tabbed = {}
+nnwm.layout.hscroll = {}
+nnwm.layout.vscroll = {}
+
+--- Toggle the current workspace between htile (horizontal master-stack, default)
+--- and vtile (vertical master-stack: master on top, stack in a row below).
+--- Toggling again restores htile.
+---
+--- ```lua
+--- nnwm.key({"Super", "v"}, function() nnwm.layout.vtile.toggle() end)
+--- ```
+function nnwm.layout.vtile.toggle() end
 
 --- Toggle the current workspace between tiled (master-stack) and tabbed layout.
 --- In tabbed mode all tiled windows share the same content area; a composite tab
@@ -364,8 +383,26 @@ nnwm.layout.tabbed = {}
 --- ```
 function nnwm.layout.tabbed.toggle() end
 
+--- Toggle the current workspace into horizontal-scroll layout.
+--- Windows are arranged left-to-right, each occupying `scroll_column_width`
+--- fraction of the output width. The viewport centers on the focused window.
+---
+--- ```lua
+--- nnwm.key({"Super", "s"}, function() nnwm.layout.hscroll.toggle() end)
+--- ```
+function nnwm.layout.hscroll.toggle() end
+
+--- Toggle the current workspace into vertical-scroll layout.
+--- Windows are arranged top-to-bottom, each occupying `scroll_row_height`
+--- fraction of the output height. The viewport centers on the focused window.
+---
+--- ```lua
+--- nnwm.key({"Super", "Shift", "s"}, function() nnwm.layout.vscroll.toggle() end)
+--- ```
+function nnwm.layout.vscroll.toggle() end
+
 --- Advance to the next layout for the active workspace, wrapping around.
---- Order: tile → tabbed → tile → …
+--- Order: htile → vtile → tabbed → hscroll → vscroll → htile → …
 ---
 --- ```lua
 --- nnwm.key({"Super", "bracketright"}, function() nnwm.layout.next() end)
@@ -373,7 +410,7 @@ function nnwm.layout.tabbed.toggle() end
 function nnwm.layout.next() end
 
 --- Go back to the previous layout for the active workspace, wrapping around.
---- Order: tile → tabbed → tile → … (reversed)
+--- Order: htile → vscroll → hscroll → tabbed → vtile → htile → … (reversed)
 ---
 --- ```lua
 --- nnwm.key({"Super", "bracketleft"}, function() nnwm.layout.prev() end)
