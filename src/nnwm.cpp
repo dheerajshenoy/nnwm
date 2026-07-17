@@ -1147,6 +1147,8 @@ rerender_tab_bar(nnwm_server *server, nnwm_output *out)
 
 /* ---- Overview ---- */
 
+static void arrange_windows_impl(nnwm_server *server, nnwm_output *out);
+
 static constexpr int OVERVIEW_COLS  = 3;
 static constexpr int OVERVIEW_ROWS  = (NNWM_NUM_WORKSPACES + OVERVIEW_COLS - 1) / OVERVIEW_COLS;
 static constexpr double OVERVIEW_OUTER = 32.0;
@@ -1200,11 +1202,46 @@ ov_surface_iter(wlr_surface *surface, int sx, int sy, void *ud)
     wlr_render_pass_add_texture(d->pass, &opts);
 }
 
+static void render_overview_buffers(nnwm_server *server, nnwm_output *out);
+
 void
 render_overview(nnwm_server *server, nnwm_output *out)
 {
     if (!out->overview_buf || !out->overview_labels) return;
 
+    /* Arrange every workspace so all windows have valid cur_x/y/w/h.
+     * Direct impl call avoids re-entering arrange_windows → render_overview. */
+    {
+        int saved = out->active_workspace;
+        for (int ws = 0; ws < NNWM_NUM_WORKSPACES; ws++) {
+            if (ws == saved) continue;
+            out->active_workspace = ws;
+            arrange_windows_impl(server, out);
+        }
+        out->active_workspace = saved;
+    }
+
+    render_overview_buffers(server, out);
+
+    /* Hide all window scene nodes — the GPU buffer provides the display.
+     * Texture capture and frame_done work on surface buffers directly. */
+    nnwm_toplevel *tl;
+    wl_list_for_each(tl, &server->toplevels, link) {
+        if (tl->output == out && !tl->in_scratchpad)
+            wlr_scene_node_set_enabled(&tl->scene_tree->node, false);
+    }
+}
+
+void
+overview_frame_update(nnwm_server *server, nnwm_output *out)
+{
+    if (!out->overview || !out->overview_buf || !out->overview_labels) return;
+    render_overview_buffers(server, out);
+}
+
+static void
+render_overview_buffers(nnwm_server *server, nnwm_output *out)
+{
     wlr_box out_box;
     wlr_output_layout_get_box(server->output_layout, out->wlr_output, &out_box);
     int W = out_box.width;
@@ -1436,6 +1473,7 @@ render_overview(nnwm_server *server, nnwm_output *out)
                 }
             }
         } else {
+            /* GPU path: draw focus border outlines + count any windows */
             nnwm_toplevel *tl;
             wl_list_for_each(tl, &server->toplevels, link) {
                 if (tl->output != out) continue;
@@ -1446,7 +1484,20 @@ render_overview(nnwm_server *server, nnwm_output *out)
                            == nnwm_layout_mode::TABBED;
                 int eff_th_ck = (tabbed_tiled_ck || th <= 0) ? 0 : th;
                 wlr_box lb;
-                if (tl_layout_box(tl, bw, eff_th_ck, &lb)) { any = true; break; }
+                if (!tl_layout_box(tl, bw, eff_th_ck, &lb)) continue;
+                any = true;
+
+                bool focused = (tl == out->last_focused[ws]);
+                const float *bc = focused ? cfg->border.focused_color
+                                          : cfg->border.unfocused_color;
+                double wx = sx + cx_off + (lb.x - ua.x) * s;
+                double wy = sy + cy_off + (lb.y - ua.y) * s;
+                double ww = lb.width * s;
+                double wh = lb.height * s;
+                cairo_set_line_width(cr, focused ? 1.5 : 0.75);
+                cairo_set_source_rgba(cr, bc[0], bc[1], bc[2], bc[3]);
+                cairo_rectangle(cr, wx + 0.5, wy + 0.5, ww - 1.0, wh - 1.0);
+                cairo_stroke(cr);
             }
         }
 
@@ -1506,8 +1557,10 @@ exit_overview(nnwm_server *server, nnwm_output *out)
     if (out->overview_labels)
         wlr_scene_node_set_enabled(&out->overview_labels->node, false);
 
-    nnwm_toplevel *tl = out->last_focused[out->active_workspace];
-    if (!tl) tl = ws_first(server, out);
+    /* Re-arrange to restore window scene nodes that were hidden during overview. */
+    arrange_windows(server, out);
+
+    nnwm_toplevel *tl = ws_first(server, out);
     if (tl)
         focus_toplevel(tl);
     else
@@ -1659,8 +1712,6 @@ ws_count(nnwm_server *server, nnwm_output *out)
 }
 
 /* ---- Window arrangement / tiling layout ---- */
-
-static void arrange_windows_impl(nnwm_server *server, nnwm_output *out);
 
 void
 arrange_windows(nnwm_server *server, nnwm_output *out)
@@ -2375,6 +2426,8 @@ focus_toplevel(nnwm_toplevel *toplevel)
             || out->layout_mode[ws] == nnwm_layout_mode::HSCROLL
             || out->layout_mode[ws] == nnwm_layout_mode::VSCROLL)
             arrange_windows(server, out);
+        else if (out->overview)
+            render_overview(server, out);
     }
 
     if (cfg->mouse.warp_to_focused_window)

@@ -476,9 +476,7 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
         tl->sticky
             || (tl->output && tl->output->active_workspace == tl->workspace));
 
-    nnwm_toplevel *next = out->last_focused[ws];
-    if (!next)
-        next = ws_first(server, out);
+    nnwm_toplevel *next = ws_first(server, out);
     if (next)
         focus_toplevel(next);
     else
@@ -600,10 +598,7 @@ nnwm::monitor::focus_next(nnwm_server *server)
     if (!next)
         return;
     server->focused_output = next;
-    int ws                 = next->active_workspace;
-    nnwm_toplevel *tl      = next->last_focused[ws];
-    if (!tl)
-        tl = ws_first(server, next);
+    nnwm_toplevel *tl      = ws_first(server, next);
     if (tl)
         focus_toplevel(tl);
     else
@@ -624,10 +619,7 @@ nnwm::monitor::focus_prev(nnwm_server *server)
     if (!next)
         return;
     server->focused_output = next;
-    int ws                 = next->active_workspace;
-    nnwm_toplevel *tl      = next->last_focused[ws];
-    if (!tl)
-        tl = ws_first(server, next);
+    nnwm_toplevel *tl      = ws_first(server, next);
     if (tl)
         focus_toplevel(tl);
     else
@@ -636,6 +628,24 @@ nnwm::monitor::focus_prev(nnwm_server *server)
         unfocus_all_borders(server);
     }
     warp_cursor_to_output(server, next);
+}
+
+/* ---- Overview-grid geometry helpers ---- */
+
+static constexpr int OV_COLS = 3;
+
+/* Switch active workspace in-place (visibility + focused_output) without
+ * triggering the full workspace::switch_to animation/arrange path. */
+static void
+ov_switch_ws(nnwm_server *server, nnwm_output *out, int ws)
+{
+    if (out->active_workspace == ws) return;
+    out->active_workspace = ws;
+    nnwm_toplevel *t;
+    wl_list_for_each(t, &server->toplevels, link)
+        wlr_scene_node_set_enabled(
+            &t->scene_tree->node,
+            t->sticky || (t->output && t->output->active_workspace == t->workspace));
 }
 
 void
@@ -649,6 +659,35 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
     bool is_up    = strcmp(direction, "up")    == 0;
     bool is_down  = strcmp(direction, "down")  == 0;
     if (!is_left && !is_right && !is_up && !is_down) return;
+
+    /* ---- Overview mode: navigate between workspace slots in the grid ---- */
+    if (out->overview)
+    {
+        int cur = out->active_workspace;
+        int cur_col = cur % OV_COLS;
+        int cur_row = cur / OV_COLS;
+        int target = -1;
+
+        if (is_left  && cur_col > 0)                  target = cur - 1;
+        if (is_right && cur_col < OV_COLS - 1
+                     && cur + 1 < NNWM_NUM_WORKSPACES) target = cur + 1;
+        if (is_up    && cur_row > 0)                   target = cur - OV_COLS;
+        if (is_down  && cur + OV_COLS < NNWM_NUM_WORKSPACES) target = cur + OV_COLS;
+
+        if (target < 0) return;
+        ov_switch_ws(server, out, target);
+
+        nnwm_toplevel *next = ws_first(server, out);
+        if (next)
+            focus_toplevel(next);
+        else
+        {
+            wlr_seat_keyboard_clear_focus(server->seat);
+            unfocus_all_borders(server);
+        }
+        render_overview(server, out);
+        return;
+    }
 
     nnwm_toplevel *focused = get_focused_toplevel(server);
     int ws = out->active_workspace;
@@ -741,9 +780,7 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
     if (!best_out) return;
 
     server->focused_output = best_out;
-    int ws2       = best_out->active_workspace;
-    nnwm_toplevel *next = best_out->last_focused[ws2];
-    if (!next) next = ws_first(server, best_out);
+    nnwm_toplevel *next = ws_first(server, best_out);
     if (next)
         focus_toplevel(next);
     else
@@ -768,6 +805,33 @@ nnwm::focus::move_dir(nnwm_server *server, const char *direction)
 
     nnwm_toplevel *focused = get_focused_toplevel(server);
     if (!focused || focused->floating) return;
+
+    /* ---- Overview mode: move window to adjacent workspace slot in the grid ---- */
+    if (out->overview)
+    {
+        int cur = focused->workspace;
+        int cur_col = cur % OV_COLS;
+        int cur_row = cur / OV_COLS;
+        int target = -1;
+
+        if (is_left  && cur_col > 0)                  target = cur - 1;
+        if (is_right && cur_col < OV_COLS - 1
+                     && cur + 1 < NNWM_NUM_WORKSPACES) target = cur + 1;
+        if (is_up    && cur_row > 0)                   target = cur - OV_COLS;
+        if (is_down  && cur + OV_COLS < NNWM_NUM_WORKSPACES) target = cur + OV_COLS;
+
+        if (target < 0) return;
+
+        int old_ws = focused->workspace;
+        if (out->last_focused[old_ws] == focused) out->last_focused[old_ws] = nullptr;
+        if (out->prev_focused[old_ws] == focused) out->prev_focused[old_ws] = nullptr;
+        focused->workspace = target;
+        ov_switch_ws(server, out, target);
+        wlr_scene_node_set_enabled(&focused->scene_tree->node, true);
+        focus_toplevel(focused);
+        arrange_windows(server, out);
+        return;
+    }
 
     int ws = out->active_workspace;
     int fcx = focused->cur_x + focused->cur_w / 2;
@@ -883,9 +947,7 @@ nnwm::focus::move_dir(nnwm_server *server, const char *direction)
     wlr_scene_node_set_enabled(&focused->scene_tree->node,
                                focused->output->active_workspace == focused->workspace);
 
-    nnwm_toplevel *next = out->prev_focused[old_ws];
-    if (!next) next = out->last_focused[old_ws];
-    if (!next) next = ws_first(server, out);
+    nnwm_toplevel *next = ws_first(server, out);
     if (next)
         focus_toplevel(next);
     else
@@ -924,11 +986,7 @@ move_to_monitor(nnwm_server *server, int dir)
     wlr_scene_node_set_enabled(&tl->scene_tree->node,
                                tl->output->active_workspace == tl->workspace);
 
-    nnwm_toplevel *next = src->prev_focused[old_ws];
-    if (!next)
-        next = src->last_focused[old_ws];
-    if (!next)
-        next = ws_first(server, src);
+    nnwm_toplevel *next = ws_first(server, src);
     if (next)
         focus_toplevel(next);
     else
@@ -1330,14 +1388,9 @@ nnwm::toggle_overview(nnwm_server *server)
 
     out->overview = !out->overview;
     if (out->overview)
-    {
         render_overview(server, out);
-        wlr_seat_keyboard_clear_focus(server->seat);
-    }
     else
-    {
         exit_overview(server, out);
-    }
 }
 
 /* ---- Keyboard event handling ---- */
@@ -1372,6 +1425,21 @@ keyboard_handle_key(wl_listener *listener, void *data)
                     wlr_session_change_vt(
                         server->session, syms[i] - XKB_KEY_XF86Switch_VT_1 + 1);
                 handled = true;
+            }
+        }
+    }
+
+    /* In overview mode, Escape goes back to the focused workspace and exits */
+    if (!handled && event->state == WL_KEYBOARD_KEY_STATE_PRESSED
+        && server->focused_output && server->focused_output->overview)
+    {
+        for (int i = 0; i < nsyms; i++)
+        {
+            if (syms[i] == XKB_KEY_Escape)
+            {
+                exit_overview(server, server->focused_output);
+                handled = true;
+                break;
             }
         }
     }

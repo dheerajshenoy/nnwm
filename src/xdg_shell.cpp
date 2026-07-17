@@ -241,9 +241,7 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
         {
             next = stack_next;
             if (!next)
-                next = out->prev_focused[ws];
-            if (!next)
-                next = out->last_focused[ws];
+                next = ws_first(server, out);
             if (!next)
                 next = ws_first_float(server, out);
         }

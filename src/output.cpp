@@ -35,7 +35,13 @@ output_description(const wlr_output *o)
 
 /* ---- Output frame and state request ---- */
 
-void
+static void
+send_frame_done_cb(wlr_surface *surface, int /*sx*/, int /*sy*/, void *data)
+{
+    wlr_surface_send_frame_done(surface, static_cast<timespec *>(data));
+}
+
+static void
 output_frame(wl_listener *listener, void * /*data*/)
 {
     nnwm_output *output = wl_container_of(listener, output, frame);
@@ -52,12 +58,31 @@ output_frame(wl_listener *listener, void * /*data*/)
     animate_step(output->server);
 #endif
 
+    /* In overview mode, rebuild the GPU buffer every frame so window textures
+     * reflect the latest client commits across all workspaces. */
+    if (output->overview)
+        overview_frame_update(output->server, output);
+
     if (!wlr_scene_output_commit(scene_output, nullptr))
         return;
 
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     wlr_scene_output_send_frame_done(scene_output, &now);
+
+    /* In overview mode, send frame_done to toplevels on inactive workspaces
+     * so their clients continue rendering and the overview stays live. */
+    if (output->overview) {
+        nnwm_toplevel *tl;
+        wl_list_for_each(tl, &output->server->toplevels, link) {
+            if (tl->output != output) continue;
+            if (tl->workspace == output->active_workspace) continue;
+            if (tl->in_scratchpad) continue;
+            wlr_surface_for_each_surface(
+                tl->xdg_toplevel->base->surface,
+                send_frame_done_cb, &now);
+        }
+    }
 }
 
 void
