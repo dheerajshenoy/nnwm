@@ -41,6 +41,45 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
         wlr_box area;
         wlr_output_layout_get_box(server->output_layout, out->wlr_output,
                                   &area);
+
+#ifdef HAVE_SCENEFX
+        nnwm_config *cfg = server->config;
+        bool do_anim = cfg->fx.animation.enabled
+                    && cfg->fx.animation.duration_ms > 0
+                    && cfg->fx.animation.layout_style != nnwm_layout_anim::NONE
+                    && tl->cur_w > 0;
+        if (do_anim)
+        {
+            tl->geo_from_x = tl->cur_x;
+            tl->geo_from_y = tl->cur_y;
+            tl->geo_from_w = tl->cur_w;
+            tl->geo_from_h = tl->cur_h;
+            tl->geo_to_x   = area.x;
+            tl->geo_to_y   = area.y;
+            tl->geo_to_w   = area.width;
+            tl->geo_to_h   = area.height;
+            tl->geo_bw          = 0;
+            tl->geo_anim        = true;
+            tl->geo_t0          = anim_now();
+            tl->geo_then_hide   = false;
+            tl->geo_duration_ms = eff_duration(cfg, cfg->fx.animation.layout_duration_ms);
+            tl->geo_easing      = eff_easing(cfg, cfg->fx.animation.layout_easing);
+            /* Start visually at the from state */
+            wlr_scene_node_set_position(&tl->scene_tree->node,
+                                        tl->geo_from_x, tl->geo_from_y);
+            update_borders(tl, tl->geo_from_w, tl->geo_from_h, 0);
+            tl->cur_x = tl->geo_from_x;
+            tl->cur_y = tl->geo_from_y;
+            tl->cur_w = tl->geo_from_w;
+            tl->cur_h = tl->geo_from_h;
+            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, area.width, area.height);
+            if (tl->titlebar)
+                wlr_scene_node_set_enabled(&tl->titlebar->node, false);
+            apply_fx_decorations(tl);
+            arrange_windows(server, out);
+            return;
+        }
+#endif
         wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
         wlr_xdg_toplevel_set_size(tl->xdg_toplevel, area.width, area.height);
         update_borders(tl, area.width, area.height, 0);
