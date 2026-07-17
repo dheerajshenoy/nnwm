@@ -143,12 +143,13 @@
 - Keyboard
     - [ ] file to load xkb options from
 - Lua config
-    - [ ] Hooks
-        - [ ] Window
-            - [ ] New
-            - [ ] Close
-            - [ ] Urgent
-            - [ ] Focus Change
+    - Hooks
+        - Window
+            - [x] New
+            - [x] Close
+            - [x] Focus change
+            - [x] Fullscreen
+            - [x] Workspace change
         - [ ] Startup
         - [ ] Shutdown
 - Layouts
@@ -176,3 +177,6 @@
     - [ ] animation
     - [ ] border
 - [ ] Fix warp-to-focus being annoying
+- [x] nnwm.current_window() returning nil when no window is focused, else return nnwm.Window object
+- [x] nnwm.current_monitor() returning nil when no monitor is focused else return nnwm.Monitor object
+- [x] nnwm.current_workspace() returning nil when no workspace is focused else return nnwm.Workspace object
