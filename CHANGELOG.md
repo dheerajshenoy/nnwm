@@ -2,6 +2,10 @@
 
 ## 0.1.1
 
+### Features
+
+- Add animation to window fullscreen action
+
 ## 0.1.0
 
 ### Features
