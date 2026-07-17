@@ -2184,6 +2184,16 @@ scratch_count(nnwm_server *server)
     int n = 0;
     nnwm_toplevel *t;
     wl_list_for_each(t, &server->toplevels, link)
+        if (t->in_scratchpad && !t->floating) n++;
+    return n;
+}
+
+static int
+scratch_count_all(nnwm_server *server)
+{
+    int n = 0;
+    nnwm_toplevel *t;
+    wl_list_for_each(t, &server->toplevels, link)
         if (t->in_scratchpad) n++;
     return n;
 }
@@ -2200,14 +2210,14 @@ arrange_scratchpad(nnwm_server *server)
     if (!out)
         return;
 
-    int n = scratch_count(server);
-    if (n == 0)
+    if (scratch_count_all(server) == 0)
     {
         server->scratchpad_visible = false;
         wlr_scene_node_set_enabled(&server->scene_scratch_dim->node, false);
         wlr_scene_node_set_enabled(&server->scene_scratchpad->node, false);
         return;
     }
+    int n = scratch_count(server); /* tiled scratchpad windows only */
 
     /* Position the dim rect over the focused output */
     wlr_box area;
@@ -2237,7 +2247,7 @@ arrange_scratchpad(nnwm_server *server)
         {
             wl_list_for_each(tl, &server->toplevels, link)
             {
-                if (!tl->in_scratchpad) continue;
+                if (!tl->in_scratchpad || tl->floating) continue;
                 wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
                                            WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                                | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
@@ -2259,7 +2269,7 @@ arrange_scratchpad(nnwm_server *server)
             int i = 0;
             wl_list_for_each(tl, &server->toplevels, link)
             {
-                if (!tl->in_scratchpad) continue;
+                if (!tl->in_scratchpad || tl->floating) continue;
                 bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
                 if (i == 0)
                 {
@@ -2293,7 +2303,7 @@ arrange_scratchpad(nnwm_server *server)
         {
             wl_list_for_each(tl, &server->toplevels, link)
             {
-                if (!tl->in_scratchpad) continue;
+                if (!tl->in_scratchpad || tl->floating) continue;
                 wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
                                            WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                                | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
@@ -2315,7 +2325,7 @@ arrange_scratchpad(nnwm_server *server)
             int i = 0;
             wl_list_for_each(tl, &server->toplevels, link)
             {
-                if (!tl->in_scratchpad) continue;
+                if (!tl->in_scratchpad || tl->floating) continue;
                 bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
                 if (i == 0)
                 {

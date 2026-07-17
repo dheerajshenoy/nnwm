@@ -183,3 +183,4 @@
 - [ ] Customizable workspace names
 - [ ] Change cursor shape when window resizing
 - [ ] Don't allow resizing of tiled windows
+- [ ] Scratchpad windows disappear after changing workspaces

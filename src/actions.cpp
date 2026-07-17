@@ -469,12 +469,18 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
     int old_ws            = out->active_workspace;
     out->active_workspace = ws;
 
-    /* Sync scene visibility: sticky windows always remain visible */
+    /* Sync scene visibility: sticky windows always remain visible.
+     * Scratchpad windows are skipped — their visibility is owned by the
+     * scratchpad toggle and must not be disturbed by workspace changes. */
     nnwm_toplevel *tl;
-    wl_list_for_each(tl, &server->toplevels, link) wlr_scene_node_set_enabled(
-        &tl->scene_tree->node,
-        tl->sticky
-            || (tl->output && tl->output->active_workspace == tl->workspace));
+    wl_list_for_each(tl, &server->toplevels, link)
+    {
+        if (tl->in_scratchpad) continue;
+        wlr_scene_node_set_enabled(
+            &tl->scene_tree->node,
+            tl->sticky
+                || (tl->output && tl->output->active_workspace == tl->workspace));
+    }
 
     nnwm_toplevel *next = ws_first(server, out);
     if (next)
@@ -643,9 +649,12 @@ ov_switch_ws(nnwm_server *server, nnwm_output *out, int ws)
     out->active_workspace = ws;
     nnwm_toplevel *t;
     wl_list_for_each(t, &server->toplevels, link)
+    {
+        if (t->in_scratchpad) continue;
         wlr_scene_node_set_enabled(
             &t->scene_tree->node,
             t->sticky || (t->output && t->output->active_workspace == t->workspace));
+    }
     nnwm::ext_workspace_notify(server);
 }
 
