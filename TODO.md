@@ -175,3 +175,4 @@
     - [ ] blur
     - [ ] animation
     - [ ] border
+- [ ] Fix warp-to-focus being annoying
