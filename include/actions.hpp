@@ -103,6 +103,8 @@ toggle_fullscreen(nnwm_server *server);
 void
 toggle_fake_fullscreen(nnwm_server *server);
 void
+toggle_maximize(nnwm_server *server);
+void
 toggle_sticky(nnwm_server *server);
 } // namespace window
 

@@ -733,6 +733,17 @@ nnwm::window::toggle_fake_fullscreen(nnwm_server *server)
 }
 
 void
+nnwm::window::toggle_maximize(nnwm_server *server)
+{
+    nnwm_toplevel *tl = get_focused_toplevel(server);
+    if (!tl)
+        return;
+    tl->maximize = !tl->maximize;
+    if (tl->output)
+        arrange_windows(server, tl->output);
+}
+
+void
 nnwm::window::toggle_sticky(nnwm_server *server)
 {
     nnwm_toplevel *tl = get_focused_toplevel(server);

@@ -571,6 +571,13 @@ l_nnwm_toggle_fake_fullscreen(lua_State *L)
 }
 
 static int
+l_nnwm_toggle_maximize(lua_State *L)
+{
+    nnwm::window::toggle_maximize(get_server(L));
+    return 0;
+}
+
+static int
 l_nnwm_toggle_tabbed(lua_State *L)
 {
     nnwm::layout::toggle_tabbed(get_server(L));
@@ -829,6 +836,7 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"toggle_float", l_nnwm_toggle_float},
     {"toggle_fullscreen", l_nnwm_toggle_fullscreen},
     {"toggle_fake_fullscreen", l_nnwm_toggle_fake_fullscreen},
+    {"toggle_maximize", l_nnwm_toggle_maximize},
     {"toggle_sticky", l_nnwm_toggle_sticky},
     {"move_to_scratchpad", l_nnwm_move_to_scratchpad},
     {"scratchpad_toggle", l_nnwm_scratchpad_toggle},
