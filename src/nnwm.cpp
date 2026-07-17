@@ -1152,6 +1152,28 @@ static constexpr int OVERVIEW_ROWS  = (NNWM_NUM_WORKSPACES + OVERVIEW_COLS - 1) 
 static constexpr double OVERVIEW_OUTER = 32.0;
 static constexpr double OVERVIEW_INNER = 12.0;
 
+/* Returns the window's layout-space bounding box (including borders/titlebar).
+ * For tiled windows this is cur_x/y/w/h; for floating windows that haven't
+ * gone through tl_set_geometry yet, it falls back to the scene node position
+ * plus the committed XDG geometry. Returns false if the window has no size. */
+static bool
+tl_layout_box(const nnwm_toplevel *tl, int bw, int th, wlr_box *out)
+{
+    if (tl->cur_w > 0 && tl->cur_h > 0) {
+        *out = {tl->cur_x, tl->cur_y, tl->cur_w, tl->cur_h};
+        return true;
+    }
+    if (!tl->floating) return false;
+    int nx, ny;
+    if (!wlr_scene_node_coords(
+            const_cast<wlr_scene_node *>(&tl->scene_tree->node), &nx, &ny))
+        return false;
+    const wlr_box *geo = &tl->xdg_toplevel->base->geometry;
+    if (geo->width <= 0 || geo->height <= 0) return false;
+    *out = {nx, ny, geo->width + 2 * bw, geo->height + 2 * bw + th};
+    return true;
+}
+
 struct ov_surf_data {
     wlr_render_pass *pass;
     const pixman_region32_t *clip;
@@ -1291,16 +1313,18 @@ render_overview(nnwm_server *server, nnwm_output *out)
                 if (tl->output != out) continue;
                 if (tl->workspace != ws && !tl->sticky) continue;
                 if (tl->in_scratchpad) continue;
-                if (tl->cur_w <= 0 || tl->cur_h <= 0) continue;
 
                 bool tabbed_tiled = !tl->floating
                     && tl->output->layout_mode[tl->workspace]
                            == nnwm_layout_mode::TABBED;
                 int eff_th = (tabbed_tiled || th <= 0) ? 0 : th;
 
+                wlr_box lb;
+                if (!tl_layout_box(tl, bw, eff_th, &lb)) continue;
+
                 /* XDG surface origin in layout space */
-                int surf_lx = tl->cur_x + bw;
-                int surf_ly = tl->cur_y + bw + eff_th;
+                int surf_lx = lb.x + bw;
+                int surf_ly = lb.y + bw + eff_th;
 
                 /* Map to buffer pixels via overview slot origin */
                 int orig_x = (int)((sx + cx_off + (surf_lx - ua.x) * s) * dpi);
@@ -1370,13 +1394,18 @@ render_overview(nnwm_server *server, nnwm_output *out)
                 if (tl->output != out) continue;
                 if (tl->workspace != ws && !tl->sticky) continue;
                 if (tl->in_scratchpad) continue;
-                if (tl->cur_w <= 0 || tl->cur_h <= 0) continue;
+                bool tabbed_tiled_fb = !tl->floating
+                    && tl->output->layout_mode[tl->workspace]
+                           == nnwm_layout_mode::TABBED;
+                int eff_th_fb = (tabbed_tiled_fb || th <= 0) ? 0 : th;
+                wlr_box lb;
+                if (!tl_layout_box(tl, bw, eff_th_fb, &lb)) continue;
                 any = true;
                 bool focused = (tl == out->last_focused[ws]);
-                double wx = sx + cx_off + (tl->cur_x - ua.x) * s;
-                double wy = sy + cy_off + (tl->cur_y - ua.y) * s;
-                double ww = tl->cur_w * s;
-                double wh = tl->cur_h * s;
+                double wx = sx + cx_off + (lb.x - ua.x) * s;
+                double wy = sy + cy_off + (lb.y - ua.y) * s;
+                double ww = lb.width * s;
+                double wh = lb.height * s;
                 if (focused)
                     cairo_set_source_rgba(cr, 0.28, 0.48, 0.82, 0.90);
                 else
@@ -1412,7 +1441,12 @@ render_overview(nnwm_server *server, nnwm_output *out)
                 if (tl->output != out) continue;
                 if (tl->workspace != ws && !tl->sticky) continue;
                 if (tl->in_scratchpad) continue;
-                if (tl->cur_w > 0 && tl->cur_h > 0) { any = true; break; }
+                bool tabbed_tiled_ck = !tl->floating
+                    && tl->output->layout_mode[tl->workspace]
+                           == nnwm_layout_mode::TABBED;
+                int eff_th_ck = (tabbed_tiled_ck || th <= 0) ? 0 : th;
+                wlr_box lb;
+                if (tl_layout_box(tl, bw, eff_th_ck, &lb)) { any = true; break; }
             }
         }
 
