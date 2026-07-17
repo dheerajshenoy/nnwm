@@ -277,6 +277,8 @@ main(int argc, char *argv[])
      * https://drewdevault.com/2018/07/29/Wayland-shells.html.
      */
     wl_list_init(&server.toplevels);
+    wl_list_init(&server.hooks);
+    wl_list_init(&server.timers);
 #ifdef HAVE_SCENEFX
     wl_list_init(&server.dying_toplevels);
 #endif
@@ -539,7 +541,16 @@ main(int argc, char *argv[])
      * frame events at the refresh rate, and so on. */
     wlr_log(WLR_INFO, "Running Wayland compositor on WAYLAND_DISPLAY=%s",
             socket);
+    /* Fire "startup" hook in the first event-loop tick so timers registered
+     * inside the callback arm correctly. */
+    wl_event_loop_add_idle(loop, [](void *data) {
+        fire_hook_plain(static_cast<nnwm_server *>(data), "startup");
+    }, &server);
     wl_display_run(server.wl_display);
+
+    /* Fire "shutdown" before clients are destroyed so the hook can still
+     * interact with running windows. */
+    fire_hook_plain(&server, "shutdown");
 
     /* Once wl_display_run returns, we destroy all clients then shut down the
      * server. */

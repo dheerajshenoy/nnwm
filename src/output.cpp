@@ -535,4 +535,5 @@ server_new_output(wl_listener *listener, void *data)
                                        scene_output);
 
     output_manager_build_config(server);
+    fire_hook_output(server, "output_connect", output);
 }

@@ -1995,6 +1995,7 @@ focus_toplevel(nnwm_toplevel *toplevel)
                             ny + geo.y + geo.height / 2.0);
         }
     }
+    fire_hook_window(server, "window_focus", toplevel);
 }
 
 void

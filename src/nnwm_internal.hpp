@@ -111,6 +111,16 @@ void handle_xdg_popup_destroy(struct wl_listener *listener, void *data);
 void apply_window_rules(struct nnwm_server *server,
                         struct nnwm_toplevel *toplevel);
 
+/* ---- Event hooks ---- */
+void fire_hook_plain(struct nnwm_server *server, const char *event);
+void fire_hook_window(struct nnwm_server *server, const char *event,
+                      struct nnwm_toplevel *tl);
+void fire_hook_workspace(struct nnwm_server *server, const char *event,
+                         struct nnwm_output *out);
+void fire_hook_output(struct nnwm_server *server, const char *event,
+                      struct nnwm_output *out);
+int  nnwm_timer_cb(void *data);
+
 /* ---- Animation ---- */
 void tl_set_geometry(struct nnwm_toplevel *tl, int x, int y, int w, int h, int bw);
 #ifdef HAVE_SCENEFX

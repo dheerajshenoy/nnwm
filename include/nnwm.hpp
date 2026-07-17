@@ -320,6 +320,26 @@ struct nnwm_server
     struct nnwm_lua_gesture *lua_gestures;
     int lua_gesture_count;
     int lua_gesture_cap;
+
+    struct wl_list hooks;  /* nnwm_hook::link  — event → lua callback */
+    struct wl_list timers; /* nnwm_timer::link — wl_event_source timers */
+};
+
+struct nnwm_hook
+{
+    struct wl_list link;
+    char *event;   /* owned copy of event name */
+    int func_ref;  /* luaL_ref reference */
+};
+
+struct nnwm_timer
+{
+    struct wl_list link;
+    struct nnwm_server *server;
+    struct wl_event_source *source;
+    int func_ref;
+    int interval_ms; /* 0 → one-shot */
+    bool dead;
 };
 
 struct nnwm_output

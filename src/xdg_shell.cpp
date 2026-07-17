@@ -146,6 +146,7 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
 
     focus_toplevel(toplevel);
     arrange_windows(server, out);
+    fire_hook_window(server, "window_open", toplevel);
 }
 
 void
@@ -154,6 +155,7 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
     nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, unmap);
 
     nnwm_server *server = toplevel->server;
+    fire_hook_window(server, "window_close", toplevel);
 
     /* Start close animation before removing from active list */
 #ifdef HAVE_SCENEFX

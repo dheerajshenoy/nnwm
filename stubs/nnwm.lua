@@ -147,6 +147,38 @@ MOD = {}
 ---@field opt nnwm_opts
 
 --- Monitor configuration (array of tables). First match wins.
+---@class nnwm.Window
+---@field title         string   Window title (empty string if unset)
+---@field app_id        string   Application ID (empty string if unset)
+---@field floating      boolean  True if the window is floating
+---@field fullscreen    boolean  True if the window is fullscreen
+---@field fake_fullscreen boolean True if the window is fake-fullscreen
+---@field maximized     boolean  True if the window is maximized
+---@field sticky        boolean  True if the window is sticky
+---@field workspace     integer  Workspace index (1–9)
+---@field x             integer  Scene X position in pixels
+---@field y             integer  Scene Y position in pixels
+---@field width         integer  Current width in pixels
+---@field height        integer  Current height in pixels
+---@field output        string?  Name of the output the window is on (e.g. `"DP-1"`), or nil
+
+---@class nnwm.Workspace
+---@field index         integer  Workspace index (1–9)
+---@field layout        "htile"|"vtile"|"tabbed"|"hscroll"|"vscroll"|"unknown"  Active layout
+---@field master_ratio  number   Current master ratio for this workspace
+---@field window_count  integer  Number of tiled windows on this workspace
+---@field output        string   Name of the output this workspace belongs to
+
+---@class nnwm.Output
+---@field name              string   Connector name (e.g. `"DP-1"`)
+---@field description       string   EDID description string
+---@field width             integer  Width in pixels
+---@field height            integer  Height in pixels
+---@field scale             number   Output scale factor
+---@field x                 integer  X position in the output layout
+---@field y                 integer  Y position in the output layout
+---@field active_workspace  integer  Active workspace index (1–9)
+
 ---@class nnwm_window_rule_match
 ---@field app_id string? fnmatch glob matched against the window's app_id (e.g. `"firefox"`, `"foot*"`)
 ---@field title  string? fnmatch glob matched against the window title
@@ -223,12 +255,92 @@ function nnwm.gesture(fingers, direction, callback) end
 ---@param action nnwm_window_rule_action
 function nnwm.rule(match, action) end
 
+---@class nnwm_monitor_config
+---@field name?        string   Connector name, e.g. `"eDP-1"`, `"DP-1"`, `"HDMI-A-1"`
+---@field description? string   EDID description substring to match
+---@field width?       integer  Mode width in pixels
+---@field height?      integer  Mode height in pixels
+---@field refresh?     integer  Refresh rate in Hz (0 = preferred)
+---@field x?           integer  Layout X position (unset = auto-arrange)
+---@field y?           integer  Layout Y position (unset = auto-arrange)
+---@field scale?       number   Output scale factor (e.g. `1.25` for HiDPI)
+---@field transform?   string   Rotation: `"none"`, `"90"`, `"180"`, `"270"`, `"flipped"`, `"flipped-90"`, `"flipped-180"`, `"flipped-270"`
+---@field hdr?         boolean  Enable HDR (wlroots 0.20+)
+---@field disabled?    boolean  Disable this output entirely
+---@field struts?      { top?: integer, bottom?: integer, left?: integer, right?: integer }
+
+--- Configure a monitor. Call once per output that needs non-default settings.
+--- The first matching rule wins; unmatched outputs use their preferred mode.
+---
+--- Match by `name` (connector name) or `description` (EDID substring). To find
+--- the exact values, run nnwm once and check the log:
+--- ```
+--- WLR_LOG_LEVEL=info nnwm 2>/tmp/nnwm.log
+--- grep "new output" /tmp/nnwm.log
+--- ```
+---
+--- ```lua
+--- nnwm.monitor({ name = "eDP-1", x = 0, y = 0, width = 1920, height = 1200, scale = 1.25 })
+--- nnwm.monitor({ description = "HP Inc. HP P24h G5 3CM5031JJC", x = 1536, y = 0, width = 1920, height = 1080 })
+--- nnwm.monitor({ name = "DP-2", disabled = true })
+--- ```
+---@param config nnwm_monitor_config
+function nnwm.monitor(config) end
+
 --- Terminate the compositor.
 function nnwm.quit() end
 
 --- Return the hostname of the machine.
 ---@return string
 function nnwm.host_name() end
+
+--- Return a snapshot of the currently focused window, or `nil` if no window is focused.
+---@return nnwm.Window?
+function nnwm.current_window() end
+
+--- Return a snapshot of the focused output's active workspace, or `nil` if no output is focused.
+---@return nnwm.Workspace?
+function nnwm.current_workspace() end
+
+--- Return a snapshot of the currently focused output, or `nil` if no output is focused.
+---@return nnwm.Output?
+function nnwm.current_output() end
+
+---@alias nnwm.EventName
+---| "startup"          # Fired once on the first event-loop tick. No argument.
+---| "shutdown"         # Fired when the compositor is about to exit. No argument.
+---| "window_focus"     # Fired when a window gains keyboard focus. Callback receives `nnwm.Window`.
+---| "window_open"      # Fired when a window is mapped (appears on screen). Callback receives `nnwm.Window`.
+---| "window_close"     # Fired when a window is unmapped (closes). Callback receives `nnwm.Window`.
+---| "workspace_switch" # Fired when the active workspace changes. Callback receives `nnwm.Workspace`.
+---| "output_connect"   # Fired when a new output (monitor) is connected. Callback receives `nnwm.Output`.
+
+--- Register a callback for a compositor event.
+---
+--- Multiple callbacks may be registered for the same event.
+--- The callback is called with a snapshot table matching the event type.
+---
+---```lua
+---nnwm.on("window_focus", function(win)
+---    print("focused:", win.title)
+---end)
+---nnwm.on("workspace_switch", function(ws)
+---    print("workspace", ws.index)
+---end)
+---```
+---@param event   nnwm.EventName  Name of the event to listen for
+---@param callback fun(data: nnwm.Window|nnwm.Workspace|nnwm.Output)
+function nnwm.on(event, callback) end
+
+--- Run `callback` once after `ms` milliseconds.
+---@param ms       integer  Delay in milliseconds
+---@param callback fun()    Function to call
+function nnwm.timer(ms, callback) end
+
+--- Run `callback` every `ms` milliseconds, repeating indefinitely.
+---@param ms       integer  Interval in milliseconds
+---@param callback fun()    Function to call
+function nnwm.interval(ms, callback) end
 
 --- Close the focused window.
 function nnwm.close() end
