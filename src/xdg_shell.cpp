@@ -411,8 +411,12 @@ void
 xdg_toplevel_request_move(wl_listener *listener, void * /*data*/)
 {
     nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, request_move);
-    if (toplevel->floating)
-        begin_interactive(toplevel, nnwm_cursor_mode::MOVE, 0);
+    if (!toplevel->floating)
+    {
+        toplevel->floating = true;
+        arrange_windows(toplevel->server, toplevel->output);
+    }
+    begin_interactive(toplevel, nnwm_cursor_mode::MOVE, 0);
 }
 
 void
@@ -420,11 +424,13 @@ xdg_toplevel_request_resize(wl_listener *listener, void *data)
 {
     nnwm_toplevel *toplevel
         = wl_container_of(listener, toplevel, request_resize);
-    if (toplevel->floating)
+    if (!toplevel->floating)
     {
-        auto *event = static_cast<wlr_xdg_toplevel_resize_event *>(data);
-        begin_interactive(toplevel, nnwm_cursor_mode::RESIZE, event->edges);
+        toplevel->floating = true;
+        arrange_windows(toplevel->server, toplevel->output);
     }
+    auto *event = static_cast<wlr_xdg_toplevel_resize_event *>(data);
+    begin_interactive(toplevel, nnwm_cursor_mode::RESIZE, event->edges);
 }
 
 void
