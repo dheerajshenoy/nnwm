@@ -5,6 +5,9 @@
 ### Features
 
 - Add animation to window fullscreen action
+- Add `smart` option to `tabbed` layout, which automatically hides the tab bar when
+  only one window is present. The tab bar reappears when a second window is added
+  to the workspace.
 
 ## 0.1.0
 
