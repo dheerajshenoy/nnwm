@@ -40,6 +40,8 @@ void
 mode_toggle(nnwm_server *server);
 void
 dir(nnwm_server *server, const char *direction); /* "left"|"right"|"up"|"down" */
+void
+move_dir(nnwm_server *server, const char *direction); /* "left"|"right"|"up"|"down" */
 } // namespace focus
 
 namespace swap

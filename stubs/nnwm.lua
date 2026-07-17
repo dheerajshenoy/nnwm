@@ -403,6 +403,24 @@ function nnwm.focus_mode_toggle() end
 ---@param direction nnwm.Direction
 function nnwm.focus_dir(direction) end
 
+--- Move the focused window in the given direction.
+--- On the same output: swaps the focused window with the nearest tiled window
+--- in that direction (by center-to-center distance).
+--- If no tiled window exists in that direction, moves the focused window to the
+--- nearest monitor in that direction and focuses it there.
+---
+--- Floating windows are ignored for same-output swapping; cross-monitor move
+--- works for all window types.
+---
+--- ```lua
+--- nnwm.key({"Super", "Shift", "h"}, function() nnwm.move_dir("left")  end)
+--- nnwm.key({"Super", "Shift", "l"}, function() nnwm.move_dir("right") end)
+--- nnwm.key({"Super", "Shift", "k"}, function() nnwm.move_dir("up")    end)
+--- nnwm.key({"Super", "Shift", "j"}, function() nnwm.move_dir("down")  end)
+--- ```
+---@param direction nnwm.Direction
+function nnwm.move_dir(direction) end
+
 --- Swap the focused window with the master window, preserving both positions.
 --- No-op if the focused window is already master.
 function nnwm.swap_master() end

@@ -64,6 +64,17 @@
   - `nnwm.current_output()` — returns an `nnwm.Output` snapshot for the focused
     output, or `nil`. Fields: `name`, `description`, `width`, `height`, `scale`,
     `x`, `y`, `active_workspace`.
+- **`nnwm.move_dir(direction)`**: move the focused window in a geometric direction.
+  On the same output, swaps the focused window with the nearest tiled window in
+  that direction (center-to-center, ties broken by perpendicular distance). If no
+  tiled window exists in that direction, moves the window to the nearest monitor
+  in that direction.
+  ```lua
+  nnwm.key({"Super", "Shift", "h"}, function() nnwm.move_dir("left")  end)
+  nnwm.key({"Super", "Shift", "l"}, function() nnwm.move_dir("right") end)
+  nnwm.key({"Super", "Shift", "k"}, function() nnwm.move_dir("up")    end)
+  nnwm.key({"Super", "Shift", "j"}, function() nnwm.move_dir("down")  end)
+  ```
 - **`nnwm.focus_dir(direction)`**: geometric directional focus that crosses
   monitor boundaries. `direction` is `"left"`, `"right"`, `"up"`, or `"down"`.
   The nearest window in the requested direction (by center-to-center distance on
