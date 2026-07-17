@@ -1099,6 +1099,12 @@ rerender_tab_bar(nnwm_server *server, nnwm_output *out)
     nnwm_config *cfg = server->config;
     int ws           = out->active_workspace;
     bool solo        = (ws_count(server, out) == 1);
+    if (solo && cfg->layout.tab_smart)
+    {
+        if (out->tab_bar)
+            wlr_scene_node_set_enabled(&out->tab_bar->node, false);
+        return;
+    }
     int og           = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
     int tab_sz       = cfg->layout.tab_bar_height > 0 ? cfg->layout.tab_bar_height : 24;
     const wlr_box &area = out->usable_area;
@@ -1300,9 +1306,11 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
     {
         int n        = ws_count(server, out);
         bool solo    = (n == 1);
+        bool hide_tabs = solo && cfg->layout.tab_smart;
         int bw       = (solo && cfg->border.smart) ? 0 : cfg->border.width;
         int og       = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
-        int tab_sz   = cfg->layout.tab_bar_height > 0 ? cfg->layout.tab_bar_height : 24;
+        int tab_sz   = hide_tabs ? 0
+                     : (cfg->layout.tab_bar_height > 0 ? cfg->layout.tab_bar_height : 24);
         nnwm_tab_position tab_pos = cfg->layout.tab_position;
 
         nnwm_toplevel *active = out->last_focused[ws];
@@ -1361,7 +1369,11 @@ arrange_windows(nnwm_server *server, nnwm_output *out)
             tl_set_geometry(tl, cx, cy, cw, ch, bw);
         }
 
-        if (n > 0)
+        if (hide_tabs && out->tab_bar)
+        {
+            wlr_scene_node_set_enabled(&out->tab_bar->node, false);
+        }
+        else if (n > 0)
         {
             render_tab_bar(server, out, tbw, tbh);
             wlr_scene_node_set_position(&out->tab_bar->node, tbx, tby);

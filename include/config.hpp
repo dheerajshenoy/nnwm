@@ -131,6 +131,7 @@ struct nnwm_config
         nnwm_tab_style tab_style;       /* tabbed layout: normal or minimal */
         nnwm_tab_position tab_position; /* tabbed layout: tab bar placement */
         int tab_bar_height;             /* tabbed layout: bar thickness in pixels */
+        bool tab_smart;                 /* tabbed layout: hide tab bar when only one window */
     } layout;
 
     /* Gaps */

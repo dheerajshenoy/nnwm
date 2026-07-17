@@ -1427,6 +1427,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     }
     lua_pushinteger(L, cfg->layout.tab_bar_height);
     lua_setfield(L, -2, "height");
+    lua_pushboolean(L, cfg->layout.tab_smart);
+    lua_setfield(L, -2, "smart");
     lua_setfield(L, -2, "tabbed");
     lua_setfield(L, -2, "layout");
 
@@ -1860,6 +1862,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
 
             cfg->layout.tab_bar_height
                 = get_int_field(L, "height", cfg->layout.tab_bar_height);
+            cfg->layout.tab_smart
+                = get_bool_field(L, "smart", cfg->layout.tab_smart);
         }
         lua_pop(L, 1);
     }
@@ -2601,6 +2605,7 @@ nnwm::config_defaults(void)
     cfg->layout.tab_style             = nnwm_tab_style::NORMAL;
     cfg->layout.tab_position          = nnwm_tab_position::TOP;
     cfg->layout.tab_bar_height        = 24;
+    cfg->layout.tab_smart             = false;
 
 #ifdef HAVE_SCENEFX
     cfg->fx.animation.enabled            = true;

@@ -19,6 +19,7 @@ MOD = {}
 ---@field height?       integer                       Tab bar thickness in pixels (default: 24)
 ---@field tab_style?    "normal"|"minimal"            Tab bar style: `"normal"` renders titles, `"minimal"` renders only colored strips (default: "normal")
 ---@field tab_position? "top"|"bottom"|"left"|"right" Tab bar edge in tabbed layout (default: "top")
+---@field smart?        boolean                       Hide the tab bar when only one tiled window is present (default: false)
 
 ---@class nnwm.layout
 ---@field new_window_master?   boolean            When true new windows become master; when false they append to the stack (default: true)
