@@ -14,13 +14,16 @@ P.S : MangoWM is awesome, and I love it, but I want to have my own compositor wi
 
 ## Features
 
-- Master-stack, tabbed, and scrolling layouts
+- Master-stack, tabbed, and scrolling layouts with per-workspace master ratio
 - 9 independent workspaces per monitor
 - Multi-monitor support with per-output layout and per-output struts
 - Floating, fullscreen, fake-fullscreen, maximized, and sticky windows
 - Window rules (`nnwm.rule`) — match by app_id/title, set workspace, opacity, effects, and more
 - Lua configuration with hot-reload
 - Keybindings as Lua callbacks with key repeat
+- Event hooks (`nnwm.on`) — react to window focus/open/close, workspace switches, monitor connect, startup, and shutdown
+- Timers (`nnwm.timer`, `nnwm.interval`) — schedule callbacks from the compositor event loop
+- Introspection API (`nnwm.current_window/workspace/output`) — query live compositor state from Lua
 - Server-side titlebars and configurable borders (HiDPI-aware)
 - Inner/outer gaps with smart gaps
 - Layer shell (panels, wallpapers, overlays)
@@ -100,15 +103,14 @@ nnwm.opt = {
         hide_cursor_when_typing = true,
     },
 
-    monitors = {
-        { name = "eDP-1", x = 0, y = 0, width = 1920, height = 1200, scale = 1.25 },
-        {
-            description = "HP Inc. HP P24h G5 3CM5031JJC",
-            x = 1536, y = 0, width = 1920, height = 1080,
-            struts = { top = 32 },   -- reserve space for a panel
-        },
-    },
 }
+
+nnwm.monitor({ name = "eDP-1", x = 0, y = 0, width = 1920, height = 1200, scale = 1.25 })
+nnwm.monitor({
+    description = "HP Inc. HP P24h G5 3CM5031JJC",
+    x = 1536, y = 0, width = 1920, height = 1080,
+    struts = { top = 32 },   -- reserve space for a panel
+})
 
 nnwm.key({ "Super", "Return" }, function() nnwm.spawn("kitty") end)
 nnwm.key({ "Super", "q" },      function() nnwm.close() end)
@@ -141,9 +143,21 @@ nnwm.opt.layout = {
 }
 ```
 
-### Monitor matching
+### Monitor configuration
 
-Monitors are matched by `name` (connector name, e.g. `"eDP-1"`, `"DP-1"`) or `description` (combined `"make model serial"` string — serial is `"Unknown"` when absent). To find the exact values for your outputs, run nnwm once and check the log:
+Call `nnwm.monitor({ ... })` once per output that needs non-default settings. Rules are matched in call order; the first match wins. Unmatched outputs use their preferred mode and auto-layout.
+
+```lua
+nnwm.monitor({ name = "eDP-1", x = 0, y = 0, width = 1920, height = 1200, scale = 1.25 })
+nnwm.monitor({
+    description = "HP Inc. HP P24h G5 3CM5031JJC",
+    x = 1536, y = 0, width = 1920, height = 1080,
+    struts = { top = 32 },   -- reserve space for a panel
+})
+nnwm.monitor({ name = "HDMI-A-2", disabled = true })
+```
+
+Match by `name` (connector name, e.g. `"eDP-1"`) or `description` (EDID substring). To find the exact values for your outputs, run nnwm once and check the log:
 
 ```sh
 WLR_LOG_LEVEL=info nnwm 2>/tmp/nnwm.log
@@ -206,6 +220,43 @@ Available actions:
 | `anim_open` | string | Open animation style (sceneFX) |
 | `anim_close` | string | Close animation style (sceneFX) |
 | `no_anim` | boolean | Disable animations for this window (sceneFX) |
+
+### Event hooks
+
+React to compositor events with Lua callbacks:
+
+```lua
+-- Fire once the compositor is ready
+nnwm.on("startup", function()
+    nnwm.spawn_once("dunst")
+end)
+
+-- Print the title of every newly focused window
+nnwm.on("window_focus", function(win)
+    print("focused:", win.title, "workspace:", win.workspace)
+end)
+
+-- Notify on workspace switch
+nnwm.on("workspace_switch", function(ws)
+    nnwm.spawn("notify-send 'Workspace " .. ws.index .. "'")
+end)
+```
+
+Available events: `startup`, `shutdown`, `window_focus`, `window_open`, `window_close`, `workspace_switch`, `output_connect`. See [LUA_WIKI.md](LUA_WIKI.md) for full documentation.
+
+### Timers
+
+```lua
+-- One-shot: notify 500 ms after startup
+nnwm.timer(500, function()
+    nnwm.spawn("notify-send 'nnwm is running'")
+end)
+
+-- Repeating: rotate wallpaper every 10 minutes
+nnwm.interval(600000, function()
+    nnwm.spawn("swaybg -i $(shuf -n1 ~/wallpapers)")
+end)
+```
 
 ## sceneFX (Optional, Experimental)
 
