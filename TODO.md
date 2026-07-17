@@ -21,7 +21,8 @@
 - [x] Tiling window management
 - [x] Active window border
 - Layouts
-    - [x] Master Stack
+    - [x] Master Stack (htile)
+    - [x] Vertical master stack (vtile)
     - [x] Sway-like tabbed layout
     - [x] Horizontal scrolling
     - [x] Vertical scrolling
@@ -80,6 +81,7 @@
 - [x] Don't show titlebar in tabbed layout mode (if activated)
 - [x] Don't show titlebar in fullscreen mode
 - [x] Popup menu appears outside viewport
+- [x] Popup submenu appears at wrong position (left edge of monitor)
 - [X] Remove corner radius for fullscreen windows
 - lua helper functions
     - [x] device_name
@@ -90,6 +92,7 @@
     - [x] fade
     - [x] linear
     - [x] bounce
+- [x] Maximize window (`nnwm.toggle_maximize()`)
 - [x] Focused and unfocused opacity
 - [x] Smart corner radius
 - [x] Urgent windows
