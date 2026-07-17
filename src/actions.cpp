@@ -646,6 +646,7 @@ ov_switch_ws(nnwm_server *server, nnwm_output *out, int ws)
         wlr_scene_node_set_enabled(
             &t->scene_tree->node,
             t->sticky || (t->output && t->output->active_workspace == t->workspace));
+    nnwm::ext_workspace_notify(server);
 }
 
 void
