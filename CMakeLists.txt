@@ -202,6 +202,12 @@ if(USE_SCENEFX)
     target_compile_definitions(nnwm PRIVATE HAVE_SCENEFX)
     target_link_libraries(nnwm PRIVATE scenefx)
     add_dependencies(nnwm scenefx_ext)
+    # Build RPATH: find the .so in the build tree when running without installing.
+    # Install RPATH: find it in the system libdir after cmake --install.
+    set_target_properties(nnwm PROPERTIES
+        BUILD_RPATH   "${SCENEFX_LIBDIR}"
+        INSTALL_RPATH "${CMAKE_INSTALL_FULL_LIBDIR}"
+    )
 endif()
 
 target_link_libraries(nnwm PRIVATE
@@ -227,3 +233,6 @@ include(GNUInstallDirs)
 
 install(TARGETS nnwm RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES nnwm.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/wayland-sessions)
+if(USE_SCENEFX)
+    install(FILES "${SCENEFX_LIB}" DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endif()
