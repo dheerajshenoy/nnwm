@@ -1,9 +1,81 @@
 # nnwm CHANGELOG
 
-## 0.1
+## 0.1.0
 
 ### Features
 
+- **Event hooks** (`nnwm.on`): register Lua callbacks for compositor events. All
+  callbacks fire with a snapshot table matching the event type. Multiple callbacks
+  can be registered for the same event; all are called in registration order.
+  Supported events:
+  - `"startup"` — fires once on the first event-loop tick, after autostart
+    commands and `WAYLAND_DISPLAY` are set. No argument. Timers started inside
+    the callback arm correctly because the event loop is already running.
+  - `"shutdown"` — fires when the compositor is about to exit, before clients
+    are destroyed. No argument.
+  - `"window_focus"` — fires when a window receives keyboard focus. Receives an
+    `nnwm.Window` snapshot table.
+  - `"window_open"` — fires when a window is mapped (first appears on screen).
+    Receives an `nnwm.Window` snapshot table.
+  - `"window_close"` — fires when a window unmaps (closes). Receives an
+    `nnwm.Window` snapshot table.
+  - `"workspace_switch"` — fires when the active workspace changes on any output.
+    Receives an `nnwm.Workspace` snapshot table.
+  - `"output_connect"` — fires when a new monitor is connected. Receives an
+    `nnwm.Output` snapshot table.
+  ```lua
+  nnwm.on("window_focus", function(win)
+      print("focused:", win.title, win.app_id)
+  end)
+  nnwm.on("workspace_switch", function(ws)
+      print("workspace", ws.index, "on", ws.output)
+  end)
+  nnwm.on("startup", function()
+      nnwm.spawn_once("waybar")
+  end)
+  ```
+- **Timers** (`nnwm.timer`, `nnwm.interval`): schedule Lua callbacks from the
+  Wayland event loop, avoiding external polling or shell scripts.
+  - `nnwm.timer(ms, fn)` — run `fn` once after `ms` milliseconds.
+  - `nnwm.interval(ms, fn)` — run `fn` every `ms` milliseconds, repeating
+    indefinitely until the compositor exits.
+  ```lua
+  nnwm.interval(30000, function()
+      nnwm.spawn("~/.local/bin/update-wallpaper.sh")
+  end)
+  nnwm.timer(500, function()
+      nnwm.spawn("notify-send 'nnwm started'")
+  end)
+  ```
+- **Introspection API**: query the current compositor state from Lua.
+  - `nnwm.current_window()` — returns an `nnwm.Window` snapshot for the focused
+    window, or `nil` if no window is focused. Fields: `title`, `app_id`,
+    `floating`, `fullscreen`, `fake_fullscreen`, `maximized`, `sticky`,
+    `workspace`, `x`, `y`, `width`, `height`, `output`.
+  - `nnwm.current_workspace()` — returns an `nnwm.Workspace` snapshot for the
+    active workspace on the focused output, or `nil`. Fields: `index`, `layout`,
+    `master_ratio`, `window_count`, `output`.
+  - `nnwm.current_output()` — returns an `nnwm.Output` snapshot for the focused
+    output, or `nil`. Fields: `name`, `description`, `width`, `height`, `scale`,
+    `x`, `y`, `active_workspace`.
+- **`nnwm.monitor()` API**: monitor configuration is now done with individual
+  `nnwm.monitor({ ... })` function calls instead of the `nnwm.opt.monitors`
+  array. Each call registers one output rule in declaration order; the first
+  matching rule wins. This makes multi-monitor configs more readable and
+  composable, and allows conditional logic between monitor declarations:
+  ```lua
+  nnwm.monitor({ name = "eDP-1", x = 0, y = 0, width = 1920, height = 1200, scale = 1.25 })
+  nnwm.monitor({ description = "HP Inc. HP P24h G5 3CM5031JJC", x = 1536, y = 0, width = 1920, height = 1080 })
+  nnwm.monitor({ name = "HDMI-A-2", disabled = true })
+  ```
+  **Breaking change**: `nnwm.opt.monitors` is no longer read. Configs must be
+  migrated to use `nnwm.monitor()` calls.
+
+- **Per-workspace master ratio**: the master split ratio is now tracked per
+  workspace per output rather than globally. Each workspace starts at
+  `nnwm.opt.layout.master_ratio`. `nnwm.master_ratio_grow()` and
+  `nnwm.master_ratio_shrink()` adjust only the focused output's active workspace.
+  `nnwm.current_workspace().master_ratio` reflects the per-workspace value.
 - **Tabbed layout variants**: Two new configuration options control the
   appearance and position of the tab bar in tabbed layout. `tab_style` (`"normal"`
   or `"minimal"`) determines whether window titles are rendered in the tabs —
