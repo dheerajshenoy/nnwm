@@ -456,6 +456,20 @@ function nnwm.move_to_workspace(n) end
 --- active workspace's layout; if floating it stays above all workspaces.
 function nnwm.toggle_sticky() end
 
+--- Toggle overview mode on the focused output.
+--- Overview mode zooms out and shows all workspaces in a 3×3 grid.
+--- Each workspace slot renders the tiled windows to scale as colored
+--- rectangles with their titles. The active workspace is highlighted.
+--- Clicking a slot switches to that workspace and exits overview.
+--- Clicking outside any slot or pressing the toggle key again exits overview
+--- without switching workspaces.
+--- While in overview mode keyboard input is not forwarded to clients.
+---
+--- ```lua
+--- nnwm.key({"Super"}, "w", function() nnwm.toggle_overview() end)
+--- ```
+function nnwm.toggle_overview() end
+
 --- Move the focused window into the scratchpad.
 --- The scratchpad is a global overlay workspace that can hold multiple windows
 --- and supports tiling layouts. The window is removed from its current

@@ -127,6 +127,19 @@
     - [x] Natural scrolling
     - [x] Disabled while typing
     - [x] Hide cursor when typing
+- [x] nnwm.current_window() returning nil when no window is focused, else return nnwm.Window object
+- [x] nnwm.current_monitor() returning nil when no monitor is focused else return nnwm.Monitor object
+- [x] nnwm.current_workspace() returning nil when no workspace is focused else return nnwm.Workspace object
+- Lua config
+    - Hooks
+        - Window
+            - [x] New
+            - [x] Close
+            - [x] Focus change
+            - [x] Fullscreen
+            - [x] Workspace change
+        - [x] Startup
+        - [x] Shutdown
 
 ## TODO
 
@@ -142,16 +155,6 @@
     - [ ] On monitor disconnect
 - Keyboard
     - [ ] file to load xkb options from
-- Lua config
-    - Hooks
-        - Window
-            - [x] New
-            - [x] Close
-            - [x] Focus change
-            - [x] Fullscreen
-            - [x] Workspace change
-        - [ ] Startup
-        - [ ] Shutdown
 - Layouts
     - [ ] Dwindle
     - [ ] Sway like h/v choosable layout
@@ -177,6 +180,4 @@
     - [ ] animation
     - [ ] border
 - [ ] Fix warp-to-focus being annoying
-- [x] nnwm.current_window() returning nil when no window is focused, else return nnwm.Window object
-- [x] nnwm.current_monitor() returning nil when no monitor is focused else return nnwm.Monitor object
-- [x] nnwm.current_workspace() returning nil when no workspace is focused else return nnwm.Workspace object
+- [ ] Customizable workspace names

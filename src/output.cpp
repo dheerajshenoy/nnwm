@@ -94,6 +94,8 @@ output_destroy(wl_listener *listener, void * /*data*/)
         wlr_scene_node_destroy(&output->tab_bar->node);
     if (output->error_bar)
         wlr_scene_node_destroy(&output->error_bar->node);
+    if (output->overview_buf)
+        wlr_scene_node_destroy(&output->overview_buf->node);
     delete output;
 
     output_manager_build_config(server);
@@ -506,6 +508,10 @@ server_new_output(wl_listener *listener, void *data)
     output->error_bar = wlr_scene_buffer_create(
         server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY], nullptr);
     wlr_scene_node_set_enabled(&output->error_bar->node, false);
+    output->overview_buf = wlr_scene_buffer_create(
+        server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY], nullptr);
+    wlr_scene_node_set_enabled(&output->overview_buf->node, false);
+    output->overview = false;
     if (!server->focused_output)
         server->focused_output = output;
 

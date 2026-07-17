@@ -1320,6 +1320,26 @@ handle_keybinding(nnwm_server *server, uint32_t modifiers, xkb_keysym_t sym)
 #undef MODS_MASK
 }
 
+/* ---- Overview ---- */
+
+void
+nnwm::toggle_overview(nnwm_server *server)
+{
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+
+    out->overview = !out->overview;
+    if (out->overview)
+    {
+        render_overview(server, out);
+        wlr_seat_keyboard_clear_focus(server->seat);
+    }
+    else
+    {
+        exit_overview(server, out);
+    }
+}
+
 /* ---- Keyboard event handling ---- */
 
 void

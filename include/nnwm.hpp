@@ -355,6 +355,8 @@ struct nnwm_output
                                                pixels for HSCROLL/VSCROLL */
     struct wlr_scene_buffer *tab_bar;
     struct wlr_scene_buffer *error_bar;
+    struct wlr_scene_buffer *overview_buf;
+    bool overview;
     struct nnwm_toplevel *last_focused[NNWM_NUM_WORKSPACES];
     struct nnwm_toplevel
         *prev_focused[NNWM_NUM_WORKSPACES]; /* focused before last_focused */

@@ -14,6 +14,8 @@ quit(nnwm_server *server);
 void
 close(nnwm_server *server);
 void
+toggle_overview(nnwm_server *server);
+void
 spawn(nnwm_server *server, const char *cmd);
 void
 spawn_once(nnwm_server *server, const char *cmd);

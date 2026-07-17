@@ -1143,6 +1143,189 @@ rerender_tab_bar(nnwm_server *server, nnwm_output *out)
         wlr_scene_node_set_position(&out->tab_bar->node, tbx, tby);
 }
 
+/* ---- Overview ---- */
+
+static constexpr int OVERVIEW_COLS  = 3;
+static constexpr int OVERVIEW_ROWS  = (NNWM_NUM_WORKSPACES + OVERVIEW_COLS - 1) / OVERVIEW_COLS;
+static constexpr double OVERVIEW_OUTER = 32.0;
+static constexpr double OVERVIEW_INNER = 12.0;
+
+void
+render_overview(nnwm_server *server, nnwm_output *out)
+{
+    if (!out->overview_buf) return;
+
+    wlr_box out_box;
+    wlr_output_layout_get_box(server->output_layout, out->wlr_output, &out_box);
+    int W = out_box.width;
+    int H = out_box.height;
+    if (W <= 0 || H <= 0) return;
+
+    double dpi  = out->wlr_output->scale;
+    int buf_w   = (int)(W * dpi);
+    int buf_h   = (int)(H * dpi);
+
+    nnwm_tbuf *tb = tbuf_create(buf_w, buf_h);
+    cairo_surface_t *surf = cairo_image_surface_create_for_data(
+        tb->data, CAIRO_FORMAT_ARGB32, buf_w, buf_h, tb->stride);
+    cairo_t *cr = cairo_create(surf);
+    cairo_scale(cr, dpi, dpi);
+
+    /* Full-output dark overlay */
+    cairo_set_source_rgba(cr, 0.07, 0.07, 0.10, 0.93);
+    cairo_paint(cr);
+
+    double slot_w = (W - 2.0 * OVERVIEW_OUTER - (OVERVIEW_COLS - 1) * OVERVIEW_INNER) / OVERVIEW_COLS;
+    double slot_h = (H - 2.0 * OVERVIEW_OUTER - (OVERVIEW_ROWS - 1) * OVERVIEW_INNER) / OVERVIEW_ROWS;
+
+    const wlr_box &ua = out->usable_area;
+    double ua_w = ua.width  > 0 ? (double)ua.width  : (double)W;
+    double ua_h = ua.height > 0 ? (double)ua.height : (double)H;
+    double s    = std::min(slot_w / ua_w, slot_h / ua_h);
+
+    /* Center window content within each slot */
+    double cx_off = (slot_w - ua_w * s) / 2.0;
+    double cy_off = (slot_h - ua_h * s) / 2.0;
+
+    for (int ws = 0; ws < NNWM_NUM_WORKSPACES; ws++)
+    {
+        int    col    = ws % OVERVIEW_COLS;
+        int    row    = ws / OVERVIEW_COLS;
+        double sx     = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
+        double sy     = OVERVIEW_OUTER + row * (slot_h + OVERVIEW_INNER);
+        bool   active = (ws == out->active_workspace);
+
+        /* Slot background */
+        if (active)
+            cairo_set_source_rgba(cr, 0.18, 0.22, 0.35, 1.0);
+        else
+            cairo_set_source_rgba(cr, 0.12, 0.12, 0.18, 1.0);
+        cairo_rectangle(cr, sx, sy, slot_w, slot_h);
+        cairo_fill(cr);
+
+        /* Slot border */
+        cairo_set_line_width(cr, active ? 2.0 : 1.0);
+        if (active)
+            cairo_set_source_rgba(cr, 0.45, 0.65, 1.0, 1.0);
+        else
+            cairo_set_source_rgba(cr, 0.28, 0.28, 0.40, 1.0);
+        cairo_rectangle(cr, sx + 0.5, sy + 0.5, slot_w - 1.0, slot_h - 1.0);
+        cairo_stroke(cr);
+
+        /* Window rectangles */
+        nnwm_toplevel *tl;
+        bool any = false;
+        wl_list_for_each(tl, &server->toplevels, link)
+        {
+            if (tl->output != out) continue;
+            if (tl->workspace != ws && !tl->sticky) continue;
+            if (tl->in_scratchpad) continue;
+            if (tl->cur_w <= 0 || tl->cur_h <= 0) continue;
+            any = true;
+
+            bool focused = (tl == out->last_focused[ws]);
+            double wx = sx + cx_off + (tl->cur_x - ua.x) * s;
+            double wy = sy + cy_off + (tl->cur_y - ua.y) * s;
+            double ww = tl->cur_w * s;
+            double wh = tl->cur_h * s;
+
+            /* Fill */
+            if (focused)
+                cairo_set_source_rgba(cr, 0.28, 0.48, 0.82, 0.90);
+            else
+                cairo_set_source_rgba(cr, 0.18, 0.22, 0.40, 0.85);
+            cairo_rectangle(cr, wx, wy, ww, wh);
+            cairo_fill(cr);
+
+            /* Outline */
+            cairo_set_line_width(cr, 1.0);
+            if (focused)
+                cairo_set_source_rgba(cr, 0.50, 0.70, 1.0, 0.9);
+            else
+                cairo_set_source_rgba(cr, 0.35, 0.38, 0.58, 0.8);
+            cairo_rectangle(cr, wx + 0.5, wy + 0.5, ww - 1.0, wh - 1.0);
+            cairo_stroke(cr);
+
+            /* Title */
+            if (ww > 18 && wh > 8)
+            {
+                const char *title = tl->xdg_toplevel->title;
+                if (title && title[0])
+                {
+                    double fs = std::max(6.0, std::min(wh * 0.32, 11.0));
+                    cairo_select_font_face(cr, "Sans",
+                        CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+                    cairo_set_font_size(cr, fs);
+                    cairo_text_extents_t te;
+                    cairo_text_extents(cr, title, &te);
+                    double tx = wx + (ww - te.width) / 2.0 - te.x_bearing;
+                    double ty = wy + (wh - te.height) / 2.0 - te.y_bearing;
+                    if (te.width > ww - 4.0)
+                        tx = wx + 2.0 - te.x_bearing;
+                    cairo_set_source_rgba(cr, 0.92, 0.92, 0.92, 0.9);
+                    cairo_move_to(cr, tx, ty);
+                    cairo_show_text(cr, title);
+                }
+            }
+        }
+
+        /* Workspace index label */
+        char label[4];
+        std::snprintf(label, sizeof(label), "%d", ws + 1);
+        double fs_label = any ? std::max(8.0, slot_h * 0.10)
+                              : std::max(14.0, slot_h * 0.28);
+        fs_label = std::min(fs_label, 40.0);
+        cairo_select_font_face(cr, "Sans",
+            CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+        cairo_set_font_size(cr, fs_label);
+        cairo_text_extents_t lte;
+        cairo_text_extents(cr, label, &lte);
+        double lx, ly;
+        if (any)
+        {
+            /* Top-left corner of slot */
+            lx = sx + 5.0 - lte.x_bearing;
+            ly = sy + 4.0 - lte.y_bearing;
+        }
+        else
+        {
+            /* Center of empty slot */
+            lx = sx + (slot_w - lte.width) / 2.0 - lte.x_bearing;
+            ly = sy + (slot_h - lte.height) / 2.0 - lte.y_bearing;
+        }
+        cairo_set_source_rgba(cr, 0.72, 0.72, 0.78, any ? 0.45 : 0.38);
+        cairo_move_to(cr, lx, ly);
+        cairo_show_text(cr, label);
+    }
+
+    cairo_surface_flush(surf);
+    cairo_surface_destroy(surf);
+    cairo_destroy(cr);
+
+    wlr_scene_buffer_set_buffer(out->overview_buf, &tb->base);
+    wlr_scene_buffer_set_dest_size(out->overview_buf, W, H);
+    wlr_buffer_drop(&tb->base);
+
+    wlr_scene_node_set_position(&out->overview_buf->node, out_box.x, out_box.y);
+    wlr_scene_node_set_enabled(&out->overview_buf->node, true);
+    wlr_scene_node_raise_to_top(&out->overview_buf->node);
+}
+
+void
+exit_overview(nnwm_server *server, nnwm_output *out)
+{
+    out->overview = false;
+    if (out->overview_buf)
+        wlr_scene_node_set_enabled(&out->overview_buf->node, false);
+
+    nnwm_toplevel *tl = out->last_focused[out->active_workspace];
+    if (!tl) tl = ws_first(server, out);
+    if (tl)
+        focus_toplevel(tl);
+    else
+        wlr_seat_keyboard_clear_focus(server->seat);
+}
+
 /* ---- Output / workspace helpers ---- */
 
 nnwm_output *
@@ -1289,8 +1472,18 @@ ws_count(nnwm_server *server, nnwm_output *out)
 
 /* ---- Window arrangement / tiling layout ---- */
 
+static void arrange_windows_impl(nnwm_server *server, nnwm_output *out);
+
 void
 arrange_windows(nnwm_server *server, nnwm_output *out)
+{
+    arrange_windows_impl(server, out);
+    if (out && out->overview)
+        render_overview(server, out);
+}
+
+static void
+arrange_windows_impl(nnwm_server *server, nnwm_output *out)
 {
     if (!out)
         return;

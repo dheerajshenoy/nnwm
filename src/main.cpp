@@ -65,6 +65,12 @@ main(int argc, char *argv[])
 
     nnwm_server server = {};
     wl_list_init(&server.layer_surfaces);
+    wl_list_init(&server.toplevels);
+    wl_list_init(&server.hooks);
+    wl_list_init(&server.timers);
+#ifdef HAVE_SCENEFX
+    wl_list_init(&server.dying_toplevels);
+#endif
 
     /* Initialize Lua state for config and keybinding callbacks */
     server.config_inotify_fd = -1;
@@ -276,12 +282,6 @@ main(int argc, char *argv[])
      * used for application windows. For more detail on shells, refer to
      * https://drewdevault.com/2018/07/29/Wayland-shells.html.
      */
-    wl_list_init(&server.toplevels);
-    wl_list_init(&server.hooks);
-    wl_list_init(&server.timers);
-#ifdef HAVE_SCENEFX
-    wl_list_init(&server.dying_toplevels);
-#endif
     server.xdg_shell               = wlr_xdg_shell_create(server.wl_display, 3);
     server.new_xdg_toplevel.notify = server_new_xdg_toplevel;
     wl_signal_add(&server.xdg_shell->events.new_toplevel,

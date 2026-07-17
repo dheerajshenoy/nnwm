@@ -1,5 +1,6 @@
 #include "nnwm.hpp"
 #include "nnwm_internal.hpp"
+#include "actions.hpp"
 
 #include <ctime>
 #include <linux/input-event-codes.h>
@@ -331,6 +332,11 @@ server_cursor_button(wl_listener *listener, void *data)
 
     if (event->state == WL_POINTER_BUTTON_STATE_RELEASED)
     {
+        /* Block release from reaching clients while overview is active */
+        nnwm_output *hov = output_at_cursor(server);
+        if (hov && hov->overview)
+            return;
+
         if (server->cursor_mode != nnwm_cursor_mode::PASSTHROUGH)
         {
             /* Ending a compositor move/resize — don't forward to the window;
@@ -343,6 +349,52 @@ server_cursor_button(wl_listener *listener, void *data)
                                            event->button, event->state);
         }
         return;
+    }
+
+    /* Overview mode: intercept press — left click switches workspace, any
+     * click exits the overview. */
+    if (!server->session_lock)
+    {
+        nnwm_output *hov = output_at_cursor(server);
+        if (hov && hov->overview)
+        {
+            int target_ws = -1;
+            if (event->button == BTN_LEFT)
+            {
+                wlr_box ob;
+                wlr_output_layout_get_box(server->output_layout,
+                                          hov->wlr_output, &ob);
+                double cx = server->cursor->x - ob.x;
+                double cy = server->cursor->y - ob.y;
+
+                const double OV_OUTER = 32.0;
+                const double OV_INNER = 12.0;
+                const int    OV_COLS  = 3;
+                const int    OV_ROWS  = (NNWM_NUM_WORKSPACES + OV_COLS - 1) / OV_COLS;
+                double slot_w = (ob.width  - 2.0 * OV_OUTER - (OV_COLS - 1) * OV_INNER) / OV_COLS;
+                double slot_h = (ob.height - 2.0 * OV_OUTER - (OV_ROWS - 1) * OV_INNER) / OV_ROWS;
+
+                int col = (int)((cx - OV_OUTER) / (slot_w + OV_INNER));
+                int row = (int)((cy - OV_OUTER) / (slot_h + OV_INNER));
+                if (col >= 0 && col < OV_COLS && row >= 0 && row < OV_ROWS)
+                {
+                    double sx = OV_OUTER + col * (slot_w + OV_INNER);
+                    double sy = OV_OUTER + row * (slot_h + OV_INNER);
+                    if (cx >= sx && cx < sx + slot_w && cy >= sy && cy < sy + slot_h)
+                    {
+                        int ws = row * OV_COLS + col;
+                        if (ws < NNWM_NUM_WORKSPACES)
+                            target_ws = ws;
+                    }
+                }
+            }
+
+            server->focused_output = hov;
+            exit_overview(server, hov);
+            if (target_ws >= 0)
+                nnwm::workspace::switch_to(server, target_ws);
+            return;
+        }
     }
 
     /* Tab bar click: focus the clicked window */
