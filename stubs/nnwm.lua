@@ -382,6 +382,27 @@ function nnwm.focus_prev_float() end
 --- If a tiled window is focused, jumps to the first floating window, and vice versa.
 function nnwm.focus_mode_toggle() end
 
+---@alias nnwm.Direction "left"|"right"|"up"|"down"
+
+--- Focus the nearest window in the given direction on the current output.
+--- If no window exists in that direction, switches focus to the nearest monitor
+--- in that direction (by center-to-center distance) and focuses its last active window.
+---
+--- Direction is determined geometrically by window center points:
+--- - `"left"` / `"right"` — compare horizontal centers
+--- - `"up"` / `"down"` — compare vertical centers
+---
+--- Ties on the primary axis are broken by perpendicular distance.
+---
+--- ```lua
+--- nnwm.key({"Super", "h"}, function() nnwm.focus_dir("left")  end)
+--- nnwm.key({"Super", "l"}, function() nnwm.focus_dir("right") end)
+--- nnwm.key({"Super", "k"}, function() nnwm.focus_dir("up")    end)
+--- nnwm.key({"Super", "j"}, function() nnwm.focus_dir("down")  end)
+--- ```
+---@param direction nnwm.Direction
+function nnwm.focus_dir(direction) end
+
 --- Swap the focused window with the master window, preserving both positions.
 --- No-op if the focused window is already master.
 function nnwm.swap_master() end

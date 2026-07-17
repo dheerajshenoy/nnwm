@@ -599,6 +599,122 @@ nnwm::monitor::focus_prev(nnwm_server *server)
     warp_cursor_to_output(server, next);
 }
 
+void
+nnwm::focus::dir(nnwm_server *server, const char *direction)
+{
+    nnwm_output *out = server->focused_output;
+    if (!out) return;
+
+    bool is_left  = strcmp(direction, "left")  == 0;
+    bool is_right = strcmp(direction, "right") == 0;
+    bool is_up    = strcmp(direction, "up")    == 0;
+    bool is_down  = strcmp(direction, "down")  == 0;
+    if (!is_left && !is_right && !is_up && !is_down) return;
+
+    nnwm_toplevel *focused = get_focused_toplevel(server);
+    int ws = out->active_workspace;
+
+    /* Reference point: center of focused window, or center of usable area */
+    int fcx, fcy;
+    if (focused && focused->output == out)
+    {
+        fcx = focused->cur_x + focused->cur_w / 2;
+        fcy = focused->cur_y + focused->cur_h / 2;
+    }
+    else
+    {
+        fcx = out->usable_area.x + out->usable_area.width  / 2;
+        fcy = out->usable_area.y + out->usable_area.height / 2;
+    }
+
+    /* Find the nearest window in the requested direction on the current output */
+    nnwm_toplevel *best     = nullptr;
+    int            best_pri = INT_MAX; /* primary-axis distance (smaller = closer) */
+    int            best_sec = INT_MAX; /* secondary-axis distance (tiebreak)       */
+
+    nnwm_toplevel *tl;
+    wl_list_for_each(tl, &server->toplevels, link)
+    {
+        if (tl == focused) continue;
+        if (tl->output != out) continue;
+        if (tl->workspace != ws && !tl->sticky) continue;
+
+        int cx = tl->cur_x + tl->cur_w / 2;
+        int cy = tl->cur_y + tl->cur_h / 2;
+
+        int pri, sec;
+        bool valid = false;
+
+        if (is_left  && cx < fcx) { pri = fcx - cx; sec = abs(cy - fcy); valid = true; }
+        if (is_right && cx > fcx) { pri = cx - fcx; sec = abs(cy - fcy); valid = true; }
+        if (is_up    && cy < fcy) { pri = fcy - cy; sec = abs(cx - fcx); valid = true; }
+        if (is_down  && cy > fcy) { pri = cy - fcy; sec = abs(cx - fcx); valid = true; }
+
+        if (valid && (pri < best_pri || (pri == best_pri && sec < best_sec)))
+        {
+            best     = tl;
+            best_pri = pri;
+            best_sec = sec;
+        }
+    }
+
+    if (best)
+    {
+        focus_toplevel(best);
+        return;
+    }
+
+    /* No window in that direction — look for an adjacent monitor */
+    wlr_box cur_box;
+    wlr_output_layout_get_box(server->output_layout, out->wlr_output, &cur_box);
+    int cur_cx = cur_box.x + cur_box.width  / 2;
+    int cur_cy = cur_box.y + cur_box.height / 2;
+
+    nnwm_output *best_out     = nullptr;
+    int          best_out_pri = INT_MAX;
+    int          best_out_sec = INT_MAX;
+
+    nnwm_output *o;
+    wl_list_for_each(o, &server->outputs, link)
+    {
+        if (o == out) continue;
+        wlr_box ob;
+        wlr_output_layout_get_box(server->output_layout, o->wlr_output, &ob);
+        int ocx = ob.x + ob.width  / 2;
+        int ocy = ob.y + ob.height / 2;
+
+        int pri, sec;
+        bool valid = false;
+
+        if (is_left  && ocx < cur_cx) { pri = cur_cx - ocx; sec = abs(ocy - cur_cy); valid = true; }
+        if (is_right && ocx > cur_cx) { pri = ocx - cur_cx; sec = abs(ocy - cur_cy); valid = true; }
+        if (is_up    && ocy < cur_cy) { pri = cur_cy - ocy; sec = abs(ocx - cur_cx); valid = true; }
+        if (is_down  && ocy > cur_cy) { pri = ocy - cur_cy; sec = abs(ocx - cur_cx); valid = true; }
+
+        if (valid && (pri < best_out_pri || (pri == best_out_pri && sec < best_out_sec)))
+        {
+            best_out     = o;
+            best_out_pri = pri;
+            best_out_sec = sec;
+        }
+    }
+
+    if (!best_out) return;
+
+    server->focused_output = best_out;
+    int ws2       = best_out->active_workspace;
+    nnwm_toplevel *next = best_out->last_focused[ws2];
+    if (!next) next = ws_first(server, best_out);
+    if (next)
+        focus_toplevel(next);
+    else
+    {
+        wlr_seat_keyboard_clear_focus(server->seat);
+        unfocus_all_borders(server);
+    }
+    warp_cursor_to_output(server, best_out);
+}
+
 static void
 move_to_monitor(nnwm_server *server, int dir)
 {

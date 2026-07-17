@@ -451,6 +451,14 @@ l_nnwm_focus_prev(lua_State *L)
 }
 
 static int
+l_nnwm_focus_dir(lua_State *L)
+{
+    const char *dir = luaL_checkstring(L, 1);
+    nnwm::focus::dir(get_server(L), dir);
+    return 0;
+}
+
+static int
 l_nnwm_focus_mode_toggle(lua_State *L)
 {
     nnwm::focus::mode_toggle(get_server(L));
@@ -1315,6 +1323,7 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"focus_next_float", l_nnwm_focus_next_float},
     {"focus_prev_float", l_nnwm_focus_prev_float},
     {"focus_mode_toggle", l_nnwm_focus_mode_toggle},
+    {"focus_dir", l_nnwm_focus_dir},
     {"swap_left", l_nnwm_swap_left},
     {"swap_right", l_nnwm_swap_right},
     {"swap_next", l_nnwm_swap_next},
