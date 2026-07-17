@@ -55,7 +55,27 @@
 - **Scroll layout focus tracking**: focusing a window in scroll layout (via
   keybinding, click, or focus-follows-mouse) automatically scrolls the viewport
   to center it, matching the behavior of niri and similar scrolling compositors.
-- **Scroll layout**: `nnwm.layout.scroll.toggle()` switches the active workspace
+- **Vertical master-stack layout (VTILE)**: `nnwm.layout.vtile.toggle()` switches
+  the active workspace between horizontal and vertical master-stack orientation.
+  In VTILE mode the master window occupies the full width at the top and the stack
+  windows are arranged horizontally below it. `master_ratio` controls the vertical
+  split between master and stack (default `0.6`). `nnwm.layout.next()` and
+  `nnwm.layout.prev()` also cycle through VTILE in the full layout sequence:
+  htile → vtile → tabbed → hscroll → vscroll.
+- **Vertical scroll layout (VSCROLL)**: `nnwm.layout.vscroll.toggle()` switches
+  the active workspace into a vertical scrolling strip. Windows are stacked
+  top-to-bottom, each occupying the full output width and a configurable fraction
+  of the output height (`nnwm.opt.layout.scroll_row_height`, default `0.5`). The
+  viewport automatically centers the focused window vertically. Borders, titlebars,
+  inner and outer gaps all apply per-row. Focusing a window by any means (keybinding,
+  click, focus-follows-mouse) scrolls it into view.
+- **`nnwm.toggle_maximize()`**: toggles the focused window between its normal tiled
+  slot and a maximized state that fills the full usable area of the output (respecting
+  panels, gaps, borders, and titlebars). Unlike fullscreen, the window is not
+  hidden behind the layer shell and the border/titlebar remain visible. The maximized
+  window is raised above all other tiled windows. Calling the action again restores
+  the previous layout.
+- **Scroll layout**: `nnwm.layout.hscroll.toggle()` switches the active workspace
   between master-stack and a horizontal scrolling layout. Windows are arranged
   in a left-to-right strip, each occupying a configurable fraction of the
   output width (`nnwm.opt.layout.scroll_column_width`, default `0.5`). The
@@ -486,6 +506,21 @@
   promotes it to master (not second position), and swapping the master backward
   now demotes it to last (not second-to-last). Wrap-around direction matches
   `focus_next`/`focus_prev`.
+- **Lua config crash when `fx.rounding` is absent**: if `nnwm.opt.fx.rounding`
+  was not set in `init.lua`, the config parser left a nil value on the Lua stack
+  (the result of `lua_getfield(L, -1, "rounding")`) because `lua_pop` was inside
+  the `if (lua_istable)` block and was skipped. The subsequent `lua_getfield` for
+  `"shadow"` then operated on nil rather than the `fx` table, triggering a Lua
+  panic. Fixed by moving `lua_pop` outside the if block so it runs unconditionally
+  regardless of whether the field exists.
+- **libscenefx shared object not found after install**: running the installed
+  `nnwm` binary failed with `libscenefx-0.5.so: cannot open shared object file`
+  because the binary's RPATH still pointed to the build-tree location of the
+  library. Fixed by setting `BUILD_RPATH` to the scenefx build directory (so the
+  development binary still works without installing) and `INSTALL_RPATH` to the
+  system library directory (`${CMAKE_INSTALL_FULL_LIBDIR}`). The scenefx `.so` is
+  now also installed alongside nnwm by `install(FILES ...)`, so a plain
+  `cmake --install` produces a self-contained installation.
 - **Popup submenu appears at wrong position**: submenus (popup-of-popup, e.g.
   the waybar wifi module's right-click submenu) were placed at the left edge of
   the monitor instead of next to the parent menu entry. The root cause was that
