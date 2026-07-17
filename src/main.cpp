@@ -272,11 +272,22 @@ main(int argc, char *argv[])
     /* ext-workspace-v1: workspace protocol used by waybar's ext/workspaces module */
     nnwm::ext_workspace_init(&server);
 
-    /* XDG decoration: tell clients to use client-side decorations */
+    /* XDG decoration (zxdg_decoration_manager_v1): newer protocol used by GTK4
+     * and other clients to negotiate SSD vs CSD. */
     server.decoration_manager       = wlr_xdg_decoration_manager_v1_create(server.wl_display);
     server.new_decoration.notify    = server_new_decoration;
     wl_signal_add(&server.decoration_manager->events.new_toplevel_decoration,
                   &server.new_decoration);
+
+    /* KDE server decoration (org_kde_kwin_server_decoration_manager): the older
+     * protocol that GTK3/Emacs pgtk checks first. Set default to SERVER so
+     * GTK3 apps disable CSD without needing per-window negotiation. */
+    server.kde_decoration_manager = wlr_server_decoration_manager_create(server.wl_display);
+    wlr_server_decoration_manager_set_default_mode(
+        server.kde_decoration_manager,
+        server.config->client_decorations
+            ? WLR_SERVER_DECORATION_MANAGER_MODE_CLIENT
+            : WLR_SERVER_DECORATION_MANAGER_MODE_SERVER);
 
     /* Set up xdg-shell version 3. The xdg-shell is a Wayland protocol which is
      * used for application windows. For more detail on shells, refer to

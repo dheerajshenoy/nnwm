@@ -57,6 +57,7 @@ extern "C"
 #include <wlr/types/wlr_xdg_activation_v1.h>
 #include <wlr/types/wlr_pointer_gestures_v1.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
+#include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #ifdef __cplusplus
@@ -216,6 +217,7 @@ struct nnwm_server
     struct wl_listener new_layer_surface;
 
     struct wlr_xdg_decoration_manager_v1 *decoration_manager;
+    struct wlr_server_decoration_manager  *kde_decoration_manager;
     struct wl_listener new_decoration;
 
     struct wlr_xdg_shell *xdg_shell;

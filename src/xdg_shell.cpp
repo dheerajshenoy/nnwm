@@ -729,9 +729,10 @@ server_new_xdg_popup(wl_listener *listener, void *data)
 }
 
 void
-server_new_decoration(wl_listener * /*listener*/, void *data)
+server_new_decoration(wl_listener *listener, void *data)
 {
-    auto *wlr_deco = static_cast<wlr_xdg_toplevel_decoration_v1 *>(data);
+    nnwm_server *server = wl_container_of(listener, server, new_decoration);
+    auto *wlr_deco      = static_cast<wlr_xdg_toplevel_decoration_v1 *>(data);
 
     auto *deco     = new nnwm_decoration{};
     deco->wlr_deco = wlr_deco;
@@ -741,4 +742,15 @@ server_new_decoration(wl_listener * /*listener*/, void *data)
 
     deco->destroy.notify = decoration_handle_destroy;
     wl_signal_add(&wlr_deco->events.destroy, &deco->destroy);
+
+    /* Eagerly push our preferred mode so clients that never send request_mode
+     * (e.g. Emacs/GTK) still receive the correct decoration setting.
+     * If the surface isn't initialized yet, store the deco reference so the
+     * initial_commit handler can apply it when schedule_configure is safe. */
+    nnwm_toplevel *tl = toplevel_from_deco(deco);
+    if (tl)
+        tl->decoration = deco;
+    bool csd = server->config->client_decorations;
+    if (wlr_deco->toplevel->base->initialized)
+        decoration_apply(deco, csd);
 }
