@@ -8,6 +8,12 @@
 - Add `smart` option to `tabbed` layout, which automatically hides the tab bar when
   only one window is present. The tab bar reappears when a second window is added
   to the workspace.
+- Add `overview_mode` which shows all workspaces in a grid layout giving you the overview
+  of the workspace per-monitor.
+
+## Bug Fixes
+
+- Overview mode workspace switching not signalling the workspace change to wlroots
 
 ## 0.1.0
 
