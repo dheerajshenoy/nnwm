@@ -56,6 +56,7 @@ Multiple `nnwm.key()` calls with the same combo are allowed; the last one wins.
 | `nnwm.focus_next_float()`      | Focus the next floating window                         |
 | `nnwm.focus_prev_float()`      | Focus the previous floating window                     |
 | `nnwm.focus_mode_toggle()`     | Jump focus between the tiled and floating layers       |
+| `nnwm.focus_dir(dir)`          | Focus nearest window in `"left"`/`"right"`/`"up"`/`"down"` direction, crossing monitors |
 | `nnwm.focus_monitor_next()`    | Move keyboard focus to the next monitor                |
 | `nnwm.focus_monitor_prev()`    | Move keyboard focus to the previous monitor            |
 
