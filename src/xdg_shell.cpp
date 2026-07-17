@@ -447,7 +447,10 @@ xdg_toplevel_request_fullscreen(wl_listener *listener, void * /*data*/)
 {
     nnwm_toplevel *toplevel
         = wl_container_of(listener, toplevel, request_fullscreen);
-    if (toplevel->xdg_toplevel->base->initialized)
+    if (!toplevel->xdg_toplevel->base->initialized)
+        return;
+    bool want = toplevel->xdg_toplevel->requested.fullscreen;
+    if (want != toplevel->fullscreen)
         do_toggle_fullscreen(toplevel);
 }
 

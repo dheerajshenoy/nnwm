@@ -13,6 +13,7 @@
 
 ## Bug Fixes
 
+- Fix emacs starting in floating mode
 - Overview mode workspace switching not signalling the workspace change to wlroots
 
 ## 0.1.0
