@@ -157,11 +157,16 @@
 - [x] file to load xkb options from
 - [x] Fix warp-to-focus being annoying
 - [x] Windows 11 like cursor circle attention grabber
-
+- Hardware-acceleration
+    - [x] Overview
+    - [x] find_cursor
+- find_cursor
+    - [ ] temporary mouse cursor size increase to regain attention of the cursor
+    - [x] ring
+    - [x] spotlight
 ## TODO
 
 - [ ] XWayland (possibly use xwayland-satellite ?)
-- [ ] temporary mouse cursor size increase to regain attention of the cursor
 - [ ] Drag and drop
 - [ ] Monitor hot-corners
 - [ ] Keybinding overlay
@@ -172,7 +177,6 @@
     - [ ] wlr-virtual-pointer-unstable-v1
     - [ ] wlr-virtual-keyboard-unstable-v1
     - [ ] wlr-gamma-control-unstable-v1
-- [ ] Hardware-acceleration
 - [ ] Multi workspace viewing at once (like dwm)
 - [ ] Handle minimized windows
 - [ ] Jump label support (like MangoWM)

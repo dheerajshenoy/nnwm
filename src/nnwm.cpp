@@ -2518,6 +2518,48 @@ void cursor_ring_stop(nnwm_server *server)
     }
 }
 
+/* Upload spotlight buffer at full opacity; scene node opacity handles the envelope. */
+static void spotlight_upload(nnwm_server *server)
+{
+    int ow = server->cursor_ring_out_w;
+    int oh = server->cursor_ring_out_h;
+    double scale = server->cursor_ring_out_scale;
+    int buf_w = (int)(ow * scale);
+    int buf_h = (int)(oh * scale);
+    if (buf_w <= 0 || buf_h <= 0)
+        return;
+
+    double cx = (server->cursor->x - server->cursor_ring_out_x) * scale;
+    double cy = (server->cursor->y - server->cursor_ring_out_y) * scale;
+    double sr = SPOT_RADIUS_PX * scale;
+
+    nnwm_tbuf *tb = tbuf_create(buf_w, buf_h);
+    cairo_surface_t *csurf = cairo_image_surface_create_for_data(
+        tb->data, CAIRO_FORMAT_ARGB32, buf_w, buf_h, tb->stride);
+    cairo_t *cr = cairo_create(csurf);
+
+    cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, SPOT_DIM);
+    cairo_paint(cr);
+
+    cairo_set_operator(cr, CAIRO_OPERATOR_DEST_OUT);
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 1.0);
+    cairo_arc(cr, cx, cy, sr, 0, 2 * M_PI);
+    cairo_fill(cr);
+
+    cairo_surface_flush(csurf);
+    cairo_surface_destroy(csurf);
+    cairo_destroy(cr);
+
+    wlr_scene_buffer_set_buffer(server->cursor_ring_buf, &tb->base);
+    wlr_buffer_drop(&tb->base);
+    wlr_scene_buffer_set_dest_size(server->cursor_ring_buf, ow, oh);
+
+    /* Track last rendered position so tick only re-uploads on cursor move */
+    server->cursor_ring_x = server->cursor->x;
+    server->cursor_ring_y = server->cursor->y;
+}
+
 static int cursor_ring_tick(void *data)
 {
     auto *server = static_cast<nnwm_server *>(data);
@@ -2533,75 +2575,43 @@ static int cursor_ring_tick(void *data)
 
     float t = server->cursor_ring_progress;
 
-    /* Determine output scale at cursor position */
-    double dpi = 1.0;
-    {
-        nnwm_output *out;
-        wl_list_for_each(out, &server->outputs, link)
-        {
-            wlr_box ob;
-            wlr_output_layout_get_box(server->output_layout,
-                                      out->wlr_output, &ob);
-            if (server->cursor_ring_x >= ob.x && server->cursor_ring_x < ob.x + ob.width &&
-                server->cursor_ring_y >= ob.y && server->cursor_ring_y < ob.y + ob.height)
-            {
-                dpi = out->wlr_output->scale;
-                break;
-            }
-        }
-    }
-
     if (is_spot)
     {
-        /* ---- spotlight: full-output dim with circular cutout ---- */
-        int ow = server->cursor_ring_out_w;
-        int oh = server->cursor_ring_out_h;
-        double scale = server->cursor_ring_out_scale;
-        int buf_w = (int)(ow * scale);
-        int buf_h = (int)(oh * scale);
-        if (buf_w <= 0 || buf_h <= 0) { cursor_ring_stop(server); return 0; }
+        /* ---- spotlight: GPU opacity envelope + lazy Cairo re-upload on cursor move ---- */
 
-        /* Opacity envelope: fade-in → hold → fade-out */
-        double alpha;
+        /* Opacity envelope: fade-in → hold → fade-out (executed on GPU via set_opacity) */
+        float opacity;
         if (t < SPOT_HOLD_IN)
-            alpha = t / SPOT_HOLD_IN;
+            opacity = t / SPOT_HOLD_IN;
         else if (t < SPOT_HOLD_OUT)
-            alpha = 1.0;
+            opacity = 1.0f;
         else
-            alpha = 1.0 - (t - SPOT_HOLD_OUT) / (1.0 - SPOT_HOLD_OUT);
+            opacity = 1.0f - (t - SPOT_HOLD_OUT) / (1.0f - SPOT_HOLD_OUT);
+        wlr_scene_buffer_set_opacity(server->cursor_ring_buf, opacity);
 
-        /* Cursor relative to the output's top-left (live position) */
-        double cx = (server->cursor->x - server->cursor_ring_out_x) * scale;
-        double cy = (server->cursor->y - server->cursor_ring_out_y) * scale;
-        double sr  = SPOT_RADIUS_PX * scale; /* spotlight radius in buffer pixels */
-
-        nnwm_tbuf *tb = tbuf_create(buf_w, buf_h);
-        cairo_surface_t *csurf = cairo_image_surface_create_for_data(
-            tb->data, CAIRO_FORMAT_ARGB32, buf_w, buf_h, tb->stride);
-        cairo_t *cr = cairo_create(csurf);
-
-        /* 1. Fill entire buffer with dim overlay */
-        cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
-        cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, SPOT_DIM * alpha);
-        cairo_paint(cr);
-
-        /* 2. Punch a hard-edged circular hole */
-        cairo_set_operator(cr, CAIRO_OPERATOR_DEST_OUT);
-        cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, alpha);
-        cairo_arc(cr, cx, cy, sr, 0, 2 * M_PI);
-        cairo_fill(cr);
-
-        cairo_surface_flush(csurf);
-        cairo_surface_destroy(csurf);
-        cairo_destroy(cr);
-
-        wlr_scene_buffer_set_buffer(server->cursor_ring_buf, &tb->base);
-        wlr_buffer_drop(&tb->base);
-        wlr_scene_buffer_set_dest_size(server->cursor_ring_buf, ow, oh);
+        /* Re-upload only when cursor has moved since last render */
+        if (server->cursor->x != server->cursor_ring_x ||
+            server->cursor->y != server->cursor_ring_y)
+            spotlight_upload(server);
     }
     else
     {
         /* ---- rings: concentric shrinking filled circle ---- */
+        double dpi = 1.0;
+        {
+            nnwm_output *out;
+            wl_list_for_each(out, &server->outputs, link)
+            {
+                wlr_box ob;
+                wlr_output_layout_get_box(server->output_layout, out->wlr_output, &ob);
+                if (server->cursor->x >= ob.x && server->cursor->x < ob.x + ob.width &&
+                    server->cursor->y >= ob.y && server->cursor->y < ob.y + ob.height)
+                {
+                    dpi = out->wlr_output->scale;
+                    break;
+                }
+            }
+        }
         int buf = (int)(RINGS_SIZE_PX * dpi);
         nnwm_tbuf *tb = tbuf_create(buf, buf);
         cairo_surface_t *csurf = cairo_image_surface_create_for_data(
@@ -2697,6 +2707,9 @@ cursor_ring_start(nnwm_server *server)
         wlr_scene_node_set_position(&server->cursor_ring_buf->node,
                                     server->cursor_ring_out_x,
                                     server->cursor_ring_out_y);
+        /* Pre-render at full opacity; tick animates via wlr_scene_buffer_set_opacity */
+        spotlight_upload(server);
+        wlr_scene_buffer_set_opacity(server->cursor_ring_buf, 0.0f);
     }
     else
     {
