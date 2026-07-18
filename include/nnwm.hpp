@@ -170,7 +170,8 @@ struct nnwm_lua_keybinding
 {
     uint32_t mods;
     xkb_keysym_t keysym;
-    int func_ref; /* Lua registry reference */
+    int func_ref;        /* Lua registry reference */
+    char *description;   /* optional human-readable label, or nullptr */
 };
 
 enum class nnwm_gesture_dir { UP, DOWN, LEFT, RIGHT };

@@ -275,8 +275,11 @@ push_key_table(lua_State *L)
 static int
 l_nnwm_key(lua_State *L)
 {
-    if (lua_gettop(L) != 2 || !lua_istable(L, 1) || !lua_isfunction(L, 2))
-        return luaL_error(L, "nnwm.key(combo_table, callback) expected");
+    int argc = lua_gettop(L);
+    if (argc < 2 || argc > 3 || !lua_istable(L, 1) || !lua_isfunction(L, 2))
+        return luaL_error(L, "nnwm.key(combo_table, callback[, description]) expected");
+    if (argc == 3 && !lua_isstring(L, 3))
+        return luaL_error(L, "nnwm.key: description must be a string");
 
     struct nnwm_server *server = get_server(L);
 
@@ -335,10 +338,11 @@ l_nnwm_key(lua_State *L)
                                              * server->lua_keybinding_cap));
     }
 
-    auto &kb    = server->lua_keybindings[server->lua_keybinding_count++];
-    kb.mods     = mods;
-    kb.keysym   = keysym;
-    kb.func_ref = func_ref;
+    auto &kb        = server->lua_keybindings[server->lua_keybinding_count++];
+    kb.mods         = mods;
+    kb.keysym       = keysym;
+    kb.func_ref     = func_ref;
+    kb.description  = (argc == 3) ? strdup(lua_tostring(L, 3)) : nullptr;
 
     return 0;
 }
@@ -2331,8 +2335,11 @@ nnwm::lua_fini(struct nnwm_server *server)
 
     /* Release all Lua function references */
     for (int i = 0; i < server->lua_keybinding_count; i++)
+    {
         luaL_unref(server->lua, LUA_REGISTRYINDEX,
                    server->lua_keybindings[i].func_ref);
+        std::free(server->lua_keybindings[i].description);
+    }
     std::free(server->lua_keybindings);
     server->lua_keybindings      = nullptr;
     server->lua_keybinding_count = 0;
@@ -2414,8 +2421,11 @@ nnwm::lua_reload(struct nnwm_server *server, struct nnwm_config *cfg)
 
     /* Clear existing keybinding registrations */
     for (int i = 0; i < server->lua_keybinding_count; i++)
+    {
         luaL_unref(server->lua, LUA_REGISTRYINDEX,
                    server->lua_keybindings[i].func_ref);
+        std::free(server->lua_keybindings[i].description);
+    }
     server->lua_keybinding_count = 0;
 
     /* Clear existing gesture registrations */

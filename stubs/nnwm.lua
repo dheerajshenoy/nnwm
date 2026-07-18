@@ -218,18 +218,20 @@ nnwm = {}
 nnwm.opt = {} ---@type nnwm_opts
 
 ---Register a keybinding. `combo` is an array of modifier and key name strings;
----`callback` is called when the combo is pressed.
+---`callback` is called when the combo is pressed. The optional `description`
+---is a human-readable label stored for future use in a keybindings overlay.
 ---
 ---Modifier names: `"Super"`, `"Shift"`, `"Ctrl"`, `"Alt"`, `"Mod2"`, `"Mod3"`, `"Mod5"`, `"Caps"`.
 ---Exactly one non-modifier entry (an XKB key name) is required.
 ---
 ---```lua
----nnwm.key({"Super", "Return"}, function() nnwm.spawn("kitty") end)
----nnwm.key({"Super", "Shift", "q"}, function() nnwm.close() end)
+---nnwm.key({"Super", "Return"}, function() nnwm.spawn("kitty") end, "Launch terminal")
+---nnwm.key({"Super", "Shift", "q"}, function() nnwm.close() end, "Close window")
 ---```
----@param combo    string[]  Array of modifier names and exactly one key name
----@param callback fun()     Function to call when the combo is pressed
-function nnwm.key(combo, callback) end
+---@param combo       string[]  Array of modifier names and exactly one key name
+---@param callback    fun()     Function to call when the combo is pressed
+---@param description string?   Optional human-readable label for the keybindings overlay
+function nnwm.key(combo, callback, description) end
 
 ---Register a touchpad swipe gesture binding. The callback is fired when a
 ---swipe with the given number of fingers ends in the given direction.
