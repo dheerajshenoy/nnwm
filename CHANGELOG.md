@@ -27,6 +27,15 @@
   - `"lid_open"` — fired when the laptop lid is opened
   - `"tablet_mode_on"` — fired when the device enters tablet mode
   - `"tablet_mode_off"` — fired when the device leaves tablet mode
+- **Optional keybinding description**: `nnwm.key` accepts an optional third
+  string argument — a human-readable label stored for future use in a
+  keybindings overlay. Example: `nnwm.key({"Super","Return"}, fn, "Launch terminal")`.
+- **Customisable workspace names and count**: `workspace_names` in `nnwm.opt`
+  accepts a string array whose length implicitly sets the workspace count (1–9).
+  Names are shown in the overview grid and sent to clients via `ext-workspace-v1`
+  (e.g. waybar). Empty strings fall back to the numeric index. On config hot-reload
+  the ext-workspace handles are rebuilt live: removed workspaces receive a
+  `removed` event and new workspaces are announced without restarting clients.
 
 ### Bug Fixes
 
