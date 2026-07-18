@@ -160,7 +160,9 @@
 
 ## TODO
 
-- [ ] disable-power-key-handling
+- [ ] XWayland (possibly use xwayland-satellite ?)
+- [ ] temporary mouse cursor size increase to regain attention of the cursor
+- [ ] Drag and drop
 - [ ] Monitor hot-corners
 - [ ] Keybinding overlay
 - Layouts
@@ -174,7 +176,6 @@
 - [ ] Multi workspace viewing at once (like dwm)
 - [ ] Handle minimized windows
 - [ ] Jump label support (like MangoWM)
-- [ ] XWayland (possibly use xwayland-satellite ?)
 - [ ] IPC for nnwm
 - Layer rules
     - [ ] layer z-order
@@ -184,4 +185,4 @@
     - [ ] animation
     - [ ] border
 - [ ] Don't allow resizing of tiled windows
-- [ ] temporary mouse cursor size increase to regain attention of the cursor
+- [ ] disable-power-key-handling

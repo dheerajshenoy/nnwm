@@ -211,6 +211,10 @@ struct nnwm_config
     /* Config error overlay (dangerous to disable — you won't see load errors) */
     bool show_config_error_overlay;
 
+    /* find_cursor animation style: "rings" (concentric shrinking rings) or
+     * "spotlight" (full-screen dim with circular cutout) */
+    char *find_cursor_style;
+
     /* Workspaces — count is inferred from the length of workspace_names */
     int workspace_count;      /* 1–NNWM_NUM_WORKSPACES; default 9 */
     char *workspace_names[9]; /* per-workspace label; NULL = use numeric index */

@@ -1590,6 +1590,9 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     }
     lua_setfield(L, -2, "workspace_names");
 
+    lua_pushstring(L, cfg->find_cursor_style ? cfg->find_cursor_style : "rings");
+    lua_setfield(L, -2, "find_cursor_style");
+
     /* titlebar sub-table */
     lua_newtable(L);
     lua_pushboolean(L, cfg->titlebar.height > 0);
@@ -2058,6 +2061,12 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
             }
         }
         lua_pop(L, 1);
+    }
+
+    {
+        char *s = get_string_field(L, "find_cursor_style", cfg->find_cursor_style);
+        free(cfg->find_cursor_style);
+        cfg->find_cursor_style = s;
     }
 
     lua_getfield(L, -1, "titlebar");
@@ -2742,6 +2751,8 @@ nnwm::config_defaults(void)
     for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
         cfg->workspace_names[i] = nullptr;
 
+    cfg->find_cursor_style = strdup("rings");
+
     return cfg;
 }
 
@@ -2768,5 +2779,6 @@ nnwm::config_free(struct nnwm_config *cfg)
     free_window_rules(cfg);
     for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
         free(cfg->workspace_names[i]);
+    free(cfg->find_cursor_style);
     delete cfg;
 }

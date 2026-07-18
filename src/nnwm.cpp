@@ -2488,12 +2488,21 @@ error_dismiss_cb(void *data)
     return 0;
 }
 
-/* ── Cursor attention ring ───────────────────────────────────────────────── */
+/* ── Cursor attention animation (find_cursor) ────────────────────────────── */
 
-static constexpr int    RING_SIZE_PX   = 200;   /* logical pixels, always square */
-static constexpr float  RING_MAX_R     = 90.0f; /* starting radius of filled circle */
-static constexpr int    RING_TICK_MS   = 16;    /* ~60 fps */
-static constexpr int    RING_TICKS     = 40;    /* total ticks ≈ 640 ms */
+static constexpr int    RING_TICK_MS   = 16;   /* ~60 fps */
+static constexpr int    RING_TICKS     = 40;   /* ≈ 640 ms */
+
+/* ---- rings style ---- */
+static constexpr int    RINGS_SIZE_PX  = 200;  /* square buffer, logical pixels */
+static constexpr float  RINGS_MAX_R    = 90.0f;
+
+/* ---- spotlight style ---- */
+static constexpr int    SPOT_TICKS     = 100;  /* ≈ 1600 ms */
+static constexpr double SPOT_RADIUS_PX = 120.0; /* cutout radius, logical pixels */
+static constexpr double SPOT_DIM       = 0.65;  /* max dim opacity */
+static constexpr float  SPOT_HOLD_IN   = 0.25f; /* fade-in ends */
+static constexpr float  SPOT_HOLD_OUT  = 0.65f; /* fade-out begins */
 
 void cursor_ring_stop(nnwm_server *server)
 {
@@ -2512,7 +2521,9 @@ void cursor_ring_stop(nnwm_server *server)
 static int cursor_ring_tick(void *data)
 {
     auto *server = static_cast<nnwm_server *>(data);
-    server->cursor_ring_progress += 1.0f / RING_TICKS;
+    bool is_spot = server->config->find_cursor_style &&
+                   std::strcmp(server->config->find_cursor_style, "spotlight") == 0;
+    server->cursor_ring_progress += 1.0f / (is_spot ? SPOT_TICKS : RING_TICKS);
 
     if (server->cursor_ring_progress >= 1.0f)
     {
@@ -2540,48 +2551,98 @@ static int cursor_ring_tick(void *data)
         }
     }
 
-    int buf = (int)(RING_SIZE_PX * dpi);
-    nnwm_tbuf *tb = tbuf_create(buf, buf);
-    cairo_surface_t *csurf = cairo_image_surface_create_for_data(
-        tb->data, CAIRO_FORMAT_ARGB32, buf, buf, tb->stride);
-    cairo_t *cr = cairo_create(csurf);
-    cairo_scale(cr, dpi, dpi);
-
-    cairo_set_operator(cr, CAIRO_OPERATOR_CLEAR);
-    cairo_paint(cr);
-    cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
-
-    double cx = RING_SIZE_PX / 2.0;
-    double cy = RING_SIZE_PX / 2.0;
-
-    /* Ease-out: fast shrink at first, slow near cursor */
-    double ease = 1.0 - (1.0 - (double)t) * (1.0 - (double)t);
-    double r    = RING_MAX_R * (1.0 - ease);
-    double fill_alpha   = (1.0 - (double)t) * 0.45; /* semi-transparent white fill */
-    double border_alpha = (1.0 - (double)t) * 0.90;
-
-    if (r >= 1.0)
+    if (is_spot)
     {
-        /* Filled circle */
-        cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, fill_alpha);
-        cairo_arc(cr, cx, cy, r, 0, 2 * M_PI);
+        /* ---- spotlight: full-output dim with circular cutout ---- */
+        int ow = server->cursor_ring_out_w;
+        int oh = server->cursor_ring_out_h;
+        double scale = server->cursor_ring_out_scale;
+        int buf_w = (int)(ow * scale);
+        int buf_h = (int)(oh * scale);
+        if (buf_w <= 0 || buf_h <= 0) { cursor_ring_stop(server); return 0; }
+
+        /* Opacity envelope: fade-in → hold → fade-out */
+        double alpha;
+        if (t < SPOT_HOLD_IN)
+            alpha = t / SPOT_HOLD_IN;
+        else if (t < SPOT_HOLD_OUT)
+            alpha = 1.0;
+        else
+            alpha = 1.0 - (t - SPOT_HOLD_OUT) / (1.0 - SPOT_HOLD_OUT);
+
+        /* Cursor relative to the output's top-left */
+        double cx = (server->cursor_ring_x - server->cursor_ring_out_x) * scale;
+        double cy = (server->cursor_ring_y - server->cursor_ring_out_y) * scale;
+        double sr  = SPOT_RADIUS_PX * scale; /* spotlight radius in buffer pixels */
+
+        nnwm_tbuf *tb = tbuf_create(buf_w, buf_h);
+        cairo_surface_t *csurf = cairo_image_surface_create_for_data(
+            tb->data, CAIRO_FORMAT_ARGB32, buf_w, buf_h, tb->stride);
+        cairo_t *cr = cairo_create(csurf);
+
+        /* 1. Fill entire buffer with dim overlay */
+        cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
+        cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, SPOT_DIM * alpha);
+        cairo_paint(cr);
+
+        /* 2. Punch a hard-edged circular hole */
+        cairo_set_operator(cr, CAIRO_OPERATOR_DEST_OUT);
+        cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, alpha);
+        cairo_arc(cr, cx, cy, sr, 0, 2 * M_PI);
         cairo_fill(cr);
 
-        /* Crisp border ring */
-        cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, border_alpha);
-        cairo_set_line_width(cr, 2.5);
-        cairo_arc(cr, cx, cy, r, 0, 2 * M_PI);
-        cairo_stroke(cr);
+        cairo_surface_flush(csurf);
+        cairo_surface_destroy(csurf);
+        cairo_destroy(cr);
+
+        wlr_scene_buffer_set_buffer(server->cursor_ring_buf, &tb->base);
+        wlr_buffer_drop(&tb->base);
+        wlr_scene_buffer_set_dest_size(server->cursor_ring_buf, ow, oh);
     }
+    else
+    {
+        /* ---- rings: concentric shrinking filled circle ---- */
+        int buf = (int)(RINGS_SIZE_PX * dpi);
+        nnwm_tbuf *tb = tbuf_create(buf, buf);
+        cairo_surface_t *csurf = cairo_image_surface_create_for_data(
+            tb->data, CAIRO_FORMAT_ARGB32, buf, buf, tb->stride);
+        cairo_t *cr = cairo_create(csurf);
+        cairo_scale(cr, dpi, dpi);
 
-    cairo_surface_flush(csurf);
-    cairo_surface_destroy(csurf);
-    cairo_destroy(cr);
+        cairo_set_operator(cr, CAIRO_OPERATOR_CLEAR);
+        cairo_paint(cr);
+        cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
 
-    wlr_scene_buffer_set_buffer(server->cursor_ring_buf, &tb->base);
-    wlr_buffer_drop(&tb->base);
-    wlr_scene_buffer_set_dest_size(server->cursor_ring_buf,
-                                   RING_SIZE_PX, RING_SIZE_PX);
+        double cx = RINGS_SIZE_PX / 2.0;
+        double cy = RINGS_SIZE_PX / 2.0;
+
+        /* Ease-out: fast shrink at first, slows near cursor */
+        double ease = 1.0 - (1.0 - (double)t) * (1.0 - (double)t);
+        double r    = RINGS_MAX_R * (1.0 - ease);
+        double fill_alpha   = (1.0 - (double)t) * 0.45;
+        double border_alpha = (1.0 - (double)t) * 0.90;
+
+        if (r >= 1.0)
+        {
+            cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, fill_alpha);
+            cairo_arc(cr, cx, cy, r, 0, 2 * M_PI);
+            cairo_fill(cr);
+
+            cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, border_alpha);
+            cairo_set_line_width(cr, 2.5);
+            cairo_arc(cr, cx, cy, r, 0, 2 * M_PI);
+            cairo_stroke(cr);
+        }
+
+        cairo_surface_flush(csurf);
+        cairo_surface_destroy(csurf);
+        cairo_destroy(cr);
+
+        wlr_scene_buffer_set_buffer(server->cursor_ring_buf, &tb->base);
+        wlr_buffer_drop(&tb->base);
+        wlr_scene_buffer_set_dest_size(server->cursor_ring_buf,
+                                       RINGS_SIZE_PX, RINGS_SIZE_PX);
+    }
 
     wl_event_source_timer_update(server->cursor_ring_timer, RING_TICK_MS);
     return 0;
@@ -2596,11 +2657,49 @@ cursor_ring_start(nnwm_server *server)
     server->cursor_ring_y        = server->cursor->y;
     server->cursor_ring_progress = 0.0f;
 
+    bool is_spotlight = server->config->find_cursor_style &&
+                        std::strcmp(server->config->find_cursor_style, "spotlight") == 0;
+
+    /* Snapshot the output under the cursor */
+    server->cursor_ring_out_x     = 0;
+    server->cursor_ring_out_y     = 0;
+    server->cursor_ring_out_w     = 800;
+    server->cursor_ring_out_h     = 600;
+    server->cursor_ring_out_scale = 1.0;
+    {
+        nnwm_output *out;
+        wl_list_for_each(out, &server->outputs, link)
+        {
+            wlr_box ob;
+            wlr_output_layout_get_box(server->output_layout, out->wlr_output, &ob);
+            if (server->cursor_ring_x >= ob.x && server->cursor_ring_x < ob.x + ob.width &&
+                server->cursor_ring_y >= ob.y && server->cursor_ring_y < ob.y + ob.height)
+            {
+                server->cursor_ring_out_x     = ob.x;
+                server->cursor_ring_out_y     = ob.y;
+                server->cursor_ring_out_w     = ob.width;
+                server->cursor_ring_out_h     = ob.height;
+                server->cursor_ring_out_scale = out->wlr_output->scale;
+                break;
+            }
+        }
+    }
+
     server->cursor_ring_buf = wlr_scene_buffer_create(
         server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY], nullptr);
-    wlr_scene_node_set_position(&server->cursor_ring_buf->node,
-                                (int)(server->cursor_ring_x - RING_SIZE_PX / 2.0),
-                                (int)(server->cursor_ring_y - RING_SIZE_PX / 2.0));
+
+    if (is_spotlight)
+    {
+        wlr_scene_node_set_position(&server->cursor_ring_buf->node,
+                                    server->cursor_ring_out_x,
+                                    server->cursor_ring_out_y);
+    }
+    else
+    {
+        wlr_scene_node_set_position(&server->cursor_ring_buf->node,
+                                    (int)(server->cursor_ring_x - RINGS_SIZE_PX / 2.0),
+                                    (int)(server->cursor_ring_y - RINGS_SIZE_PX / 2.0));
+    }
 
     server->cursor_ring_timer = wl_event_loop_add_timer(
         wl_display_get_event_loop(server->wl_display),

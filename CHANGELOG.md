@@ -40,9 +40,21 @@
   keymap file (e.g. produced by `xkbcomp`). When set it takes precedence over
   `xkb_rules`/`xkb_layout`/`xkb_variant`/`xkb_options`. Falls back to the
   rules-based path with a log warning if the file cannot be opened or compiled.
+- **`nnwm.find_cursor()` cursor attention animation**: calling `nnwm.find_cursor()`
+  from a keybinding flashes an animation at the current cursor position to help
+  locate it on large or multi-monitor setups. Two styles are available via
+  `nnwm.opt.find_cursor_style`:
+  - `"rings"` *(default)* — a filled circle shrinks toward the cursor over ~640 ms.
+  - `"spotlight"` — the entire output dims and a soft circular cutout reveals the
+    area around the cursor, fading in, holding, then fading out over ~1600 ms.
 
 ### Bug Fixes
 
+- **`warp_to_focused_window` no longer fires on pointer motion**: the cursor warp
+  was previously triggered by focus-follows-mouse (moving the physical pointer over
+  a window), causing the cursor to jump back to the window centre mid-gesture.
+  Warping now only happens on programmatic focus changes (keybinding, window map,
+  workspace switch), not when the user moves the pointer.
 - Fix emacs starting in floating mode due to spurious `xdg_toplevel_request_move`
   events fired by GTK with no button held; the handler now ignores the request
   when `pointer_state.button_count == 0`.
