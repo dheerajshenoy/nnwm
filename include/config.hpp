@@ -210,8 +210,8 @@ struct nnwm_config
     /* Config error overlay (dangerous to disable — you won't see load errors) */
     bool show_config_error_overlay;
 
-    /* Workspaces */
-    int workspace_count;                           /* 1–NNWM_NUM_WORKSPACES; default 9 */
+    /* Workspaces — count is inferred from the length of workspace_names */
+    int workspace_count;      /* 1–NNWM_NUM_WORKSPACES; default 9 */
     char *workspace_names[9]; /* per-workspace label; NULL = use numeric index */
 
     /* Decorations */

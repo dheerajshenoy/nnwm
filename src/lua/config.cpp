@@ -1565,8 +1565,6 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_pushboolean(L, cfg->client_decorations);
     lua_setfield(L, -2, "client_decorations");
 
-    lua_pushinteger(L, cfg->workspace_count);
-    lua_setfield(L, -2, "workspace_count");
     lua_newtable(L);
     for (int i = 0; i < cfg->workspace_count; i++)
     {
@@ -2026,28 +2024,24 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         = get_bool_field(L, "client_decorations", cfg->client_decorations);
 
     {
-        lua_getfield(L, -1, "workspace_count");
-        if (lua_isnumber(L, -1))
-        {
-            int n = (int)lua_tointeger(L, -1);
-            if (n >= 1 && n <= NNWM_NUM_WORKSPACES)
-                cfg->workspace_count = n;
-            else
-                luaL_error(L, "workspace_count must be 1–%d", NNWM_NUM_WORKSPACES);
-        }
-        lua_pop(L, 1);
-
         lua_getfield(L, -1, "workspace_names");
         if (lua_istable(L, -1))
         {
+            int n = (int)lua_rawlen(L, -1);
+            if (n < 1 || n > NNWM_NUM_WORKSPACES)
+                luaL_error(L, "workspace_names length must be 1–%d", NNWM_NUM_WORKSPACES);
+            cfg->workspace_count = n;
             for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
             {
                 free(cfg->workspace_names[i]);
                 cfg->workspace_names[i] = nullptr;
-                lua_rawgeti(L, -1, i + 1);
-                if (lua_isstring(L, -1))
-                    cfg->workspace_names[i] = strdup(lua_tostring(L, -1));
-                lua_pop(L, 1);
+                if (i < n)
+                {
+                    lua_rawgeti(L, -1, i + 1);
+                    if (lua_isstring(L, -1))
+                        cfg->workspace_names[i] = strdup(lua_tostring(L, -1));
+                    lua_pop(L, 1);
+                }
             }
         }
         lua_pop(L, 1);
