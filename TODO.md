@@ -140,19 +140,22 @@
             - [x] Workspace change
         - [x] Startup
         - [x] Shutdown
+        - [x] On monitor connect
+        - [x] On monitor disconnect
+        - [x] On lid close
+        - [x] On lid open
+        - [x] On tablet mode
+        - [x] On tablet mode off
+- [x] Scratchpad windows disappear after changing workspaces
+- [x] Change cursor shape when window resizing
+- [x] workspace-auto-back-and-forth
+- [x] Enable/disable config load fail notification
 
 ## TODO
 
 - [ ] disable-power-key-handling
-- [ ] workspace-auto-back-and-forth
 - [ ] Monitor hot-corners
 - [ ] Keybinding overlay
-- [ ] Enable/disable config load fail notification
-- Signals
-    - [ ] On lid close
-    - [ ] On lid open
-    - [ ] On monitor connect
-    - [ ] On monitor disconnect
 - Keyboard
     - [ ] file to load xkb options from
 - Layouts
@@ -181,6 +184,4 @@
     - [ ] border
 - [ ] Fix warp-to-focus being annoying
 - [ ] Customizable workspace names
-- [ ] Change cursor shape when window resizing
 - [ ] Don't allow resizing of tiled windows
-- [ ] Scratchpad windows disappear after changing workspaces
