@@ -608,6 +608,7 @@ main(int argc, char *argv[])
     wlr_renderer_destroy(server.renderer);
     wlr_backend_destroy(server.backend);
     wl_display_destroy(server.wl_display);
+    cursor_ring_stop(&server);
     if (server.config_event_source)
         wl_event_source_remove(server.config_event_source);
     if (server.config_inotify_fd >= 0)

@@ -283,6 +283,10 @@ function nnwm.monitor(config) end
 --- Terminate the compositor.
 function nnwm.quit() end
 
+--- Show a shrinking ring animation at the current cursor position to help locate it.
+--- Useful when bound to a key (e.g. tapping Ctrl).
+function nnwm.find_cursor() end
+
 --- Return the hostname of the machine.
 ---@return string
 function nnwm.host_name() end

@@ -156,6 +156,7 @@
 - [x] Customizable workspace names and count
 - [x] file to load xkb options from
 - [x] Fix warp-to-focus being annoying
+- [x] Windows 11 like cursor circle attention grabber
 
 ## TODO
 
@@ -173,8 +174,6 @@
 - [ ] Multi workspace viewing at once (like dwm)
 - [ ] Handle minimized windows
 - [ ] Jump label support (like MangoWM)
-- [ ] temporary mouse cursor size increase to regain attention of the cursor
-- [ ] Windows 11 like cursor circle attention grabber
 - [ ] XWayland (possibly use xwayland-satellite ?)
 - [ ] IPC for nnwm
 - Layer rules
@@ -185,3 +184,4 @@
     - [ ] animation
     - [ ] border
 - [ ] Don't allow resizing of tiled windows
+- [ ] temporary mouse cursor size increase to regain attention of the cursor

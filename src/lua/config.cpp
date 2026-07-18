@@ -404,6 +404,13 @@ l_nnwm_quit(lua_State *L)
 }
 
 static int
+l_nnwm_find_cursor(lua_State *L)
+{
+    cursor_ring_start(get_server(L));
+    return 0;
+}
+
+static int
 l_nnwm_close(lua_State *L)
 {
     nnwm::close(get_server(L));
@@ -1334,6 +1341,7 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"gesture", l_nnwm_gesture},
     {"monitor", l_nnwm_monitor},
     {"quit", l_nnwm_quit},
+    {"find_cursor", l_nnwm_find_cursor},
     {"close", l_nnwm_close},
     {"spawn", l_nnwm_spawn},
     {"spawn_once", l_nnwm_spawn_once},

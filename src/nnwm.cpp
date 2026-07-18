@@ -2488,6 +2488,126 @@ error_dismiss_cb(void *data)
     return 0;
 }
 
+/* ── Cursor attention ring ───────────────────────────────────────────────── */
+
+static constexpr int    RING_SIZE_PX   = 200;   /* logical pixels, always square */
+static constexpr float  RING_MAX_R     = 90.0f; /* starting radius of filled circle */
+static constexpr int    RING_TICK_MS   = 16;    /* ~60 fps */
+static constexpr int    RING_TICKS     = 40;    /* total ticks ≈ 640 ms */
+
+void cursor_ring_stop(nnwm_server *server)
+{
+    if (server->cursor_ring_timer)
+    {
+        wl_event_source_remove(server->cursor_ring_timer);
+        server->cursor_ring_timer = nullptr;
+    }
+    if (server->cursor_ring_buf)
+    {
+        wlr_scene_node_destroy(&server->cursor_ring_buf->node);
+        server->cursor_ring_buf = nullptr;
+    }
+}
+
+static int cursor_ring_tick(void *data)
+{
+    auto *server = static_cast<nnwm_server *>(data);
+    server->cursor_ring_progress += 1.0f / RING_TICKS;
+
+    if (server->cursor_ring_progress >= 1.0f)
+    {
+        cursor_ring_stop(server);
+        return 0;
+    }
+
+    float t = server->cursor_ring_progress;
+
+    /* Determine output scale at cursor position */
+    double dpi = 1.0;
+    {
+        nnwm_output *out;
+        wl_list_for_each(out, &server->outputs, link)
+        {
+            wlr_box ob;
+            wlr_output_layout_get_box(server->output_layout,
+                                      out->wlr_output, &ob);
+            if (server->cursor_ring_x >= ob.x && server->cursor_ring_x < ob.x + ob.width &&
+                server->cursor_ring_y >= ob.y && server->cursor_ring_y < ob.y + ob.height)
+            {
+                dpi = out->wlr_output->scale;
+                break;
+            }
+        }
+    }
+
+    int buf = (int)(RING_SIZE_PX * dpi);
+    nnwm_tbuf *tb = tbuf_create(buf, buf);
+    cairo_surface_t *csurf = cairo_image_surface_create_for_data(
+        tb->data, CAIRO_FORMAT_ARGB32, buf, buf, tb->stride);
+    cairo_t *cr = cairo_create(csurf);
+    cairo_scale(cr, dpi, dpi);
+
+    cairo_set_operator(cr, CAIRO_OPERATOR_CLEAR);
+    cairo_paint(cr);
+    cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
+
+    double cx = RING_SIZE_PX / 2.0;
+    double cy = RING_SIZE_PX / 2.0;
+
+    /* Ease-out: fast shrink at first, slow near cursor */
+    double ease = 1.0 - (1.0 - (double)t) * (1.0 - (double)t);
+    double r    = RING_MAX_R * (1.0 - ease);
+    double fill_alpha   = (1.0 - (double)t) * 0.45; /* semi-transparent white fill */
+    double border_alpha = (1.0 - (double)t) * 0.90;
+
+    if (r >= 1.0)
+    {
+        /* Filled circle */
+        cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, fill_alpha);
+        cairo_arc(cr, cx, cy, r, 0, 2 * M_PI);
+        cairo_fill(cr);
+
+        /* Crisp border ring */
+        cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, border_alpha);
+        cairo_set_line_width(cr, 2.5);
+        cairo_arc(cr, cx, cy, r, 0, 2 * M_PI);
+        cairo_stroke(cr);
+    }
+
+    cairo_surface_flush(csurf);
+    cairo_surface_destroy(csurf);
+    cairo_destroy(cr);
+
+    wlr_scene_buffer_set_buffer(server->cursor_ring_buf, &tb->base);
+    wlr_buffer_drop(&tb->base);
+    wlr_scene_buffer_set_dest_size(server->cursor_ring_buf,
+                                   RING_SIZE_PX, RING_SIZE_PX);
+
+    wl_event_source_timer_update(server->cursor_ring_timer, RING_TICK_MS);
+    return 0;
+}
+
+void
+cursor_ring_start(nnwm_server *server)
+{
+    cursor_ring_stop(server);
+
+    server->cursor_ring_x        = server->cursor->x;
+    server->cursor_ring_y        = server->cursor->y;
+    server->cursor_ring_progress = 0.0f;
+
+    server->cursor_ring_buf = wlr_scene_buffer_create(
+        server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY], nullptr);
+    wlr_scene_node_set_position(&server->cursor_ring_buf->node,
+                                (int)(server->cursor_ring_x - RING_SIZE_PX / 2.0),
+                                (int)(server->cursor_ring_y - RING_SIZE_PX / 2.0));
+
+    server->cursor_ring_timer = wl_event_loop_add_timer(
+        wl_display_get_event_loop(server->wl_display),
+        cursor_ring_tick, server);
+    wl_event_source_timer_update(server->cursor_ring_timer, 1);
+}
+
 void
 show_config_error(nnwm_server *server, const char *message)
 {

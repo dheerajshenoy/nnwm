@@ -328,6 +328,12 @@ struct nnwm_server
 
     struct wl_list hooks;  /* nnwm_hook::link  — event → lua callback */
     struct wl_list timers; /* nnwm_timer::link — wl_event_source timers */
+
+    /* Cursor attention ring (find_cursor action) */
+    struct wlr_scene_buffer *cursor_ring_buf;
+    struct wl_event_source  *cursor_ring_timer;
+    float cursor_ring_progress; /* 0.0 → 1.0; drives shrink + fade */
+    double cursor_ring_x, cursor_ring_y; /* cursor position at ring start */
 };
 
 struct nnwm_hook
