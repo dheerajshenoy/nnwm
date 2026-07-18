@@ -131,18 +131,20 @@ MOD = {}
 ---@field focus?     nnwm_anim_type_config  Focus border style: "crossfade"|"none" (default: "crossfade")
 
 ---@class nnwm_opts
----@field layout?             nnwm.layout
----@field gaps?               nnwm.gaps
----@field border?             nnwm.border
----@field keyboard?           nnwm.keyboard
----@field touchpad?           nnwm.touchpad
----@field mouse?              nnwm.mouse
----@field titlebar?           nnwm.titlebar
----@field fx?                 nnwm.fx
----@field clipboard?          boolean  Enable clipboard (wl_data_device selection); set false to block all clipboard writes (default: true)
----@field client_decorations? boolean
----@field seat_name?          string
----@field monitors?           nnwm_monitor_config[]
+---@field layout?                    nnwm.layout
+---@field gaps?                      nnwm.gaps
+---@field border?                    nnwm.border
+---@field keyboard?                  nnwm.keyboard
+---@field touchpad?                  nnwm.touchpad
+---@field mouse?                     nnwm.mouse
+---@field titlebar?                  nnwm.titlebar
+---@field fx?                        nnwm.fx
+---@field clipboard?                 boolean  Enable clipboard (wl_data_device selection); set false to block all clipboard writes (default: true)
+---@field client_decorations?        boolean
+---@field seat_name?                 string
+---@field monitors?                  nnwm_monitor_config[]
+---@field workspace_back_and_forth?  boolean  When true, switching to the active workspace jumps to the previously visited workspace instead of doing nothing (default: false)
+---@field show_config_error_overlay? boolean  Show a red overlay when the Lua config fails to load. Dangerous to disable — errors will be silently ignored (default: true)
 
 ---@class nnwm
 ---@field opt nnwm_opts
@@ -315,6 +317,10 @@ function nnwm.current_output() end
 ---| "window_close"     # Fired when a window is unmapped (closes). Callback receives `nnwm.Window`.
 ---| "workspace_switch" # Fired when the active workspace changes. Callback receives `nnwm.Workspace`.
 ---| "output_connect"   # Fired when a new output (monitor) is connected. Callback receives `nnwm.Output`.
+---| "lid_close"        # Fired when the laptop lid is closed. No argument.
+---| "lid_open"         # Fired when the laptop lid is opened. No argument.
+---| "tablet_mode_on"   # Fired when the device enters tablet mode. No argument.
+---| "tablet_mode_off"  # Fired when the device leaves tablet mode. No argument.
 
 --- Register a callback for a compositor event.
 ---
