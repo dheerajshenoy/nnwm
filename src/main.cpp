@@ -478,6 +478,15 @@ main(int argc, char *argv[])
     server.request_set_selection.notify = seat_request_set_selection;
     wl_signal_add(&server.seat->events.request_set_selection,
                   &server.request_set_selection);
+    server.request_start_drag.notify = seat_request_start_drag;
+    wl_signal_add(&server.seat->events.request_start_drag,
+                  &server.request_start_drag);
+    server.start_drag.notify = seat_start_drag;
+    wl_signal_add(&server.seat->events.start_drag, &server.start_drag);
+    wl_list_init(&server.drag_icon_destroy.link);
+    wl_list_init(&server.drag_destroy.link);
+    server.drag_icon_tree = nullptr;
+    server.current_drag   = nullptr;
 
 #ifdef HAVE_XWAYLAND
     nnwm_xwayland_init(&server);
@@ -608,6 +617,12 @@ main(int argc, char *argv[])
     wl_list_remove(&server.request_cursor.link);
     wl_list_remove(&server.pointer_focus_change.link);
     wl_list_remove(&server.request_set_selection.link);
+    wl_list_remove(&server.request_start_drag.link);
+    wl_list_remove(&server.start_drag.link);
+    if (!wl_list_empty(&server.drag_destroy.link))
+        wl_list_remove(&server.drag_destroy.link);
+    if (!wl_list_empty(&server.drag_icon_destroy.link))
+        wl_list_remove(&server.drag_icon_destroy.link);
 
     wl_list_remove(&server.new_output.link);
     if (server.session)

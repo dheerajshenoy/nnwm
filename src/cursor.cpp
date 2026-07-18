@@ -4,6 +4,7 @@
 
 #include <ctime>
 #include <linux/input-event-codes.h>
+#include <wlr/types/wlr_data_device.h>
 
 /* ---- Cursor / pointer hit-testing ---- */
 
@@ -216,6 +217,13 @@ process_cursor_resize(nnwm_server *server)
 void
 process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
 {
+    if (server->drag_icon_tree)
+    {
+        wlr_scene_node_set_position(&server->drag_icon_tree->node,
+                                    (int)server->cursor->x,
+                                    (int)server->cursor->y);
+    }
+
     if (server->cursor_mode == nnwm_cursor_mode::MOVE)
     {
         process_cursor_move(server);
@@ -369,6 +377,75 @@ seat_pointer_focus_change(wl_listener *listener, void *data)
     {
         wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
     }
+}
+
+static void
+on_drag_icon_destroy(wl_listener *listener, void * /*data*/)
+{
+    nnwm_server *server    = wl_container_of(listener, server, drag_icon_destroy);
+    wl_list_remove(&server->drag_icon_destroy.link);
+    wl_list_init(&server->drag_icon_destroy.link);
+    server->drag_icon_tree = nullptr;
+}
+
+static void
+on_drag_destroy(wl_listener *listener, void * /*data*/)
+{
+    nnwm_server *server = wl_container_of(listener, server, drag_destroy);
+    bool dropped        = server->current_drag && server->current_drag->dropped;
+
+    wl_list_remove(&server->drag_destroy.link);
+    wl_list_init(&server->drag_destroy.link);
+    server->current_drag = nullptr;
+
+    if (!dropped)
+        return;
+
+    /* Focus the window that received the drop */
+    double sx, sy;
+    wlr_surface *surface    = nullptr;
+    nnwm_toplevel *toplevel = desktop_toplevel_at(
+        server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+    if (toplevel)
+        focus_toplevel(toplevel);
+}
+
+void
+seat_request_start_drag(wl_listener *listener, void *data)
+{
+    nnwm_server *server = wl_container_of(listener, server, request_start_drag);
+    auto *event = static_cast<wlr_seat_request_start_drag_event *>(data);
+
+    if (wlr_seat_validate_pointer_grab_serial(server->seat, event->origin,
+                                              event->serial))
+    {
+        wlr_seat_start_pointer_drag(server->seat, event->drag, event->serial);
+        return;
+    }
+    wlr_data_source_destroy(event->drag->source);
+}
+
+void
+seat_start_drag(wl_listener *listener, void *data)
+{
+    nnwm_server *server = wl_container_of(listener, server, start_drag);
+    auto *drag          = static_cast<wlr_drag *>(data);
+
+    server->current_drag         = drag;
+    server->drag_destroy.notify  = on_drag_destroy;
+    wl_signal_add(&drag->events.destroy, &server->drag_destroy);
+
+    if (!drag->icon)
+        return;
+
+    server->drag_icon_tree = wlr_scene_drag_icon_create(
+        server->scene_windows, drag->icon);
+    wlr_scene_node_set_position(&server->drag_icon_tree->node,
+                                (int)server->cursor->x,
+                                (int)server->cursor->y);
+
+    server->drag_icon_destroy.notify = on_drag_icon_destroy;
+    wl_signal_add(&drag->icon->events.destroy, &server->drag_icon_destroy);
 }
 
 void

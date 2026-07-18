@@ -269,6 +269,12 @@ struct nnwm_server
     struct wl_listener request_cursor;
     struct wl_listener pointer_focus_change;
     struct wl_listener request_set_selection;
+    struct wl_listener request_start_drag;
+    struct wl_listener start_drag;
+    struct wl_listener drag_icon_destroy;
+    struct wl_listener drag_destroy;
+    struct wlr_drag    *current_drag;      /* non-null while a drag is active */
+    struct wlr_scene_tree *drag_icon_tree; /* scene node for current DnD icon */
     struct wl_list keyboards;
     struct wl_list switches;
     nnwm_cursor_mode cursor_mode;
@@ -633,6 +639,8 @@ extern "C"
     void seat_request_cursor(struct wl_listener *, void *);
     void seat_pointer_focus_change(struct wl_listener *, void *);
     void seat_request_set_selection(struct wl_listener *, void *);
+    void seat_request_start_drag(struct wl_listener *, void *);
+    void seat_start_drag(struct wl_listener *, void *);
 #ifdef HAVE_XWAYLAND
     void server_new_xwayland_surface(struct wl_listener *, void *);
 #endif

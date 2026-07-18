@@ -1980,9 +1980,7 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
         int ig = cfg->gap.inner;
         int bw = cfg->border.width;
         int th = cfg->titlebar.height;
-        float rh_frac
-            = cfg->scroll_row_height > 0.0f ? cfg->scroll_row_height : 0.5f;
-        int row_h = (int)(area.height * rh_frac);
+        int row_h = area.height - 2 * og;
         int row_w = area.width - 2 * og;
 
         nnwm_toplevel *active = out->last_focused[ws];
@@ -2000,12 +1998,8 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
             idx++;
         }
 
-        /* Center the focused row in the viewport */
-        int focused_top = og + fi * (row_h + ig);
-        int target      = focused_top + row_h / 2 - area.height / 2;
-        if (target < 0)
-            target = 0;
-        out->scroll_offset[ws] = target;
+        /* Snap scroll so focused window is flush with the top of the viewport */
+        out->scroll_offset[ws] = fi * (row_h + ig);
 
         wlr_surface *focused_surface
             = server->seat->keyboard_state.focused_surface;

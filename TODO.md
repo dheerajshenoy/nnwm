@@ -165,10 +165,11 @@
     - [x] ring
     - [x] spotlight
 - [x] XWayland
+- [x] Drag and drop
+
 ## TODO
 
 - [ ] possibly use xwayland-satellite for XWayland?
-- [ ] Drag and drop
 - [ ] Monitor hot-corners
 - [ ] Keybinding overlay
 - Layouts
