@@ -2570,9 +2570,9 @@ static int cursor_ring_tick(void *data)
         else
             alpha = 1.0 - (t - SPOT_HOLD_OUT) / (1.0 - SPOT_HOLD_OUT);
 
-        /* Cursor relative to the output's top-left */
-        double cx = (server->cursor_ring_x - server->cursor_ring_out_x) * scale;
-        double cy = (server->cursor_ring_y - server->cursor_ring_out_y) * scale;
+        /* Cursor relative to the output's top-left (live position) */
+        double cx = (server->cursor->x - server->cursor_ring_out_x) * scale;
+        double cy = (server->cursor->y - server->cursor_ring_out_y) * scale;
         double sr  = SPOT_RADIUS_PX * scale; /* spotlight radius in buffer pixels */
 
         nnwm_tbuf *tb = tbuf_create(buf_w, buf_h);
@@ -2642,6 +2642,10 @@ static int cursor_ring_tick(void *data)
         wlr_buffer_drop(&tb->base);
         wlr_scene_buffer_set_dest_size(server->cursor_ring_buf,
                                        RINGS_SIZE_PX, RINGS_SIZE_PX);
+        /* Track live cursor position */
+        wlr_scene_node_set_position(&server->cursor_ring_buf->node,
+                                    (int)(server->cursor->x - RINGS_SIZE_PX / 2.0),
+                                    (int)(server->cursor->y - RINGS_SIZE_PX / 2.0));
     }
 
     wl_event_source_timer_update(server->cursor_ring_timer, RING_TICK_MS);
