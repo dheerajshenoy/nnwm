@@ -153,6 +153,7 @@
 - [x] Get OBS to work with nnwm
 - [x] Scratchpad
 - [x] Overview mode
+- [x] Customizable workspace names and count
 
 ## TODO
 
@@ -184,5 +185,4 @@
     - [ ] animation
     - [ ] border
 - [ ] Fix warp-to-focus being annoying
-- [ ] Customizable workspace names
 - [ ] Don't allow resizing of tiled windows
