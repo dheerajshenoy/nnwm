@@ -154,14 +154,13 @@
 - [x] Scratchpad
 - [x] Overview mode
 - [x] Customizable workspace names and count
+- [x] file to load xkb options from
 
 ## TODO
 
 - [ ] disable-power-key-handling
 - [ ] Monitor hot-corners
 - [ ] Keybinding overlay
-- Keyboard
-    - [ ] file to load xkb options from
 - Layouts
     - [ ] Dwindle
     - [ ] Sway like h/v choosable layout
