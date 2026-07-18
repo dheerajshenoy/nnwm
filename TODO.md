@@ -150,6 +150,9 @@
 - [x] Change cursor shape when window resizing
 - [x] workspace-auto-back-and-forth
 - [x] Enable/disable config load fail notification
+- [x] Get OBS to work with nnwm
+- [x] Scratchpad
+- [x] Overview mode
 
 ## TODO
 
@@ -166,14 +169,12 @@
     - [ ] wlr-virtual-keyboard-unstable-v1
     - [ ] wlr-gamma-control-unstable-v1
 - [ ] Hardware-acceleration
-- [ ] Scratchpad
 - [ ] Multi workspace viewing at once (like dwm)
-- [ ] Overview mode
 - [ ] Handle minimized windows
 - [ ] Jump label support (like MangoWM)
 - [ ] temporary mouse cursor size increase to regain attention of the cursor
+- [ ] Windows 11 like cursor circle attention grabber
 - [ ] XWayland (possibly use xwayland-satellite ?)
-- [ ] Get OBS to work with nnwm
 - [ ] IPC for nnwm
 - Layer rules
     - [ ] layer z-order
