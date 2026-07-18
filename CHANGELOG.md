@@ -36,6 +36,10 @@
   (e.g. waybar). Empty strings fall back to the numeric index. On config hot-reload
   the ext-workspace handles are rebuilt live: removed workspaces receive a
   `removed` event and new workspaces are announced without restarting clients.
+- **XKB keymap file**: `keyboard.xkb_file` accepts a path to a compiled XKB
+  keymap file (e.g. produced by `xkbcomp`). When set it takes precedence over
+  `xkb_rules`/`xkb_layout`/`xkb_variant`/`xkb_options`. Falls back to the
+  rules-based path with a log warning if the file cannot be opened or compiled.
 
 ### Bug Fixes
 
