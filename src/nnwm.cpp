@@ -1152,7 +1152,6 @@ rerender_tab_bar(nnwm_server *server, nnwm_output *out)
 static void arrange_windows_impl(nnwm_server *server, nnwm_output *out);
 
 static constexpr int OVERVIEW_COLS  = 3;
-static constexpr int OVERVIEW_ROWS  = (NNWM_NUM_WORKSPACES + OVERVIEW_COLS - 1) / OVERVIEW_COLS;
 static constexpr double OVERVIEW_OUTER = 32.0;
 static constexpr double OVERVIEW_INNER = 12.0;
 
@@ -1215,7 +1214,7 @@ render_overview(nnwm_server *server, nnwm_output *out)
      * Direct impl call avoids re-entering arrange_windows → render_overview. */
     {
         int saved = out->active_workspace;
-        for (int ws = 0; ws < NNWM_NUM_WORKSPACES; ws++) {
+        for (int ws = 0; ws < server->config->workspace_count; ws++) {
             if (ws == saved) continue;
             out->active_workspace = ws;
             arrange_windows_impl(server, out);
@@ -1254,8 +1253,10 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
     int buf_w   = (int)(W * dpi);
     int buf_h   = (int)(H * dpi);
 
+    int num_ws = server->config->workspace_count;
+    int ov_rows = (num_ws + OVERVIEW_COLS - 1) / OVERVIEW_COLS;
     double slot_w = (W - 2.0 * OVERVIEW_OUTER - (OVERVIEW_COLS - 1) * OVERVIEW_INNER) / OVERVIEW_COLS;
-    double slot_h = (H - 2.0 * OVERVIEW_OUTER - (OVERVIEW_ROWS - 1) * OVERVIEW_INNER) / OVERVIEW_ROWS;
+    double slot_h = (H - 2.0 * OVERVIEW_OUTER - (ov_rows - 1) * OVERVIEW_INNER) / ov_rows;
 
     const wlr_box &ua = out->usable_area;
     double ua_w = ua.width  > 0 ? (double)ua.width  : (double)W;
@@ -1309,7 +1310,7 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
             }
         }
 
-        for (int ws = 0; ws < NNWM_NUM_WORKSPACES; ws++) {
+        for (int ws = 0; ws < num_ws; ws++) {
             int    col    = ws % OVERVIEW_COLS;
             int    row    = ws / OVERVIEW_COLS;
             double sx     = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
@@ -1411,7 +1412,7 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
         cairo_paint(cr);
     }
 
-    for (int ws = 0; ws < NNWM_NUM_WORKSPACES; ws++) {
+    for (int ws = 0; ws < num_ws; ws++) {
         int    col    = ws % OVERVIEW_COLS;
         int    row    = ws / OVERVIEW_COLS;
         double sx     = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
@@ -1512,9 +1513,14 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
         cairo_rectangle(cr, sx + 0.5, sy + 0.5, slot_w - 1.0, slot_h - 1.0);
         cairo_stroke(cr);
 
-        /* Workspace number label */
-        char label[4];
-        std::snprintf(label, sizeof(label), "%d", ws + 1);
+        /* Workspace label (configured name, or fallback to index) */
+        char label_buf[32];
+        const char *label = server->config->workspace_names[ws];
+        if (!label || label[0] == '\0')
+        {
+            std::snprintf(label_buf, sizeof(label_buf), "%d", ws + 1);
+            label = label_buf;
+        }
         double fs_label = any ? std::max(8.0, slot_h * 0.10)
                               : std::max(14.0, slot_h * 0.28);
         fs_label = std::min(fs_label, 40.0);

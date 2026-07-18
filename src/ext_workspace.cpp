@@ -235,8 +235,9 @@ ext_workspace_manager_bind(struct wl_client *client, void *data,
         if (out_res)
             ext_workspace_group_handle_v1_send_output_enter(grp_res, out_res);
 
-        /* Create workspace handles for workspaces 0..8 on this output */
-        for (int i = 0; i < NNWM_NUM_WORKSPACES; i++) {
+        /* Create workspace handles for configured workspaces on this output */
+        int num_ws = server->config->workspace_count;
+        for (int i = 0; i < num_ws; i++) {
             auto *ws = new nnwm_ext_workspace{};
             ws->index = i;
             ws->group = grp;
@@ -254,9 +255,14 @@ ext_workspace_manager_bind(struct wl_client *client, void *data,
 
             ext_workspace_manager_v1_send_workspace(mgr_res, ws_res);
 
-            char name[4];
-            snprintf(name, sizeof(name), "%d", i + 1);
-            ext_workspace_handle_v1_send_name(ws_res, name);
+            const char *ws_name = server->config->workspace_names[i];
+            char name_buf[32];
+            if (!ws_name || ws_name[0] == '\0')
+            {
+                snprintf(name_buf, sizeof(name_buf), "%d", i + 1);
+                ws_name = name_buf;
+            }
+            ext_workspace_handle_v1_send_name(ws_res, ws_name);
 
             ext_workspace_handle_v1_send_capabilities(
                 ws_res, EXT_WORKSPACE_HANDLE_V1_WORKSPACE_CAPABILITIES_ACTIVATE);

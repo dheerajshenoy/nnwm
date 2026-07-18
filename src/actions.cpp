@@ -454,7 +454,7 @@ void
 nnwm::workspace::switch_to(nnwm_server *server, int ws)
 {
     nnwm_output *out = server->focused_output;
-    if (!out || ws < 0 || ws >= NNWM_NUM_WORKSPACES)
+    if (!out || ws < 0 || ws >= server->config->workspace_count)
         return;
 
     if (ws == out->active_workspace)
@@ -692,11 +692,12 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
         int cur_row = cur / OV_COLS;
         int target = -1;
 
+        int num_ws = server->config->workspace_count;
         if (is_left  && cur_col > 0)                  target = cur - 1;
         if (is_right && cur_col < OV_COLS - 1
-                     && cur + 1 < NNWM_NUM_WORKSPACES) target = cur + 1;
+                     && cur + 1 < num_ws)              target = cur + 1;
         if (is_up    && cur_row > 0)                   target = cur - OV_COLS;
-        if (is_down  && cur + OV_COLS < NNWM_NUM_WORKSPACES) target = cur + OV_COLS;
+        if (is_down  && cur + OV_COLS < num_ws)        target = cur + OV_COLS;
 
         if (target < 0) return;
         ov_switch_ws(server, out, target);
@@ -838,11 +839,12 @@ nnwm::focus::move_dir(nnwm_server *server, const char *direction)
         int cur_row = cur / OV_COLS;
         int target = -1;
 
+        int num_ws = server->config->workspace_count;
         if (is_left  && cur_col > 0)                  target = cur - 1;
         if (is_right && cur_col < OV_COLS - 1
-                     && cur + 1 < NNWM_NUM_WORKSPACES) target = cur + 1;
+                     && cur + 1 < num_ws)              target = cur + 1;
         if (is_up    && cur_row > 0)                   target = cur - OV_COLS;
-        if (is_down  && cur + OV_COLS < NNWM_NUM_WORKSPACES) target = cur + OV_COLS;
+        if (is_down  && cur + OV_COLS < num_ws)        target = cur + OV_COLS;
 
         if (target < 0) return;
 
@@ -1358,7 +1360,7 @@ nnwm::layout::prev(nnwm_server *server)
 void
 nnwm::workspace::move_to(nnwm_server *server, int ws)
 {
-    if (ws < 0 || ws >= NNWM_NUM_WORKSPACES)
+    if (ws < 0 || ws >= server->config->workspace_count)
         return;
     nnwm_toplevel *tl = get_focused_toplevel(server);
     if (!tl)

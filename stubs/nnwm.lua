@@ -143,8 +143,10 @@ MOD = {}
 ---@field client_decorations?        boolean
 ---@field seat_name?                 string
 ---@field monitors?                  nnwm_monitor_config[]
----@field workspace_back_and_forth?  boolean  When true, switching to the active workspace jumps to the previously visited workspace instead of doing nothing (default: false)
----@field show_config_error_overlay? boolean  Show a red overlay when the Lua config fails to load. Dangerous to disable — errors will be silently ignored (default: true)
+---@field workspace_back_and_forth?  boolean   When true, switching to the active workspace jumps to the previously visited workspace instead of doing nothing (default: false)
+---@field show_config_error_overlay? boolean   Show a red overlay when the Lua config fails to load. Dangerous to disable — errors will be silently ignored (default: true)
+---@field workspace_count?           integer   Number of workspaces (1–9, default: 9)
+---@field workspace_names?           string[]  Per-workspace labels shown in the overview and sent via ext-workspace-v1 (e.g. `{"web","code","term"}`). Missing or empty entries fall back to the numeric index.
 
 ---@class nnwm
 ---@field opt nnwm_opts

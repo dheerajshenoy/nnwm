@@ -432,7 +432,8 @@ server_cursor_button(wl_listener *listener, void *data)
                 const double OV_OUTER = 32.0;
                 const double OV_INNER = 12.0;
                 const int    OV_COLS  = 3;
-                const int    OV_ROWS  = (NNWM_NUM_WORKSPACES + OV_COLS - 1) / OV_COLS;
+                const int    num_ws   = server->config->workspace_count;
+                const int    OV_ROWS  = (num_ws + OV_COLS - 1) / OV_COLS;
                 double slot_w = (ob.width  - 2.0 * OV_OUTER - (OV_COLS - 1) * OV_INNER) / OV_COLS;
                 double slot_h = (ob.height - 2.0 * OV_OUTER - (OV_ROWS - 1) * OV_INNER) / OV_ROWS;
 
@@ -445,7 +446,7 @@ server_cursor_button(wl_listener *listener, void *data)
                     if (cx >= sx && cx < sx + slot_w && cy >= sy && cy < sy + slot_h)
                     {
                         int ws = row * OV_COLS + col;
-                        if (ws < NNWM_NUM_WORKSPACES)
+                        if (ws < num_ws)
                             target_ws = ws;
                     }
                 }

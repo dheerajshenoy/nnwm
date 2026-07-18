@@ -536,22 +536,24 @@ l_nnwm_swap_master(lua_State *L)
 static int
 l_nnwm_switch_workspace(lua_State *L)
 {
+    struct nnwm_server *server = get_server(L);
     int ws = (int)luaL_checkinteger(L, 1);
-    if (ws < 1 || ws > NNWM_NUM_WORKSPACES)
-        return luaL_error(L, "nnwm.switch_workspace: index must be 1-%d",
-                          NNWM_NUM_WORKSPACES);
-    nnwm::workspace::switch_to(get_server(L), ws - 1);
+    int max = server->config->workspace_count;
+    if (ws < 1 || ws > max)
+        return luaL_error(L, "nnwm.switch_workspace: index must be 1-%d", max);
+    nnwm::workspace::switch_to(server, ws - 1);
     return 0;
 }
 
 static int
 l_nnwm_move_to_workspace(lua_State *L)
 {
+    struct nnwm_server *server = get_server(L);
     int ws = (int)luaL_checkinteger(L, 1);
-    if (ws < 1 || ws > NNWM_NUM_WORKSPACES)
-        return luaL_error(L, "nnwm.move_to_workspace: index must be 1-%d",
-                          NNWM_NUM_WORKSPACES);
-    nnwm::workspace::move_to(get_server(L), ws - 1);
+    int max = server->config->workspace_count;
+    if (ws < 1 || ws > max)
+        return luaL_error(L, "nnwm.move_to_workspace: index must be 1-%d", max);
+    nnwm::workspace::move_to(server, ws - 1);
     return 0;
 }
 
@@ -936,8 +938,8 @@ l_nnwm_rule(lua_State *L)
     lua_getfield(L, 2, "workspace");
     if (lua_isinteger(L, -1))
     {
-        int ws = (int)lua_tointeger(L, -1) - 1; /* Lua 1-9 → internal 0-8 */
-        if (ws >= 0 && ws < NNWM_NUM_WORKSPACES)
+        int ws = (int)lua_tointeger(L, -1) - 1; /* Lua 1-N → internal 0-(N-1) */
+        if (ws >= 0 && ws < get_server(L)->config->workspace_count)
             r.workspace = ws;
     }
     lua_pop(L, 1);
@@ -1563,6 +1565,23 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_pushboolean(L, cfg->client_decorations);
     lua_setfield(L, -2, "client_decorations");
 
+    lua_pushinteger(L, cfg->workspace_count);
+    lua_setfield(L, -2, "workspace_count");
+    lua_newtable(L);
+    for (int i = 0; i < cfg->workspace_count; i++)
+    {
+        if (cfg->workspace_names[i])
+            lua_pushstring(L, cfg->workspace_names[i]);
+        else
+        {
+            char buf[8];
+            std::snprintf(buf, sizeof(buf), "%d", i + 1);
+            lua_pushstring(L, buf);
+        }
+        lua_rawseti(L, -2, i + 1);
+    }
+    lua_setfield(L, -2, "workspace_names");
+
     /* titlebar sub-table */
     lua_newtable(L);
     lua_pushboolean(L, cfg->titlebar.height > 0);
@@ -2005,6 +2024,34 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         = get_bool_field(L, "clipboard", cfg->clipboard_enabled);
     cfg->client_decorations
         = get_bool_field(L, "client_decorations", cfg->client_decorations);
+
+    {
+        lua_getfield(L, -1, "workspace_count");
+        if (lua_isnumber(L, -1))
+        {
+            int n = (int)lua_tointeger(L, -1);
+            if (n >= 1 && n <= NNWM_NUM_WORKSPACES)
+                cfg->workspace_count = n;
+            else
+                luaL_error(L, "workspace_count must be 1–%d", NNWM_NUM_WORKSPACES);
+        }
+        lua_pop(L, 1);
+
+        lua_getfield(L, -1, "workspace_names");
+        if (lua_istable(L, -1))
+        {
+            for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
+            {
+                free(cfg->workspace_names[i]);
+                cfg->workspace_names[i] = nullptr;
+                lua_rawgeti(L, -1, i + 1);
+                if (lua_isstring(L, -1))
+                    cfg->workspace_names[i] = strdup(lua_tostring(L, -1));
+                lua_pop(L, 1);
+            }
+        }
+        lua_pop(L, 1);
+    }
 
     lua_getfield(L, -1, "titlebar");
     if (lua_istable(L, -1))
@@ -2456,6 +2503,25 @@ nnwm::lua_reload(struct nnwm_server *server, struct nnwm_config *cfg)
 
     read_config_table(server->lua, cfg);
 
+    /* Clamp windows and output state to the new workspace count */
+    {
+        int max_ws = cfg->workspace_count - 1;
+        struct nnwm_toplevel *tl;
+        wl_list_for_each(tl, &server->toplevels, link)
+        {
+            if (tl->workspace > max_ws)
+                tl->workspace = max_ws;
+        }
+        struct nnwm_output *out;
+        wl_list_for_each(out, &server->outputs, link)
+        {
+            if (out->active_workspace > max_ws)
+                out->active_workspace = max_ws;
+            if (out->prev_workspace > max_ws)
+                out->prev_workspace = max_ws;
+        }
+    }
+
     std::fprintf(stderr, "nnwm: reloaded config (%d keybindings)\n",
                  server->lua_keybinding_count);
 }
@@ -2661,6 +2727,10 @@ nnwm::config_defaults(void)
     cfg->window_rules      = nullptr;
     cfg->window_rule_count = 0;
 
+    cfg->workspace_count = NNWM_NUM_WORKSPACES;
+    for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
+        cfg->workspace_names[i] = nullptr;
+
     return cfg;
 }
 
@@ -2684,5 +2754,7 @@ nnwm::config_free(struct nnwm_config *cfg)
     }
     free(cfg->monitor_configs);
     free_window_rules(cfg);
+    for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
+        free(cfg->workspace_names[i]);
     delete cfg;
 }
