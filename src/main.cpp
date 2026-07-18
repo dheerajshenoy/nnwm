@@ -464,6 +464,7 @@ main(int argc, char *argv[])
      * let us know when new input devices are available on the backend.
      */
     wl_list_init(&server.keyboards);
+    wl_list_init(&server.switches);
     server.new_input.notify = server_new_input;
     wl_signal_add(&server.backend->events.new_input, &server.new_input);
     server.seat                  = wlr_seat_create(server.wl_display,

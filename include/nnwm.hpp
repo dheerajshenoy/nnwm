@@ -57,6 +57,7 @@ extern "C"
 #include <wlr/types/wlr_xdg_activation_v1.h>
 #include <wlr/types/wlr_pointer_gestures_v1.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
+#include <wlr/types/wlr_switch.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
@@ -256,6 +257,7 @@ struct nnwm_server
     struct wl_listener pointer_focus_change;
     struct wl_listener request_set_selection;
     struct wl_list keyboards;
+    struct wl_list switches;
     nnwm_cursor_mode cursor_mode;
     struct nnwm_toplevel *grabbed_toplevel;
     double grab_x, grab_y;
@@ -351,6 +353,7 @@ struct nnwm_output
     struct wlr_output *wlr_output;
     struct wlr_box usable_area; /* output area minus exclusive-zone struts */
     int active_workspace;
+    int prev_workspace; /* workspace visited before active_workspace */
     nnwm_layout_mode layout_mode[NNWM_NUM_WORKSPACES];
     float master_ratio[NNWM_NUM_WORKSPACES];
     int scroll_offset[NNWM_NUM_WORKSPACES]; /* horizontal scroll offset in
@@ -500,6 +503,15 @@ struct nnwm_keyboard
     uint32_t repeat_modifiers;
     xkb_keysym_t repeat_sym;
     bool repeat_started; /* false = waiting for initial delay, true = repeating */
+};
+
+struct nnwm_switch
+{
+    struct wl_list link;
+    struct nnwm_server *server;
+    struct wlr_switch *wlr_switch;
+    struct wl_listener toggle;
+    struct wl_listener destroy;
 };
 
 struct nnwm_decoration

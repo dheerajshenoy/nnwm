@@ -194,6 +194,8 @@ struct nnwm_config
 
     /* Focus */
     bool focus_follows_mouse;
+    bool workspace_back_and_forth; /* switching to the active workspace jumps
+                                      to the previously visited one instead */
 
     /* Layout behaviour */
     bool new_window_master;    /* true = new window becomes master, false =
@@ -204,6 +206,9 @@ struct nnwm_config
                                   layout (0.0–1.0) */
     bool center_new_floating;  /* center new floating windows on the output when
                                   they first map */
+
+    /* Config error overlay (dangerous to disable — you won't see load errors) */
+    bool show_config_error_overlay;
 
     /* Decorations */
     bool clipboard_enabled;

@@ -454,11 +454,19 @@ void
 nnwm::workspace::switch_to(nnwm_server *server, int ws)
 {
     nnwm_output *out = server->focused_output;
-    if (!out || ws < 0 || ws >= NNWM_NUM_WORKSPACES
-        || ws == out->active_workspace)
+    if (!out || ws < 0 || ws >= NNWM_NUM_WORKSPACES)
         return;
 
+    if (ws == out->active_workspace)
+    {
+        if (server->config->workspace_back_and_forth && out->prev_workspace != ws)
+            ws = out->prev_workspace;
+        else
+            return;
+    }
+
     int old_ws            = out->active_workspace;
+    out->prev_workspace   = old_ws;
     out->active_workspace = ws;
 
     /* Sync scene visibility: sticky windows always remain visible.

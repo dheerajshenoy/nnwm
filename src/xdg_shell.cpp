@@ -381,19 +381,23 @@ begin_interactive(nnwm_toplevel *toplevel, nnwm_cursor_mode mode,
 
     if (mode == nnwm_cursor_mode::MOVE)
     {
+        wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "move");
         server->grab_x = server->cursor->x - toplevel->scene_tree->node.x;
         server->grab_y = server->cursor->y - toplevel->scene_tree->node.y;
     }
     else
     {
+        wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr,
+                               resize_cursor_name(edges));
         wlr_box *geo_box = &toplevel->xdg_toplevel->base->geometry;
 
         double border_x = (toplevel->scene_tree->node.x + geo_box->x)
                           + ((edges & WLR_EDGE_RIGHT) ? geo_box->width : 0);
         double border_y = (toplevel->scene_tree->node.y + geo_box->y)
                           + ((edges & WLR_EDGE_BOTTOM) ? geo_box->height : 0);
-        server->grab_x  = server->cursor->x - border_x;
-        server->grab_y  = server->cursor->y - border_y;
+        wlr_cursor_warp(server->cursor, nullptr, border_x, border_y);
+        server->grab_x  = 0;
+        server->grab_y  = 0;
 
         server->grab_geobox = *geo_box;
         server->grab_geobox.x += toplevel->scene_tree->node.x;

@@ -96,6 +96,25 @@ reset_cursor_mode(nnwm_server *server)
 {
     server->cursor_mode      = nnwm_cursor_mode::PASSTHROUGH;
     server->grabbed_toplevel = nullptr;
+    wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+}
+
+const char *
+resize_cursor_name(uint32_t edges)
+{
+    bool top    = edges & WLR_EDGE_TOP;
+    bool bottom = edges & WLR_EDGE_BOTTOM;
+    bool left   = edges & WLR_EDGE_LEFT;
+    bool right  = edges & WLR_EDGE_RIGHT;
+    if (top    && left)  return "nw-resize";
+    if (top    && right) return "ne-resize";
+    if (bottom && left)  return "sw-resize";
+    if (bottom && right) return "se-resize";
+    if (top)             return "n-resize";
+    if (bottom)          return "s-resize";
+    if (left)            return "w-resize";
+    if (right)           return "e-resize";
+    return "se-resize";
 }
 
 /* ---- Cursor motion processing ---- */
@@ -239,6 +258,43 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
 
 /* ---- Seat and input device handling ---- */
 
+static void
+switch_handle_toggle(wl_listener *listener, void *data)
+{
+    nnwm_switch *sw = wl_container_of(listener, sw, toggle);
+    const auto *event = static_cast<wlr_switch_toggle_event *>(data);
+    const char *hook = nullptr;
+    if (event->switch_type == WLR_SWITCH_TYPE_LID)
+        hook = (event->switch_state == WLR_SWITCH_STATE_ON) ? "lid_close" : "lid_open";
+    else if (event->switch_type == WLR_SWITCH_TYPE_TABLET_MODE)
+        hook = (event->switch_state == WLR_SWITCH_STATE_ON) ? "tablet_mode_on" : "tablet_mode_off";
+    if (hook)
+        fire_hook_plain(sw->server, hook);
+}
+
+static void
+switch_handle_destroy(wl_listener *listener, void * /*data*/)
+{
+    nnwm_switch *sw = wl_container_of(listener, sw, destroy);
+    wl_list_remove(&sw->toggle.link);
+    wl_list_remove(&sw->destroy.link);
+    wl_list_remove(&sw->link);
+    delete sw;
+}
+
+static void
+server_new_switch(nnwm_server *server, wlr_input_device *device)
+{
+    nnwm_switch *sw  = new nnwm_switch{};
+    sw->server       = server;
+    sw->wlr_switch   = wlr_switch_from_input_device(device);
+    sw->toggle.notify  = switch_handle_toggle;
+    wl_signal_add(&sw->wlr_switch->events.toggle, &sw->toggle);
+    sw->destroy.notify = switch_handle_destroy;
+    wl_signal_add(&device->events.destroy, &sw->destroy);
+    wl_list_insert(&server->switches, &sw->link);
+}
+
 void
 server_new_input(wl_listener *listener, void *data)
 {
@@ -251,6 +307,9 @@ server_new_input(wl_listener *listener, void *data)
             break;
         case WLR_INPUT_DEVICE_POINTER:
             server_new_pointer(server, device);
+            break;
+        case WLR_INPUT_DEVICE_SWITCH:
+            server_new_switch(server, device);
             break;
         default:
             break;
@@ -267,6 +326,9 @@ void
 seat_request_cursor(wl_listener *listener, void *data)
 {
     nnwm_server *server = wl_container_of(listener, server, request_cursor);
+    /* During compositor-managed move/resize keep the compositor cursor. */
+    if (server->cursor_mode != nnwm_cursor_mode::PASSTHROUGH)
+        return;
     auto *event
         = static_cast<wlr_seat_pointer_request_set_cursor_event *>(data);
     wlr_seat_client *focused_client

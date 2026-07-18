@@ -49,6 +49,20 @@
   workspace whose only window was fullscreen cleared keyboard focus. The focus
   logic now tries `last_focused[ws]` first (which may hold a fullscreen window),
   then falls back to `ws_first`, then `ws_first_float`.
+- **Cursor shape on resize/move**: Super+right-click resize now shows the
+  appropriate directional cursor (`nw-resize`, `se-resize`, etc.) based on which
+  edges are being dragged. Super+left-click move shows `move`. The cursor is
+  restored to `default` when the drag ends. Client cursor-change requests are
+  suppressed during compositor-managed move/resize so the shape stays consistent.
+- **Cursor warps to resize corner on resize start**: when Super+right-click
+  initiates a resize, the cursor is warped to the window corner being dragged
+  (bottom-right by default) so the grab point is exact from the first motion event.
+- **VT resume segfault**: `output_frame` now checks `session->active` before
+  attempting any rendering. Previously a stale DRM frame event arriving while
+  the session was transitioning could cause scenefx's overview render pass
+  (`wlr_renderer_begin_buffer_pass`) to crash with the GPU context in an
+  undefined state. The DRM cursor plane is also re-uploaded on VT resume via
+  `wlr_cursor_set_xcursor` in `server_session_active`.
 
 ## 0.1.0
 

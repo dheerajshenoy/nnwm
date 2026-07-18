@@ -62,6 +62,7 @@ void arrange_all_outputs(struct nnwm_server *server);
 void arrange_scratchpad(struct nnwm_server *server);
 
 /* ---- Cursor / pointer ---- */
+const char *resize_cursor_name(uint32_t edges);
 struct nnwm_toplevel *tab_toplevel_at(struct nnwm_server *server,
                                       double lx, double ly);
 struct nnwm_toplevel *desktop_toplevel_at(struct nnwm_server *server,

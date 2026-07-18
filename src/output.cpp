@@ -49,6 +49,13 @@ output_frame(wl_listener *listener, void * /*data*/)
     if (!output->wlr_output->enabled)
         return;
 
+    /* Don't attempt any rendering while the session is inactive (VT switch).
+     * The DRM backend may not hold master, and scenefx's renderer can crash
+     * if asked to begin a buffer pass without a valid GPU context. */
+    nnwm_server *server = output->server;
+    if (server->session && !server->session->active)
+        return;
+
     wlr_scene_output *scene_output
         = wlr_scene_get_scene_output(output->server->scene, output->wlr_output);
     if (!scene_output)
@@ -142,6 +149,9 @@ server_session_active(wl_listener *listener, void * /*data*/)
     nnwm_output *out;
     wl_list_for_each(out, &server->outputs, link)
         arrange_layers(server, out->wlr_output);
+    /* Re-upload the cursor image to the DRM cursor plane, which is lost
+     * across VT switches. */
+    wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
 }
 
 /* ---- wlr-output-management ---- */
@@ -522,6 +532,7 @@ server_new_output(wl_listener *listener, void *data)
                               &output->usable_area);
 
     output->active_workspace = 0;
+    output->prev_workspace   = 0;
     memset(output->last_focused, 0, sizeof(output->last_focused));
     memset(output->prev_focused, 0, sizeof(output->prev_focused));
     for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)

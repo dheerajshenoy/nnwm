@@ -1525,6 +1525,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_newtable(L);
     lua_pushboolean(L, cfg->focus_follows_mouse);
     lua_setfield(L, -2, "focus_follows_mouse");
+    lua_pushboolean(L, cfg->workspace_back_and_forth);
+    lua_setfield(L, -2, "workspace_back_and_forth");
     lua_pushstring(L, cfg->cursor_theme);
     lua_setfield(L, -2, "cursor_theme");
     lua_pushinteger(L, cfg->cursor_size);
@@ -1962,6 +1964,10 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     {
         cfg->focus_follows_mouse = get_bool_field(L, "focus_follows_mouse",
                                                   cfg->focus_follows_mouse);
+        cfg->workspace_back_and_forth = get_bool_field(
+            L, "workspace_back_and_forth", cfg->workspace_back_and_forth);
+        cfg->show_config_error_overlay = get_bool_field(
+            L, "show_config_error_overlay", cfg->show_config_error_overlay);
         char *ct = get_string_field(L, "cursor_theme", cfg->cursor_theme);
         free(cfg->cursor_theme);
         cfg->cursor_theme = ct;
@@ -2385,7 +2391,7 @@ nnwm::lua_load_config(struct nnwm_server *server, struct nnwm_config *cfg,
     {
         const char *err = lua_tostring(server->lua, -1);
         std::fprintf(stderr, "nnwm: config error: %s\n", err);
-        if (server->wayland_started)
+        if (server->wayland_started && cfg->show_config_error_overlay)
             show_config_error(server, err);
         lua_pop(server->lua, 1);
     }
@@ -2429,7 +2435,8 @@ nnwm::lua_reload(struct nnwm_server *server, struct nnwm_config *cfg)
     {
         const char *err = lua_tostring(server->lua, -1);
         std::fprintf(stderr, "nnwm: config error: %s\n", err);
-        show_config_error(server, err);
+        if (cfg->show_config_error_overlay)
+            show_config_error(server, err);
         lua_pop(server->lua, 1);
     }
     else
@@ -2572,6 +2579,8 @@ nnwm::config_defaults(void)
     cfg->touchpad.scroll_method        = 1; /* two_finger */
 
     cfg->focus_follows_mouse              = false;
+    cfg->workspace_back_and_forth         = false;
+    cfg->show_config_error_overlay        = true;
     cfg->mouse.accel_speed                = 0.0f;
     cfg->mouse.accel_profile              = 0; /* adaptive */
     cfg->mouse.natural_scroll             = false;
