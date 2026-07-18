@@ -14,6 +14,19 @@
   titlebar and removes its vertical offset so the window occupies the full output
   area. The same applies to fake-fullscreen. Exiting fullscreen restores the
   titlebar through the normal layout path.
+- **`workspace_back_and_forth`** config option: when enabled, switching to the
+  currently active workspace jumps to the previously visited workspace instead
+  of doing nothing. Each output tracks its own previous workspace independently.
+- **`show_config_error_overlay`** config option: controls whether the red error
+  overlay is displayed when the Lua config fails to load. Defaults to `true`.
+  Disabling it is dangerous — config errors will be silently ignored and no
+  visual feedback will appear.
+- **Lid and tablet-mode hook events**: nnwm now registers `wlr_switch` devices
+  (laptop lid sensor, tablet-mode sensor) and fires the following hook events:
+  - `"lid_close"` — fired when the laptop lid is closed
+  - `"lid_open"` — fired when the laptop lid is opened
+  - `"tablet_mode_on"` — fired when the device enters tablet mode
+  - `"tablet_mode_off"` — fired when the device leaves tablet mode
 
 ### Bug Fixes
 
