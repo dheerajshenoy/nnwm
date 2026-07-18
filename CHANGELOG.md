@@ -10,11 +10,45 @@
   to the workspace.
 - Add `overview_mode` which shows all workspaces in a grid layout giving you the overview
   of the workspace per-monitor.
+- **Titlebar hidden on fullscreen**: entering fullscreen now hides the server-side
+  titlebar and removes its vertical offset so the window occupies the full output
+  area. The same applies to fake-fullscreen. Exiting fullscreen restores the
+  titlebar through the normal layout path.
 
-## Bug Fixes
+### Bug Fixes
 
-- Fix emacs starting in floating mode
-- Overview mode workspace switching not signalling the workspace change to wlroots
+- Fix emacs starting in floating mode due to spurious `xdg_toplevel_request_move`
+  events fired by GTK with no button held; the handler now ignores the request
+  when `pointer_state.button_count == 0`.
+- Overview mode workspace switching not signalling the workspace change to waybar's
+  `ext/workspaces` module; `ext_workspace_notify` is now called from `ov_switch_ws`.
+- **Scratchpad floating window reverts to tiled on re-show**: floating windows in
+  the scratchpad were repositioned by `arrange_scratchpad` on every show,
+  overwriting any user resize/float. The layout loops now skip windows with
+  `floating = true` and a separate `scratch_count_all` counter is used for the
+  empty-scratchpad check, while `scratch_count` (tiled only) drives layout math.
+- **Floating scratchpad window invisible after workspace switch**: the workspace
+  visibility sweep in `workspace::switch_to` and `ov_switch_ws` was setting
+  scratchpad window scene nodes to `enabled = false` when their workspace did not
+  match the new active workspace. Scratchpad visibility is owned by the scratchpad
+  toggle; the sweep now skips all `in_scratchpad` windows.
+- **`move_to_workspace` from scratchpad makes window disappear**: calling
+  `nnwm.move_to_workspace()` on a scratchpad window only changed `tl->workspace`
+  but left the scene node parented under `scene_scratchpad`. The window disappeared
+  when the scratchpad was hidden. The action now clears `in_scratchpad`, reparents
+  the scene node to `scene_windows`, and re-arranges the scratchpad before
+  proceeding with the normal workspace assignment.
+- **Fullscreen window invisible after workspace switch and return**: the workspace
+  slide/fade animation loops iterated over fullscreen windows and used stale
+  `geo_to_*` values (the last tiled position) to drive the animation, moving the
+  window to the wrong coordinates on return. Fullscreen and fake-fullscreen windows
+  are now skipped in both animation loops; the visibility sweep already handles
+  showing and hiding them correctly.
+- **Fullscreen window not focused after workspace switch**: `switch_to` focused
+  the result of `ws_first()` which excludes fullscreen windows, so returning to a
+  workspace whose only window was fullscreen cleared keyboard focus. The focus
+  logic now tries `last_focused[ws]` first (which may hold a fullscreen window),
+  then falls back to `ws_first`, then `ws_first_float`.
 
 ## 0.1.0
 

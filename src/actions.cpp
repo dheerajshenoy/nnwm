@@ -73,8 +73,6 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
             tl->cur_w = tl->geo_from_w;
             tl->cur_h = tl->geo_from_h;
             wlr_xdg_toplevel_set_size(tl->xdg_toplevel, area.width, area.height);
-            if (tl->titlebar)
-                wlr_scene_node_set_enabled(&tl->titlebar->node, false);
             apply_fx_decorations(tl);
             arrange_windows(server, out);
             return;
@@ -83,9 +81,6 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
         wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
         wlr_xdg_toplevel_set_size(tl->xdg_toplevel, area.width, area.height);
         update_borders(tl, area.width, area.height, 0);
-        if (tl->titlebar)
-            wlr_scene_node_set_enabled(&tl->titlebar->node, false);
-        wlr_scene_node_set_position(&tl->scene_surface->node, 0, 0);
     }
 
     apply_fx_decorations(tl);
@@ -109,9 +104,6 @@ do_toggle_fake_fullscreen(nnwm_toplevel *tl)
         wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
         wlr_xdg_toplevel_set_size(tl->xdg_toplevel, area.width, area.height);
         update_borders(tl, area.width, area.height, 0);
-        if (tl->titlebar)
-            wlr_scene_node_set_enabled(&tl->titlebar->node, false);
-        wlr_scene_node_set_position(&tl->scene_surface->node, 0, 0);
     }
 
     arrange_windows(server, out);
@@ -482,7 +474,13 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
                 || (tl->output && tl->output->active_workspace == tl->workspace));
     }
 
-    nnwm_toplevel *next = ws_first(server, out);
+    /* Prefer the last-focused window on the target workspace (may be fullscreen
+     * or floating), fall back to first tiled, then first floating. */
+    nnwm_toplevel *next = out->last_focused[ws];
+    if (!next || next->output != out || next->workspace != ws)
+        next = ws_first(server, out);
+    if (!next)
+        next = ws_first_float(server, out);
     if (next)
         focus_toplevel(next);
     else
@@ -510,6 +508,10 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
             {
                 if (tl->output != out || tl->sticky)
                     continue;
+                /* Fullscreen windows cover the whole screen — skip animation;
+                 * the visibility sweep above already enabled/disabled them. */
+                if (tl->fullscreen || tl->fake_fullscreen)
+                    continue;
                 float op = (tl->rule_opacity >= 0.0f) ? tl->rule_opacity
                                                       : cfg->fx.opacity;
                 if (tl->workspace == old_ws)
@@ -535,6 +537,10 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
             wl_list_for_each(tl, &server->toplevels, link)
             {
                 if (tl->output != out || tl->sticky)
+                    continue;
+                /* Fullscreen windows cover the whole screen — skip animation;
+                 * the visibility sweep above already enabled/disabled them. */
+                if (tl->fullscreen || tl->fake_fullscreen)
                     continue;
 
                 if (tl->workspace == old_ws)
@@ -1347,10 +1353,21 @@ nnwm::workspace::move_to(nnwm_server *server, int ws)
     if (ws < 0 || ws >= NNWM_NUM_WORKSPACES)
         return;
     nnwm_toplevel *tl = get_focused_toplevel(server);
-    if (!tl || tl->workspace == ws)
+    if (!tl)
         return;
 
     nnwm_output *out = tl->output;
+
+    /* Pull out of scratchpad if needed */
+    if (tl->in_scratchpad)
+    {
+        tl->in_scratchpad = false;
+        wlr_scene_node_reparent(&tl->scene_tree->node, server->scene_windows);
+        if (server->scratchpad_visible)
+            arrange_scratchpad(server);
+    }
+    else if (tl->workspace == ws)
+        return;
 
     if (out && out->last_focused[tl->workspace] == tl)
         out->last_focused[tl->workspace] = nullptr;

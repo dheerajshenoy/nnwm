@@ -308,22 +308,24 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
     bool tabbed_tiled = !toplevel->floating && toplevel->output
         && toplevel->output->layout_mode[toplevel->workspace]
                == nnwm_layout_mode::TABBED;
+    bool no_titlebar = tabbed_tiled || toplevel->fullscreen
+                       || toplevel->fake_fullscreen;
 
     if (toplevel->titlebar)
     {
-        bool enabled = (th > 0) && !tabbed_tiled;
+        bool enabled = (th > 0) && !no_titlebar;
         wlr_scene_node_set_enabled(&toplevel->titlebar->node, enabled);
         wlr_scene_node_set_position(&toplevel->titlebar->node, bw, bw);
     }
 
-    /* window surface is pushed down by the titlebar (omitted in tabbed mode) */
+    /* window surface is pushed down by the titlebar (omitted in tabbed/fullscreen) */
     wlr_scene_node_set_position(&toplevel->scene_surface->node,
-                                bw, bw + (tabbed_tiled ? 0 : th));
+                                bw, bw + (no_titlebar ? 0 : th));
 
 #ifdef HAVE_SCENEFX
     {
     int inner_r       = r > bw ? r - bw : 0;
-    bool titlebar_shown = toplevel->titlebar && (th > 0) && !tabbed_tiled;
+    bool titlebar_shown = toplevel->titlebar && (th > 0) && !no_titlebar;
     nnwm_tab_position tab_pos = cfg->layout.tab_position;
 
     /* Corner radii vary by tab bar position: round the corners that are
