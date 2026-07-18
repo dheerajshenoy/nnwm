@@ -57,7 +57,7 @@ workspace_handle_activate(struct wl_client * /*client*/,
                           struct wl_resource *resource)
 {
     auto *ws = static_cast<nnwm_ext_workspace*>(wl_resource_get_user_data(resource));
-    if (!ws) return;
+    if (!ws || ws->removed) return;
     nnwm_server *server = ws->group->manager->server;
     /* Switch workspace on the output that owns this group */
     nnwm_output *out = ws->group->output;
@@ -306,9 +306,87 @@ nnwm::ext_workspace_notify(struct nnwm_server *server)
             nnwm_output *out = grp->output;
             nnwm_ext_workspace *ws;
             wl_list_for_each(ws, &grp->workspaces, link) {
+                if (ws->removed) continue;
                 uint32_t state = (out && out->active_workspace == ws->index)
                     ? EXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE : 0;
                 ext_workspace_handle_v1_send_state(ws->resource, state);
+            }
+        }
+
+        ext_workspace_manager_v1_send_done(mgr->resource);
+    }
+}
+
+void
+nnwm::ext_workspace_rebuild(struct nnwm_server *server)
+{
+    int num_ws = server->config->workspace_count;
+
+    nnwm_ext_workspace_manager *mgr;
+    wl_list_for_each(mgr, &server->ext_workspace_managers, link) {
+        if (mgr->stopped) continue;
+
+        uint32_t version = (uint32_t)wl_resource_get_version(mgr->resource);
+        struct wl_client *client = wl_resource_get_client(mgr->resource);
+
+        nnwm_ext_workspace_group *grp;
+        wl_list_for_each(grp, &mgr->groups, link) {
+            nnwm_output *out = grp->output;
+
+            int max_live_index = -1;
+            nnwm_ext_workspace *ws;
+            wl_list_for_each(ws, &grp->workspaces, link) {
+                if (ws->removed) continue;
+                if (ws->index >= num_ws) {
+                    /* Signal the client to destroy this handle; we do NOT call
+                     * wl_resource_destroy here — the client calls destroy after
+                     * receiving removed, which triggers workspace_resource_destroy. */
+                    ext_workspace_handle_v1_send_removed(ws->resource);
+                    ws->removed = true;
+                } else {
+                    /* Update name in place */
+                    const char *ws_name = server->config->workspace_names[ws->index];
+                    char name_buf[32];
+                    if (!ws_name || ws_name[0] == '\0') {
+                        snprintf(name_buf, sizeof(name_buf), "%d", ws->index + 1);
+                        ws_name = name_buf;
+                    }
+                    ext_workspace_handle_v1_send_name(ws->resource, ws_name);
+                    if (ws->index > max_live_index)
+                        max_live_index = ws->index;
+                }
+            }
+
+            /* Create handles for any indices not yet announced */
+            for (int i = max_live_index + 1; i < num_ws; i++) {
+                auto *nws = new nnwm_ext_workspace{};
+                nws->index   = i;
+                nws->removed = false;
+                nws->group   = grp;
+
+                struct wl_resource *ws_res = wl_resource_create(
+                    client, &ext_workspace_handle_v1_interface, (int)version, 0);
+                if (!ws_res) { delete nws; continue; }
+                nws->resource = ws_res;
+                wl_resource_set_implementation(ws_res, &workspace_impl, nws,
+                                               workspace_resource_destroy);
+                wl_list_insert(grp->workspaces.prev, &nws->link);
+
+                ext_workspace_manager_v1_send_workspace(mgr->resource, ws_res);
+
+                const char *ws_name = server->config->workspace_names[i];
+                char name_buf[32];
+                if (!ws_name || ws_name[0] == '\0') {
+                    snprintf(name_buf, sizeof(name_buf), "%d", i + 1);
+                    ws_name = name_buf;
+                }
+                ext_workspace_handle_v1_send_name(ws_res, ws_name);
+                ext_workspace_handle_v1_send_capabilities(
+                    ws_res, EXT_WORKSPACE_HANDLE_V1_WORKSPACE_CAPABILITIES_ACTIVATE);
+                uint32_t state = (out && out->active_workspace == i)
+                    ? EXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE : 0;
+                ext_workspace_handle_v1_send_state(ws_res, state);
+                ext_workspace_group_handle_v1_send_workspace_enter(grp->resource, ws_res);
             }
         }
 

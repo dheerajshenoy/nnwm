@@ -261,20 +261,6 @@ function nnwm.gesture(fingers, direction, callback) end
 ---@param action nnwm_window_rule_action
 function nnwm.rule(match, action) end
 
----@class nnwm_monitor_config
----@field name?        string   Connector name, e.g. `"eDP-1"`, `"DP-1"`, `"HDMI-A-1"`
----@field description? string   EDID description substring to match
----@field width?       integer  Mode width in pixels
----@field height?      integer  Mode height in pixels
----@field refresh?     integer  Refresh rate in Hz (0 = preferred)
----@field x?           integer  Layout X position (unset = auto-arrange)
----@field y?           integer  Layout Y position (unset = auto-arrange)
----@field scale?       number   Output scale factor (e.g. `1.25` for HiDPI)
----@field transform?   string   Rotation: `"none"`, `"90"`, `"180"`, `"270"`, `"flipped"`, `"flipped-90"`, `"flipped-180"`, `"flipped-270"`
----@field hdr?         boolean  Enable HDR (wlroots 0.20+)
----@field disabled?    boolean  Disable this output entirely
----@field struts?      { top?: integer, bottom?: integer, left?: integer, right?: integer }
-
 --- Configure a monitor. Call once per output that needs non-default settings.
 --- The first matching rule wins; unmatched outputs use their preferred mode.
 ---

@@ -2516,6 +2516,9 @@ nnwm::lua_reload(struct nnwm_server *server, struct nnwm_config *cfg)
         }
     }
 
+    /* Rebuild ext-workspace handles to reflect new count and names */
+    nnwm::ext_workspace_rebuild(server);
+
     std::fprintf(stderr, "nnwm: reloaded config (%d keybindings)\n",
                  server->lua_keybinding_count);
 }

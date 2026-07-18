@@ -544,7 +544,8 @@ struct nnwm_ext_workspace
 {
     struct wl_list link; /* in nnwm_ext_workspace_group::workspaces */
     struct wl_resource *resource;
-    int index; /* 0-based */
+    int index;      /* 0-based */
+    bool removed;   /* send_removed sent; awaiting client destroy — skip in notify */
     struct nnwm_ext_workspace_group *group;
 };
 
@@ -603,6 +604,8 @@ void
 ext_workspace_init(struct nnwm_server *server);
 void
 ext_workspace_notify(struct nnwm_server *server);
+void
+ext_workspace_rebuild(struct nnwm_server *server);
 } // namespace nnwm
 #endif
 
