@@ -2499,6 +2499,12 @@ static constexpr float  RINGS_MAX_R    = 90.0f;
 
 /* ---- spotlight style ---- */
 static constexpr int    SPOT_TICKS     = 100;  /* ≈ 1600 ms */
+
+/* ---- zoom style ---- */
+static constexpr int    ZOOM_TICKS     = 200;  /* ≈ 3200 ms total */
+static constexpr int    ZOOM_FACTOR    = 3;    /* cursor_size multiplier */
+static constexpr float  ZOOM_HOLD_IN   = 0.15f; /* rise ends (≈ 480 ms) */
+static constexpr float  ZOOM_HOLD_OUT  = 0.75f; /* fall begins (≈ 2400 ms) */
 static constexpr double SPOT_RADIUS_PX = 120.0; /* cutout radius, logical pixels */
 static constexpr double SPOT_DIM       = 0.65;  /* max dim opacity */
 static constexpr float  SPOT_HOLD_IN   = 0.25f; /* fade-in ends */
@@ -2515,6 +2521,11 @@ void cursor_ring_stop(nnwm_server *server)
     {
         wlr_scene_node_destroy(&server->cursor_ring_buf->node);
         server->cursor_ring_buf = nullptr;
+    }
+    if (server->cursor_zoom_active)
+    {
+        server->cursor_zoom_active = false;
+        wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
     }
 }
 
@@ -2563,9 +2574,11 @@ static void spotlight_upload(nnwm_server *server)
 static int cursor_ring_tick(void *data)
 {
     auto *server = static_cast<nnwm_server *>(data);
-    bool is_spot = server->config->find_cursor_style &&
-                   std::strcmp(server->config->find_cursor_style, "spotlight") == 0;
-    server->cursor_ring_progress += 1.0f / (is_spot ? SPOT_TICKS : RING_TICKS);
+    const char *style = server->config->find_cursor_style;
+    bool is_spot = style && std::strcmp(style, "spotlight") == 0;
+    bool is_zoom = style && std::strcmp(style, "zoom")      == 0;
+    int  ticks   = is_spot ? SPOT_TICKS : is_zoom ? ZOOM_TICKS : RING_TICKS;
+    server->cursor_ring_progress += 1.0f / ticks;
 
     if (server->cursor_ring_progress >= 1.0f)
     {
@@ -2593,6 +2606,31 @@ static int cursor_ring_tick(void *data)
         if (server->cursor->x != server->cursor_ring_x ||
             server->cursor->y != server->cursor_ring_y)
             spotlight_upload(server);
+    }
+    else if (is_zoom)
+    {
+        /* ---- zoom: rise → hold → fall via GPU dest_size, no re-upload ---- */
+        float scale;
+        if (t < ZOOM_HOLD_IN)
+        {
+            float p = t / ZOOM_HOLD_IN;
+            scale = 1.0f + (ZOOM_FACTOR - 1.0f) * std::sin(p * (float)(M_PI / 2));
+        }
+        else if (t < ZOOM_HOLD_OUT)
+        {
+            scale = (float)ZOOM_FACTOR;
+        }
+        else
+        {
+            float p = (t - ZOOM_HOLD_OUT) / (1.0f - ZOOM_HOLD_OUT);
+            scale = 1.0f + (ZOOM_FACTOR - 1.0f) * std::cos(p * (float)(M_PI / 2));
+        }
+        int dest_w = (int)(server->cursor_zoom_img_w * scale);
+        int dest_h = (int)(server->cursor_zoom_img_h * scale);
+        int pos_x  = (int)(server->cursor->x - server->cursor_zoom_hot_x * scale);
+        int pos_y  = (int)(server->cursor->y - server->cursor_zoom_hot_y * scale);
+        wlr_scene_buffer_set_dest_size(server->cursor_ring_buf, dest_w, dest_h);
+        wlr_scene_node_set_position(&server->cursor_ring_buf->node, pos_x, pos_y);
     }
     else
     {
@@ -2671,8 +2709,9 @@ cursor_ring_start(nnwm_server *server)
     server->cursor_ring_y        = server->cursor->y;
     server->cursor_ring_progress = 0.0f;
 
-    bool is_spotlight = server->config->find_cursor_style &&
-                        std::strcmp(server->config->find_cursor_style, "spotlight") == 0;
+    const char *style    = server->config->find_cursor_style;
+    bool is_spotlight    = style && std::strcmp(style, "spotlight") == 0;
+    bool is_zoom         = style && std::strcmp(style, "zoom")      == 0;
 
     /* Snapshot the output under the cursor */
     server->cursor_ring_out_x     = 0;
@@ -2699,23 +2738,87 @@ cursor_ring_start(nnwm_server *server)
         }
     }
 
-    server->cursor_ring_buf = wlr_scene_buffer_create(
-        server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY], nullptr);
-
-    if (is_spotlight)
+    if (is_zoom)
     {
+        /* Use the output scale we already snapshotted so the theme is loaded */
+        float out_scale = (float)server->cursor_ring_out_scale;
+        wlr_xcursor_manager_load(server->cursor_mgr, out_scale); /* idempotent */
+        struct wlr_xcursor *xc = wlr_xcursor_manager_get_xcursor(
+            server->cursor_mgr, "default", out_scale);
+        if (!xc || xc->image_count == 0)
+        {
+            /* fallback: force-load scale 1.0 */
+            wlr_xcursor_manager_load(server->cursor_mgr, 1.0f);
+            xc = wlr_xcursor_manager_get_xcursor(server->cursor_mgr, "default", 1.0f);
+            if (!xc || xc->image_count == 0)
+                return;
+            out_scale = 1.0f;
+        }
+        struct wlr_xcursor_image *img = xc->images[0];
+
+        /* Convert straight-alpha xcursor pixels → premultiplied ARGB32 for the scene */
+        nnwm_tbuf *tb = tbuf_create((int)img->width, (int)img->height);
+        const uint32_t *src = (const uint32_t *)img->buffer;
+        for (uint32_t y = 0; y < img->height; y++)
+        {
+            const uint32_t *srow = src + y * img->width;
+            uint32_t *drow = (uint32_t *)((uint8_t *)tb->data + (size_t)y * tb->stride);
+            for (uint32_t x = 0; x < img->width; x++)
+            {
+                uint32_t p = srow[x];
+                uint8_t  a = (p >> 24) & 0xff;
+                uint8_t  r = (uint8_t)(((p >> 16) & 0xff) * a / 255);
+                uint8_t  g = (uint8_t)(((p >>  8) & 0xff) * a / 255);
+                uint8_t  b = (uint8_t)(((p >>  0) & 0xff) * a / 255);
+                drow[x] = ((uint32_t)a << 24) | ((uint32_t)r << 16)
+                         | ((uint32_t)g <<  8) | b;
+            }
+        }
+
+        /* Logical dimensions: scene buffer dest_size is in logical (unscaled) pixels */
+        int lw = (int)((float)img->width  / out_scale);
+        int lh = (int)((float)img->height / out_scale);
+        int hx = (int)((float)img->hotspot_x / out_scale);
+        int hy = (int)((float)img->hotspot_y / out_scale);
+
+        server->cursor_zoom_img_w = lw;
+        server->cursor_zoom_img_h = lh;
+        server->cursor_zoom_hot_x = hx;
+        server->cursor_zoom_hot_y = hy;
+
+        server->cursor_ring_buf = wlr_scene_buffer_create(
+            server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY], nullptr);
+        wlr_scene_buffer_set_buffer(server->cursor_ring_buf, &tb->base);
+        wlr_buffer_drop(&tb->base);
+        wlr_scene_buffer_set_dest_size(server->cursor_ring_buf, lw, lh);
         wlr_scene_node_set_position(&server->cursor_ring_buf->node,
-                                    server->cursor_ring_out_x,
-                                    server->cursor_ring_out_y);
-        /* Pre-render at full opacity; tick animates via wlr_scene_buffer_set_opacity */
-        spotlight_upload(server);
-        wlr_scene_buffer_set_opacity(server->cursor_ring_buf, 0.0f);
+                                    (int)(server->cursor_ring_x - hx),
+                                    (int)(server->cursor_ring_y - hy));
+
+        /* Hide the HW cursor; the scene buffer replaces it during the animation */
+        wlr_cursor_unset_image(server->cursor);
+        server->cursor_zoom_active = true;
     }
     else
     {
-        wlr_scene_node_set_position(&server->cursor_ring_buf->node,
-                                    (int)(server->cursor_ring_x - RINGS_SIZE_PX / 2.0),
-                                    (int)(server->cursor_ring_y - RINGS_SIZE_PX / 2.0));
+        server->cursor_ring_buf = wlr_scene_buffer_create(
+            server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY], nullptr);
+
+        if (is_spotlight)
+        {
+            wlr_scene_node_set_position(&server->cursor_ring_buf->node,
+                                        server->cursor_ring_out_x,
+                                        server->cursor_ring_out_y);
+            /* Pre-render at full opacity; tick animates via wlr_scene_buffer_set_opacity */
+            spotlight_upload(server);
+            wlr_scene_buffer_set_opacity(server->cursor_ring_buf, 0.0f);
+        }
+        else
+        {
+            wlr_scene_node_set_position(&server->cursor_ring_buf->node,
+                                        (int)(server->cursor_ring_x - RINGS_SIZE_PX / 2.0),
+                                        (int)(server->cursor_ring_y - RINGS_SIZE_PX / 2.0));
+        }
     }
 
     server->cursor_ring_timer = wl_event_loop_add_timer(

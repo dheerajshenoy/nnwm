@@ -147,7 +147,7 @@ MOD = {}
 ---@field workspace_back_and_forth?  boolean   When true, switching to the active workspace jumps to the previously visited workspace instead of doing nothing (default: false)
 ---@field show_config_error_overlay? boolean   Show a red overlay when the Lua config fails to load. Dangerous to disable — errors will be silently ignored (default: true)
 ---@field workspace_names?           string[]  Workspace labels; the array length sets the workspace count (1–9, default: 9 unlabelled). Shown in the overview and sent via ext-workspace-v1. Empty strings fall back to the numeric index.
----@field find_cursor_style?         "rings"|"spotlight"  Animation style for `nnwm.find_cursor()`. "rings" = filled circle shrinking to cursor (default); "spotlight" = full-screen dim with circular cutout at cursor.
+---@field find_cursor_style?         "rings"|"spotlight"|"zoom"  Animation style for `nnwm.find_cursor()`. "rings" = filled circle shrinking to cursor (default); "spotlight" = full-screen dim with circular cutout at cursor; "zoom" = temporarily enlarges the system cursor.
 
 ---@class nnwm
 ---@field opt nnwm_opts

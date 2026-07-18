@@ -333,11 +333,15 @@ struct nnwm_server
     struct wlr_scene_buffer *cursor_ring_buf;
     struct wl_event_source  *cursor_ring_timer;
     float  cursor_ring_progress; /* 0.0 → 1.0 */
-    double cursor_ring_x, cursor_ring_y; /* cursor position at start */
+    double cursor_ring_x, cursor_ring_y; /* cursor position at start / last rendered */
     /* spotlight style: output geometry snapshot at start */
     int cursor_ring_out_x, cursor_ring_out_y;
     int cursor_ring_out_w, cursor_ring_out_h;
     double cursor_ring_out_scale;
+    /* zoom style: cursor image dimensions and hotspot (logical px at scale 1) */
+    bool cursor_zoom_active;
+    int  cursor_zoom_img_w, cursor_zoom_img_h;
+    int  cursor_zoom_hot_x, cursor_zoom_hot_y;
 };
 
 struct nnwm_hook

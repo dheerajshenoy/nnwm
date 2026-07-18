@@ -160,8 +160,8 @@
 - Hardware-acceleration
     - [x] Overview
     - [x] find_cursor
-- find_cursor
-    - [ ] temporary mouse cursor size increase to regain attention of the cursor
+- find_cursor (to focus on the cursor)
+    - [x] temporary mouse cursor size increase
     - [x] ring
     - [x] spotlight
 ## TODO
