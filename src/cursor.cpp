@@ -181,22 +181,36 @@ process_cursor_resize(nnwm_server *server)
         }
     }
 
-    wlr_box *geo_box = &toplevel->xdg_toplevel->base->geometry;
-    wlr_scene_node_set_position(&toplevel->scene_tree->node,
-                                new_left - geo_box->x, new_top - geo_box->y);
-
     int new_width  = new_right - new_left;
     int new_height = new_bottom - new_top;
     int bw         = toplevel->server->config->border.width;
     int th         = toplevel->server->config->titlebar.height;
-    wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, new_width - 2 * bw,
-                              new_height - 2 * bw - th);
+
+#ifdef HAVE_XWAYLAND
+    if (toplevel->is_xwayland)
+    {
+        wlr_scene_node_set_position(&toplevel->scene_tree->node, new_left, new_top);
+        nnwm_xw_configure(toplevel->xwayland_surface,
+                          (int16_t)(new_left + bw),
+                          (int16_t)(new_top + bw + th),
+                          (uint16_t)(new_width > 2*bw ? new_width - 2*bw : 1),
+                          (uint16_t)(new_height > 2*bw+th ? new_height - 2*bw - th : 1));
+    }
+    else
+#endif
+    {
+        wlr_box *geo_box = &toplevel->xdg_toplevel->base->geometry;
+        wlr_scene_node_set_position(&toplevel->scene_tree->node,
+                                    new_left - geo_box->x, new_top - geo_box->y);
+        wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, new_width - 2 * bw,
+                                  new_height - 2 * bw - th);
+    }
     update_borders(toplevel, new_width, new_height, bw);
 
     /* Re-render titlebar at the new width */
     wlr_surface *fs = toplevel->server->seat->keyboard_state.focused_surface;
     render_titlebar(toplevel, new_width - 2 * bw,
-                    toplevel->xdg_toplevel->base->surface == fs);
+                    tl_wlr_surface(toplevel) == fs);
 }
 
 void
@@ -227,8 +241,13 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
         if (cur_out)
         {
             bool no_focus = !server->seat->keyboard_state.focused_surface
-                            || !wlr_xdg_toplevel_try_from_wlr_surface(
-                                server->seat->keyboard_state.focused_surface);
+                            || (!wlr_xdg_toplevel_try_from_wlr_surface(
+                                    server->seat->keyboard_state.focused_surface)
+#ifdef HAVE_XWAYLAND
+                                && !nnwm_xw_try_from_surface(
+                                    server->seat->keyboard_state.focused_surface)
+#endif
+                                );
             if (server->config->focus_follows_mouse || no_focus)
                 server->focused_output = cur_out;
         }

@@ -164,9 +164,10 @@
     - [x] temporary mouse cursor size increase
     - [x] ring
     - [x] spotlight
+- [x] XWayland
 ## TODO
 
-- [ ] XWayland (possibly use xwayland-satellite ?)
+- [ ] possibly use xwayland-satellite for XWayland?
 - [ ] Drag and drop
 - [ ] Monitor hot-corners
 - [ ] Keybinding overlay

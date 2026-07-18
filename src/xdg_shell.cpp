@@ -16,8 +16,8 @@ extern "C"
 void
 apply_window_rules(nnwm_server *server, nnwm_toplevel *toplevel)
 {
-    const char *app_id = toplevel->xdg_toplevel->app_id;
-    const char *title  = toplevel->xdg_toplevel->title;
+    const char *app_id = tl_app_id(toplevel);
+    const char *title  = tl_title(toplevel);
     auto *cfg          = server->config;
 
     for (int i = 0; i < cfg->window_rule_count; i++)
@@ -175,7 +175,7 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
     {
         bool was_focused_scratch
             = (server->seat->keyboard_state.focused_surface
-               == toplevel->xdg_toplevel->base->surface);
+               == tl_wlr_surface(toplevel));
 
         wl_list_remove(&toplevel->link);
 #ifdef HAVE_SCENEFX
@@ -319,6 +319,9 @@ xdg_toplevel_commit(wl_listener *listener, void * /*data*/)
 {
     nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, commit);
 
+    if (toplevel->xdg_toplevel == nullptr || toplevel->is_xwayland)
+        return;
+
     if (toplevel->xdg_toplevel->base->initial_commit)
     {
         wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, 0, 0);
@@ -347,6 +350,9 @@ void
 handle_xdg_toplevel_destroy(wl_listener *listener, void * /*data*/)
 {
     nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, destroy);
+
+    if (toplevel->is_xwayland)
+        return; /* XWayland destroy is handled in xwayland.cpp */
 
     /* Remove from dying list if still there */
 #ifdef HAVE_SCENEFX
@@ -389,17 +395,29 @@ begin_interactive(nnwm_toplevel *toplevel, nnwm_cursor_mode mode,
     {
         wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr,
                                resize_cursor_name(edges));
-        wlr_box *geo_box = &toplevel->xdg_toplevel->base->geometry;
 
-        double border_x = (toplevel->scene_tree->node.x + geo_box->x)
-                          + ((edges & WLR_EDGE_RIGHT) ? geo_box->width : 0);
-        double border_y = (toplevel->scene_tree->node.y + geo_box->y)
-                          + ((edges & WLR_EDGE_BOTTOM) ? geo_box->height : 0);
+        wlr_box geo_box;
+#ifdef HAVE_XWAYLAND
+        if (toplevel->is_xwayland)
+        {
+            geo_box = {0, 0, nnwm_xw_width(toplevel->xwayland_surface),
+                       nnwm_xw_height(toplevel->xwayland_surface)};
+        }
+        else
+#endif
+        {
+            geo_box = toplevel->xdg_toplevel->base->geometry;
+        }
+
+        double border_x = (toplevel->scene_tree->node.x + geo_box.x)
+                          + ((edges & WLR_EDGE_RIGHT) ? geo_box.width : 0);
+        double border_y = (toplevel->scene_tree->node.y + geo_box.y)
+                          + ((edges & WLR_EDGE_BOTTOM) ? geo_box.height : 0);
         wlr_cursor_warp(server->cursor, nullptr, border_x, border_y);
         server->grab_x  = 0;
         server->grab_y  = 0;
 
-        server->grab_geobox = *geo_box;
+        server->grab_geobox = geo_box;
         server->grab_geobox.x += toplevel->scene_tree->node.x;
         server->grab_geobox.y += toplevel->scene_tree->node.y;
 
@@ -587,13 +605,14 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     toplevel->set_title.notify = [](wl_listener *listener, void *)
     {
         nnwm_toplevel *tl = wl_container_of(listener, tl, set_title);
+        if (tl->is_xwayland) return; /* XWayland handles set_title separately */
         nnwm_server *server = tl->server;
         nnwm_config *cfg    = server->config;
         if (cfg->titlebar.height > 0 && tl->titlebar_width > 0)
         {
             wlr_surface *fs = server->seat->keyboard_state.focused_surface;
             render_titlebar(tl, tl->titlebar_width,
-                            tl->xdg_toplevel->base->surface == fs);
+                            tl_wlr_surface(tl) == fs);
         }
         if (tl->output && !tl->floating
             && tl->output->layout_mode[tl->workspace]

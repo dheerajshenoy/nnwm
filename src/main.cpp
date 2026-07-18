@@ -165,7 +165,7 @@ main(int argc, char *argv[])
      * to dig your fingers in and play with their behavior if you want. Note
      * that the clients cannot set the selection directly without compositor
      * approval, see the handling of the request_set_selection event below.*/
-    wlr_compositor_create(server.wl_display, 5, server.renderer);
+    server.compositor = wlr_compositor_create(server.wl_display, 5, server.renderer);
     wlr_subcompositor_create(server.wl_display);
     wlr_data_device_manager_create(server.wl_display);
     wlr_viewporter_create(server.wl_display);
@@ -312,10 +312,10 @@ main(int argc, char *argv[])
         nnwm_toplevel *tl;
         wl_list_for_each(tl, &server->toplevels, link)
         {
-            if (tl->xdg_toplevel != xdg_tl)
+            if (tl->is_xwayland || tl->xdg_toplevel != xdg_tl)
                 continue;
             wlr_surface *focused = server->seat->keyboard_state.focused_surface;
-            if (tl->xdg_toplevel->base->surface == focused)
+            if (tl_wlr_surface(tl) == focused)
                 return;
             tl->urgent = true;
             nnwm_config *cfg = server->config;
@@ -323,7 +323,7 @@ main(int argc, char *argv[])
             {
                 wlr_surface *fs = server->seat->keyboard_state.focused_surface;
                 render_titlebar(tl, tl->titlebar_width,
-                                tl->xdg_toplevel->base->surface == fs);
+                                tl_wlr_surface(tl) == fs);
             }
             if (tl->output && !tl->floating
                 && tl->output->layout_mode[tl->workspace]
@@ -479,6 +479,10 @@ main(int argc, char *argv[])
     wl_signal_add(&server.seat->events.request_set_selection,
                   &server.request_set_selection);
 
+#ifdef HAVE_XWAYLAND
+    nnwm_xwayland_init(&server);
+#endif
+
     /* Add a Unix socket to the Wayland display. */
     const char *socket = wl_display_add_socket_auto(server.wl_display);
     if (!socket)
@@ -515,8 +519,14 @@ main(int argc, char *argv[])
     /* Unset DISPLAY so clients don't try to connect to a non-existent X server.
      * Without this, toolkits like GLFW/SDL that support both X11 and Wayland
      * will attempt X11 first (because $DISPLAY is set from the parent TTY
-     * session) and fail with an EGL/GLX error. */
+     * session) and fail with an EGL/GLX error.
+     * When XWayland is running, DISPLAY is already set to its socket above. */
+#ifndef HAVE_XWAYLAND
     unsetenv("DISPLAY");
+#else
+    if (!server.xwayland)
+        unsetenv("DISPLAY");
+#endif
     if (startup_cmd)
     {
         if (fork() == 0)
@@ -576,6 +586,9 @@ main(int argc, char *argv[])
     wl_list_remove(&server.output_manager_test.link);
     wl_list_remove(&server.new_xdg_toplevel.link);
     wl_list_remove(&server.new_xdg_popup.link);
+#ifdef HAVE_XWAYLAND
+    nnwm_xwayland_fini(&server);
+#endif
 
     wl_list_remove(&server.cursor_motion.link);
     wl_list_remove(&server.cursor_motion_absolute.link);

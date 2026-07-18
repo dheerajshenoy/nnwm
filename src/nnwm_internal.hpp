@@ -131,6 +131,99 @@ void fire_hook_output(struct nnwm_server *server, const char *event,
                       struct nnwm_output *out);
 int  nnwm_timer_cb(void *data);
 
+/* ---- C bridge functions for wlr_xwayland_surface / wlr_xwayland ---- */
+#ifdef HAVE_XWAYLAND
+extern "C" {
+/* Surface field accessors */
+struct wlr_surface  *nnwm_xw_surface(const struct wlr_xwayland_surface *s);
+const char          *nnwm_xw_class(const struct wlr_xwayland_surface *s);
+const char          *nnwm_xw_title(const struct wlr_xwayland_surface *s);
+int16_t              nnwm_xw_x(const struct wlr_xwayland_surface *s);
+int16_t              nnwm_xw_y(const struct wlr_xwayland_surface *s);
+uint16_t             nnwm_xw_width(const struct wlr_xwayland_surface *s);
+uint16_t             nnwm_xw_height(const struct wlr_xwayland_surface *s);
+int                  nnwm_xw_has_parent(const struct wlr_xwayland_surface *s);
+int                  nnwm_xw_override_redirect(const struct wlr_xwayland_surface *s);
+
+/* Surface event signal pointers */
+struct wl_signal    *nnwm_xw_events_associate(struct wlr_xwayland_surface *s);
+struct wl_signal    *nnwm_xw_events_dissociate(struct wlr_xwayland_surface *s);
+struct wl_signal    *nnwm_xw_events_destroy(struct wlr_xwayland_surface *s);
+struct wl_signal    *nnwm_xw_events_request_configure(struct wlr_xwayland_surface *s);
+struct wl_signal    *nnwm_xw_events_set_title(struct wlr_xwayland_surface *s);
+struct wl_signal    *nnwm_xw_events_request_move(struct wlr_xwayland_surface *s);
+struct wl_signal    *nnwm_xw_events_request_resize(struct wlr_xwayland_surface *s);
+struct wl_signal    *nnwm_xw_events_request_maximize(struct wlr_xwayland_surface *s);
+struct wl_signal    *nnwm_xw_events_request_fullscreen(struct wlr_xwayland_surface *s);
+
+/* Surface actions */
+void                 nnwm_xw_close(struct wlr_xwayland_surface *s);
+void                 nnwm_xw_activate(struct wlr_xwayland_surface *s, int activated);
+void                 nnwm_xw_configure(struct wlr_xwayland_surface *s,
+                                        int16_t x, int16_t y, uint16_t w, uint16_t h);
+void                 nnwm_xw_set_fullscreen(struct wlr_xwayland_surface *s, int fullscreen);
+int                  nnwm_xw_try_from_surface(struct wlr_surface *s);
+
+/* Event data accessors */
+int16_t              nnwm_xw_configure_ev_x(void *ev);
+int16_t              nnwm_xw_configure_ev_y(void *ev);
+uint16_t             nnwm_xw_configure_ev_width(void *ev);
+uint16_t             nnwm_xw_configure_ev_height(void *ev);
+uint32_t             nnwm_xw_resize_ev_edges(void *ev);
+
+/* wlr_xwayland (server-level) lifecycle */
+struct wlr_xwayland *nnwm_xwl_create(struct wl_display *display,
+                                      struct wlr_compositor *compositor, int lazy);
+void                 nnwm_xwl_destroy(struct wlr_xwayland *xwl);
+void                 nnwm_xwl_set_seat(struct wlr_xwayland *xwl, struct wlr_seat *seat);
+struct wl_signal    *nnwm_xwl_events_new_surface(struct wlr_xwayland *xwl);
+const char          *nnwm_xwl_display_name(struct wlr_xwayland *xwl);
+}
+bool nnwm_xwayland_init(struct nnwm_server *server);
+void nnwm_xwayland_fini(struct nnwm_server *server);
+#endif
+
+/* ---- XWayland / XDG-agnostic toplevel helpers ---- */
+static inline struct wlr_surface *tl_wlr_surface(const struct nnwm_toplevel *tl) {
+#ifdef HAVE_XWAYLAND
+    if (tl->is_xwayland) return nnwm_xw_surface(tl->xwayland_surface);
+#endif
+    return tl->xdg_toplevel->base->surface;
+}
+static inline const char *tl_app_id(const struct nnwm_toplevel *tl) {
+#ifdef HAVE_XWAYLAND
+    if (tl->is_xwayland) return nnwm_xw_class(tl->xwayland_surface);
+#endif
+    return tl->xdg_toplevel->app_id;
+}
+static inline const char *tl_title(const struct nnwm_toplevel *tl) {
+#ifdef HAVE_XWAYLAND
+    if (tl->is_xwayland) return nnwm_xw_title(tl->xwayland_surface);
+#endif
+    return tl->xdg_toplevel->title;
+}
+static inline void tl_send_close(struct nnwm_toplevel *tl) {
+#ifdef HAVE_XWAYLAND
+    if (tl->is_xwayland) { nnwm_xw_close(tl->xwayland_surface); return; }
+#endif
+    wlr_xdg_toplevel_send_close(tl->xdg_toplevel);
+}
+
+static inline void tl_xdg_set_size(struct nnwm_toplevel *tl, int w, int h)
+{
+#ifdef HAVE_XWAYLAND
+    if (tl->is_xwayland) return;
+#endif
+    wlr_xdg_toplevel_set_size(tl->xdg_toplevel, w, h);
+}
+static inline void tl_xdg_set_tiled(struct nnwm_toplevel *tl, uint32_t edges)
+{
+#ifdef HAVE_XWAYLAND
+    if (tl->is_xwayland) return;
+#endif
+    wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel, edges);
+}
+
 /* ---- Animation ---- */
 void tl_set_geometry(struct nnwm_toplevel *tl, int x, int y, int w, int h, int bw);
 #ifdef HAVE_SCENEFX

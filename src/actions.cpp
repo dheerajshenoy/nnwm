@@ -31,7 +31,12 @@ void
 do_toggle_fullscreen(nnwm_toplevel *tl)
 {
     tl->fullscreen = !tl->fullscreen;
-    wlr_xdg_toplevel_set_fullscreen(tl->xdg_toplevel, tl->fullscreen);
+#ifdef HAVE_XWAYLAND
+    if (tl->is_xwayland)
+        nnwm_xw_set_fullscreen(tl->xwayland_surface, tl->fullscreen ? 1 : 0);
+    else
+#endif
+        wlr_xdg_toplevel_set_fullscreen(tl->xdg_toplevel, tl->fullscreen);
 
     nnwm_server *server = tl->server;
     nnwm_output *out    = tl->output;
@@ -73,14 +78,24 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
             tl->cur_y = tl->geo_from_y;
             tl->cur_w = tl->geo_from_w;
             tl->cur_h = tl->geo_from_h;
-            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, area.width, area.height);
+            tl_xdg_set_size(tl, area.width, area.height);
+#ifdef HAVE_XWAYLAND
+            if (tl->is_xwayland)
+                nnwm_xw_configure(tl->xwayland_surface, (int16_t)area.x, (int16_t)area.y,
+                                  (uint16_t)area.width, (uint16_t)area.height);
+#endif
             apply_fx_decorations(tl);
             arrange_windows(server, out);
             return;
         }
 #endif
         wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
-        wlr_xdg_toplevel_set_size(tl->xdg_toplevel, area.width, area.height);
+        tl_xdg_set_size(tl, area.width, area.height);
+#ifdef HAVE_XWAYLAND
+        if (tl->is_xwayland)
+            nnwm_xw_configure(tl->xwayland_surface, (int16_t)area.x, (int16_t)area.y,
+                              (uint16_t)area.width, (uint16_t)area.height);
+#endif
         update_borders(tl, area.width, area.height, 0);
     }
 
@@ -103,7 +118,12 @@ do_toggle_fake_fullscreen(nnwm_toplevel *tl)
         wlr_output_layout_get_box(server->output_layout, out->wlr_output,
                                   &area);
         wlr_scene_node_set_position(&tl->scene_tree->node, area.x, area.y);
-        wlr_xdg_toplevel_set_size(tl->xdg_toplevel, area.width, area.height);
+        tl_xdg_set_size(tl, area.width, area.height);
+#ifdef HAVE_XWAYLAND
+        if (tl->is_xwayland)
+            nnwm_xw_configure(tl->xwayland_surface, (int16_t)area.x, (int16_t)area.y,
+                              (uint16_t)area.width, (uint16_t)area.height);
+#endif
         update_borders(tl, area.width, area.height, 0);
     }
 
@@ -119,7 +139,7 @@ get_focused_toplevel(nnwm_server *server)
     nnwm_toplevel *t;
     wl_list_for_each(t, &server->toplevels, link)
     {
-        if (t->xdg_toplevel->base->surface == focused)
+        if (tl_wlr_surface(t) == focused)
             return t;
     }
     return nullptr;
@@ -136,7 +156,7 @@ nnwm::close(nnwm_server *server)
 {
     nnwm_toplevel *focused = get_focused_toplevel(server);
     if (focused)
-        wlr_xdg_toplevel_send_close(focused->xdg_toplevel);
+        tl_send_close(focused);
 }
 
 void
@@ -1083,9 +1103,22 @@ nnwm::window::toggle_float(nnwm_server *server)
         wlr_box area;
         wlr_output_layout_get_box(server->output_layout, out->wlr_output,
                                   &area);
-        wlr_box *geo = &tl->xdg_toplevel->base->geometry;
-        int x        = area.x + (area.width - geo->width) / 2;
-        int y        = area.y + (area.height - geo->height) / 2;
+        int gw, gh;
+#ifdef HAVE_XWAYLAND
+        if (tl->is_xwayland) {
+            int xww = (int)nnwm_xw_width(tl->xwayland_surface);
+            int xwh = (int)nnwm_xw_height(tl->xwayland_surface);
+            gw = xww > 0 ? xww : tl->cur_w;
+            gh = xwh > 0 ? xwh : tl->cur_h;
+        } else
+#endif
+        {
+            wlr_box *geo = &tl->xdg_toplevel->base->geometry;
+            gw = geo->width;
+            gh = geo->height;
+        }
+        int x        = area.x + (area.width - gw) / 2;
+        int y        = area.y + (area.height - gh) / 2;
         wlr_scene_node_set_position(&tl->scene_tree->node, x, y);
     }
 

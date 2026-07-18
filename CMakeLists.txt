@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(nnwm CXX)
+project(nnwm C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -221,6 +221,19 @@ target_link_libraries(nnwm PRIVATE
     ${PANGOCAIRO_LIBRARIES}
     ${PIXMAN_LIBRARIES}
 )
+
+option(HAVE_XWAYLAND "Build with XWayland support" ON)
+if(HAVE_XWAYLAND)
+    pkg_check_modules(XCB xcb)
+    if(XCB_FOUND)
+        target_compile_definitions(nnwm PRIVATE HAVE_XWAYLAND)
+        target_sources(nnwm PRIVATE src/xwayland.cpp src/xwayland_compat.c)
+        target_include_directories(nnwm PRIVATE ${XCB_INCLUDE_DIRS})
+        target_link_libraries(nnwm PRIVATE ${XCB_LIBRARIES})
+    else()
+        message(STATUS "xcb not found, XWayland support disabled")
+    endif()
+endif()
 
 target_compile_options(nnwm PRIVATE
     ${WLROOTS_CFLAGS_OTHER}

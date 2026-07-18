@@ -101,7 +101,7 @@ render_titlebar(nnwm_toplevel *tl, int inner_width, bool focused)
     cairo_paint(cr);
 
     /* Title text */
-    const char *title = tl->xdg_toplevel->title;
+    const char *title = tl_title(tl);
     if (title && title[0])
     {
         PangoLayout *layout = pango_cairo_create_layout(cr);
@@ -518,6 +518,27 @@ tl_set_geometry(nnwm_toplevel *tl, int x, int y, int w, int h, int bw)
     tl->cur_h = h;
     wlr_scene_node_set_position(&tl->scene_tree->node, x, y);
     update_borders(tl, w, h, bw);
+#ifdef HAVE_XWAYLAND
+    if (tl->is_xwayland && tl->xwayland_surface)
+    {
+        /* Compute the inner content area: strip borders and titlebar */
+        nnwm_config *cfg2 = tl->server->config;
+        bool tabbed2 = !tl->floating && tl->output
+            && tl->output->layout_mode[tl->workspace] == nnwm_layout_mode::TABBED;
+        bool no_titlebar2 = tabbed2 || tl->fullscreen || tl->fake_fullscreen;
+        int eff_bw = bw;
+        int eff_th = (no_titlebar2 || cfg2->titlebar.height <= 0) ? 0 : cfg2->titlebar.height;
+        int cx = x + eff_bw;
+        int cy = y + eff_bw + eff_th;
+        int cw = w - 2 * eff_bw;
+        int ch = h - 2 * eff_bw - eff_th;
+        if (cw < 1) cw = 1;
+        if (ch < 1) ch = 1;
+        nnwm_xw_configure(tl->xwayland_surface,
+                          (int16_t)cx, (int16_t)cy,
+                          (uint16_t)cw, (uint16_t)ch);
+    }
+#endif
 }
 
 #ifdef HAVE_SCENEFX
@@ -865,11 +886,20 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
                                 cfg->fx.blur_saturation);
         if (!toplevel->fx_blur)
         {
-            wlr_box geo = toplevel->xdg_toplevel->base->geometry;
             int bw      = cfg->border.width;
             int th      = cfg->titlebar.height;
-            int w       = geo.width + 2 * bw;
-            int h       = geo.height + 2 * bw + th;
+            int w, h;
+#ifdef HAVE_XWAYLAND
+            if (toplevel->is_xwayland) {
+                w = (toplevel->cur_w > 0) ? toplevel->cur_w : nnwm_xw_width(toplevel->xwayland_surface) + 2 * bw;
+                h = (toplevel->cur_h > 0) ? toplevel->cur_h : nnwm_xw_height(toplevel->xwayland_surface) + 2 * bw + th;
+            } else
+#endif
+            {
+                wlr_box geo = toplevel->xdg_toplevel->base->geometry;
+                w = geo.width + 2 * bw;
+                h = geo.height + 2 * bw + th;
+            }
             toplevel->fx_blur
                 = wlr_scene_blur_create(toplevel->scene_tree, w, h);
             if (tabbed_tiled)
@@ -897,11 +927,20 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
     /* Shadow node */
     if (cfg->fx.shadow_enabled && !toplevel->fx_shadow)
     {
-        wlr_box geo         = toplevel->xdg_toplevel->base->geometry;
         int bw              = cfg->border.width;
         int th              = cfg->titlebar.height;
-        int w               = geo.width + 2 * bw;
-        int h               = geo.height + 2 * bw + th;
+        int w, h;
+#ifdef HAVE_XWAYLAND
+        if (toplevel->is_xwayland) {
+            w = (toplevel->cur_w > 0) ? toplevel->cur_w : nnwm_xw_width(toplevel->xwayland_surface) + 2 * bw;
+            h = (toplevel->cur_h > 0) ? toplevel->cur_h : nnwm_xw_height(toplevel->xwayland_surface) + 2 * bw + th;
+        } else
+#endif
+        {
+            wlr_box geo = toplevel->xdg_toplevel->base->geometry;
+            w           = geo.width + 2 * bw;
+            h           = geo.height + 2 * bw + th;
+        }
         toplevel->fx_shadow = wlr_scene_shadow_create(
             toplevel->scene_tree, w, h, r,
             cfg->fx.shadow_blur_sigma, cfg->fx.shadow_color);
@@ -1048,7 +1087,7 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
             }
 
             if (style == nnwm_tab_style::NORMAL)
-                draw_tab_text(cr, cfg, tl->xdg_toplevel->title,
+                draw_tab_text(cr, cfg, tl_title(tl),
                               x, 0, w, height, tc);
         }
         else
@@ -1074,7 +1113,7 @@ render_tab_bar(nnwm_server *server, nnwm_output *out, int width, int height)
                 cairo_save(cr);
                 cairo_translate(cr, width / 2.0, y + h / 2.0);
                 cairo_rotate(cr, -M_PI / 2.0);
-                draw_tab_text(cr, cfg, tl->xdg_toplevel->title,
+                draw_tab_text(cr, cfg, tl_title(tl),
                               -h / 2.0, -width / 2.0, h, width, tc);
                 cairo_restore(cr);
             }
@@ -1171,6 +1210,16 @@ tl_layout_box(const nnwm_toplevel *tl, int bw, int th, wlr_box *out)
     if (!wlr_scene_node_coords(
             const_cast<wlr_scene_node *>(&tl->scene_tree->node), &nx, &ny))
         return false;
+#ifdef HAVE_XWAYLAND
+    if (tl->is_xwayland)
+    {
+        int w = nnwm_xw_width(tl->xwayland_surface);
+        int h = nnwm_xw_height(tl->xwayland_surface);
+        if (w <= 0 || h <= 0) return false;
+        *out = {nx, ny, w + 2 * bw, h + 2 * bw + th};
+        return true;
+    }
+#endif
     const wlr_box *geo = &tl->xdg_toplevel->base->geometry;
     if (geo->width <= 0 || geo->height <= 0) return false;
     *out = {nx, ny, geo->width + 2 * bw, geo->height + 2 * bw + th};
@@ -1372,7 +1421,7 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
 
                 ov_surf_data d{pass, &clip, orig_x, orig_y, win_scale};
                 wlr_surface_for_each_surface(
-                    tl->xdg_toplevel->base->surface,
+                    tl_wlr_surface(tl),
                     ov_surface_iter, &d);
             }
 
@@ -1459,7 +1508,7 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
                     cairo_set_source_rgba(cr, 0.35, 0.38, 0.58, 0.8);
                 cairo_rectangle(cr, wx + 0.5, wy + 0.5, ww - 1.0, wh - 1.0);
                 cairo_stroke(cr);
-                const char *title = tl->xdg_toplevel->title;
+                const char *title = tl_title(tl);
                 if (title && title[0] && ww > 18 && wh > 8) {
                     double fs = std::max(6.0, std::min(wh * 0.32, 11.0));
                     cairo_select_font_face(cr, "Sans",
@@ -1801,10 +1850,10 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
             if (!WS_TILED(tl, out))
                 continue;
             wlr_scene_node_set_enabled(&tl->scene_tree->node, tl == active);
-            wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+            tl_xdg_set_tiled(tl,
                                        WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                            | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, cw - 2 * bw,
+            tl_xdg_set_size(tl, cw - 2 * bw,
                                       ch - 2 * bw);
             tl_set_geometry(tl, cx, cy, cw, ch, bw);
         }
@@ -1898,12 +1947,12 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
                 continue;
             int tx = area.x + og + i * (col_w + ig) - out->scroll_offset[ws];
             int ty = area.y + og;
-            bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
+            bool focused = (tl_wlr_surface(tl) == focused_surface);
             wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
-            wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+            tl_xdg_set_tiled(tl,
                                        WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                            | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, col_w - 2 * bw,
+            tl_xdg_set_size(tl, col_w - 2 * bw,
                                       col_h - 2 * bw - th);
             tl_set_geometry(tl, tx, ty, col_w, col_h, bw);
             render_titlebar(tl, col_w - 2 * bw, focused);
@@ -1967,12 +2016,12 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
                 continue;
             int tx     = area.x + og;
             int ty     = area.y + og + i * (row_h + ig) - out->scroll_offset[ws];
-            bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
+            bool focused = (tl_wlr_surface(tl) == focused_surface);
             wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
-            wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+            tl_xdg_set_tiled(tl,
                                        WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                            | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, row_w - 2 * bw,
+            tl_xdg_set_size(tl, row_w - 2 * bw,
                                       row_h - 2 * bw - th);
             tl_set_geometry(tl, tx, ty, row_w, row_h, bw);
             render_titlebar(tl, row_w - 2 * bw, focused);
@@ -2027,14 +2076,14 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
             {
                 if (!WS_TILED(tl, out))
                     continue;
-                wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+                tl_xdg_set_tiled(tl,
                                            WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                                | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-                wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw,
+                tl_xdg_set_size(tl, W - 2 * bw,
                                           H - 2 * bw - th);
                 tl_set_geometry(tl, x0, y0, W, H, bw);
                 render_titlebar(tl, W - 2 * bw,
-                                tl->xdg_toplevel->base->surface == focused_surface);
+                                tl_wlr_surface(tl) == focused_surface);
                 break;
             }
         }
@@ -2050,13 +2099,12 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
             {
                 if (!WS_TILED(tl, out))
                     continue;
-                bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
+                bool focused = (tl_wlr_surface(tl) == focused_surface);
                 if (i == 0)
                 {
-                    wlr_xdg_toplevel_set_tiled(
-                        tl->xdg_toplevel, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                    tl_xdg_set_tiled(tl, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                               | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-                    wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw,
+                    tl_xdg_set_size(tl, W - 2 * bw,
                                               mh - 2 * bw - th);
                     tl_set_geometry(tl, x0, y0, W, mh, bw);
                     render_titlebar(tl, W - 2 * bw, focused);
@@ -2065,10 +2113,9 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
                 {
                     int sx = x0 + (i - 1) * (sw + ig);
                     int w  = (i < ns) ? sw : W - (i - 1) * (sw + ig);
-                    wlr_xdg_toplevel_set_tiled(
-                        tl->xdg_toplevel, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                    tl_xdg_set_tiled(tl, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                               | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-                    wlr_xdg_toplevel_set_size(tl->xdg_toplevel, w - 2 * bw,
+                    tl_xdg_set_size(tl, w - 2 * bw,
                                               sh - 2 * bw - th);
                     tl_set_geometry(tl, sx, y0 + mh + ig, w, sh, bw);
                     render_titlebar(tl, w - 2 * bw, focused);
@@ -2082,7 +2129,7 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
             if (tl->output == out && (tl->workspace == ws || tl->sticky)
                 && (tl->floating || tl->fullscreen || tl->fake_fullscreen))
             {
-                wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel, WLR_EDGE_NONE);
+                tl_xdg_set_tiled(tl, WLR_EDGE_NONE);
                 wlr_scene_node_raise_to_top(&tl->scene_tree->node);
             }
         }
@@ -2096,14 +2143,14 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
         {
             if (!WS_TILED(tl, out))
                 continue;
-            wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+            tl_xdg_set_tiled(tl,
                                        WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                            | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-            wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw,
+            tl_xdg_set_size(tl, W - 2 * bw,
                                       H - 2 * bw - th);
             tl_set_geometry(tl, x0, y0, W, H, bw);
             render_titlebar(tl, W - 2 * bw,
-                            tl->xdg_toplevel->base->surface == focused_surface);
+                            tl_wlr_surface(tl) == focused_surface);
             break;
         }
     }
@@ -2119,13 +2166,12 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
         {
             if (!WS_TILED(tl, out))
                 continue;
-            bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
+            bool focused = (tl_wlr_surface(tl) == focused_surface);
             if (i == 0)
             {
-                wlr_xdg_toplevel_set_tiled(
-                    tl->xdg_toplevel, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                tl_xdg_set_tiled(tl, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                           | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-                wlr_xdg_toplevel_set_size(tl->xdg_toplevel, mw - 2 * bw,
+                tl_xdg_set_size(tl, mw - 2 * bw,
                                           H - 2 * bw - th);
                 tl_set_geometry(tl, x0, y0, mw, H, bw);
                 render_titlebar(tl, mw - 2 * bw, focused);
@@ -2134,10 +2180,9 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
             {
                 int sy = y0 + (i - 1) * (sh + ig);
                 int h  = (i < ns) ? sh : H - (i - 1) * (sh + ig);
-                wlr_xdg_toplevel_set_tiled(
-                    tl->xdg_toplevel, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                tl_xdg_set_tiled(tl, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                           | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-                wlr_xdg_toplevel_set_size(tl->xdg_toplevel, sw - 2 * bw,
+                tl_xdg_set_size(tl, sw - 2 * bw,
                                           h - 2 * bw - th);
                 tl_set_geometry(tl, x0 + mw + ig, sy, sw, h, bw);
                 render_titlebar(tl, sw - 2 * bw, focused);
@@ -2153,14 +2198,13 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
             continue;
         if (!tl->maximize || tl->floating || tl->fullscreen || tl->fake_fullscreen)
             continue;
-        wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+        tl_xdg_set_tiled(tl,
                                    WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                        | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-        wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw, H - 2 * bw - th);
+        tl_xdg_set_size(tl, W - 2 * bw, H - 2 * bw - th);
         tl_set_geometry(tl, x0, y0, W, H, bw);
         render_titlebar(tl, W - 2 * bw,
-                        tl->xdg_toplevel->base->surface
-                            == focused_surface);
+                        tl_wlr_surface(tl) == focused_surface);
         wlr_scene_node_raise_to_top(&tl->scene_tree->node);
     }
 
@@ -2171,7 +2215,7 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
         if (tl->output == out && (tl->workspace == ws || tl->sticky)
             && (tl->floating || tl->fullscreen || tl->fake_fullscreen))
         {
-            wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel, WLR_EDGE_NONE);
+            tl_xdg_set_tiled(tl, WLR_EDGE_NONE);
             wlr_scene_node_raise_to_top(&tl->scene_tree->node);
         }
     }
@@ -2256,14 +2300,14 @@ arrange_scratchpad(nnwm_server *server)
             wl_list_for_each(tl, &server->toplevels, link)
             {
                 if (!tl->in_scratchpad || tl->floating) continue;
-                wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+                tl_xdg_set_tiled(tl,
                                            WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                                | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-                wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw,
+                tl_xdg_set_size(tl, W - 2 * bw,
                                           H - 2 * bw - th);
                 tl_set_geometry(tl, x0, y0, W, H, bw);
                 render_titlebar(tl, W - 2 * bw,
-                                tl->xdg_toplevel->base->surface == focused_surface);
+                                tl_wlr_surface(tl) == focused_surface);
                 break;
             }
         }
@@ -2278,13 +2322,12 @@ arrange_scratchpad(nnwm_server *server)
             wl_list_for_each(tl, &server->toplevels, link)
             {
                 if (!tl->in_scratchpad || tl->floating) continue;
-                bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
+                bool focused = (tl_wlr_surface(tl) == focused_surface);
                 if (i == 0)
                 {
-                    wlr_xdg_toplevel_set_tiled(
-                        tl->xdg_toplevel, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                    tl_xdg_set_tiled(tl, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                               | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-                    wlr_xdg_toplevel_set_size(tl->xdg_toplevel, mw - 2 * bw,
+                    tl_xdg_set_size(tl, mw - 2 * bw,
                                               H - 2 * bw - th);
                     tl_set_geometry(tl, x0, y0, mw, H, bw);
                     render_titlebar(tl, mw - 2 * bw, focused);
@@ -2293,10 +2336,9 @@ arrange_scratchpad(nnwm_server *server)
                 {
                     int sy = y0 + (i - 1) * (sh + ig);
                     int h  = (i < ns) ? sh : H - (i - 1) * (sh + ig);
-                    wlr_xdg_toplevel_set_tiled(
-                        tl->xdg_toplevel, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                    tl_xdg_set_tiled(tl, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                               | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-                    wlr_xdg_toplevel_set_size(tl->xdg_toplevel, sw - 2 * bw,
+                    tl_xdg_set_size(tl, sw - 2 * bw,
                                               h - 2 * bw - th);
                     tl_set_geometry(tl, x0 + mw + ig, sy, sw, h, bw);
                     render_titlebar(tl, sw - 2 * bw, focused);
@@ -2312,14 +2354,14 @@ arrange_scratchpad(nnwm_server *server)
             wl_list_for_each(tl, &server->toplevels, link)
             {
                 if (!tl->in_scratchpad || tl->floating) continue;
-                wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel,
+                tl_xdg_set_tiled(tl,
                                            WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                                | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-                wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw,
+                tl_xdg_set_size(tl, W - 2 * bw,
                                           H - 2 * bw - th);
                 tl_set_geometry(tl, x0, y0, W, H, bw);
                 render_titlebar(tl, W - 2 * bw,
-                                tl->xdg_toplevel->base->surface == focused_surface);
+                                tl_wlr_surface(tl) == focused_surface);
                 break;
             }
         }
@@ -2334,13 +2376,12 @@ arrange_scratchpad(nnwm_server *server)
             wl_list_for_each(tl, &server->toplevels, link)
             {
                 if (!tl->in_scratchpad || tl->floating) continue;
-                bool focused = (tl->xdg_toplevel->base->surface == focused_surface);
+                bool focused = (tl_wlr_surface(tl) == focused_surface);
                 if (i == 0)
                 {
-                    wlr_xdg_toplevel_set_tiled(
-                        tl->xdg_toplevel, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                    tl_xdg_set_tiled(tl, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                               | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-                    wlr_xdg_toplevel_set_size(tl->xdg_toplevel, W - 2 * bw,
+                    tl_xdg_set_size(tl, W - 2 * bw,
                                               mh - 2 * bw - th);
                     tl_set_geometry(tl, x0, y0, W, mh, bw);
                     render_titlebar(tl, W - 2 * bw, focused);
@@ -2349,10 +2390,9 @@ arrange_scratchpad(nnwm_server *server)
                 {
                     int sx = x0 + (i - 1) * (sw + ig);
                     int w  = (i < ns) ? sw : W - (i - 1) * (sw + ig);
-                    wlr_xdg_toplevel_set_tiled(
-                        tl->xdg_toplevel, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
+                    tl_xdg_set_tiled(tl, WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                               | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-                    wlr_xdg_toplevel_set_size(tl->xdg_toplevel, w - 2 * bw,
+                    tl_xdg_set_size(tl, w - 2 * bw,
                                               sh - 2 * bw - th);
                     tl_set_geometry(tl, sx, y0 + mh + ig, w, sh, bw);
                     render_titlebar(tl, w - 2 * bw, focused);
@@ -2375,7 +2415,7 @@ focus_toplevel(nnwm_toplevel *toplevel, bool warp)
     nnwm_server *server       = toplevel->server;
     wlr_seat *seat            = server->seat;
     wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
-    wlr_surface *surface      = toplevel->xdg_toplevel->base->surface;
+    wlr_surface *surface      = tl_wlr_surface(toplevel);
     if (prev_surface == surface)
     {
         return;
@@ -2388,9 +2428,29 @@ focus_toplevel(nnwm_toplevel *toplevel, bool warp)
         {
             wlr_xdg_toplevel_set_activated(prev_toplevel, false);
         }
+#ifdef HAVE_XWAYLAND
+        else
+        {
+            /* Check if the previously focused surface belonged to an XWayland window */
+            nnwm_toplevel *prev_tl;
+            wl_list_for_each(prev_tl, &server->toplevels, link)
+            {
+                if (prev_tl->is_xwayland && tl_wlr_surface(prev_tl) == prev_surface)
+                {
+                    nnwm_xw_activate(prev_tl->xwayland_surface, 0);
+                    break;
+                }
+            }
+        }
+#endif
     }
     wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
-    wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
+#ifdef HAVE_XWAYLAND
+    if (toplevel->is_xwayland)
+        nnwm_xw_activate(toplevel->xwayland_surface, 1);
+    else
+#endif
+        wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
     toplevel->urgent = false;
 
     /* Update border colors, titlebar focus state, and opacity for all windows */
@@ -2453,10 +2513,21 @@ focus_toplevel(nnwm_toplevel *toplevel, bool warp)
         int nx, ny;
         if (wlr_scene_node_coords(&toplevel->scene_tree->node, &nx, &ny))
         {
-            wlr_box geo = toplevel->xdg_toplevel->base->geometry;
-            wlr_cursor_warp(server->cursor, nullptr,
-                            nx + geo.x + geo.width / 2.0,
-                            ny + geo.y + geo.height / 2.0);
+#ifdef HAVE_XWAYLAND
+            if (toplevel->is_xwayland)
+            {
+                wlr_cursor_warp(server->cursor, nullptr,
+                                nx + toplevel->cur_w / 2.0,
+                                ny + toplevel->cur_h / 2.0);
+            }
+            else
+#endif
+            {
+                wlr_box geo = toplevel->xdg_toplevel->base->geometry;
+                wlr_cursor_warp(server->cursor, nullptr,
+                                nx + geo.x + geo.width / 2.0,
+                                ny + geo.y + geo.height / 2.0);
+            }
         }
     }
     fire_hook_window(server, "window_focus", toplevel);

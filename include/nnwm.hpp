@@ -61,6 +61,12 @@ extern "C"
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
+/* XWayland structs forward-declared here; full header only in xwayland.cpp/xwayland_compat.c
+ * because wlr_xwayland_surface contains 'char *class' which is not valid C++. */
+#ifdef HAVE_XWAYLAND
+struct wlr_xwayland;
+struct wlr_xwayland_surface;
+#endif
 #ifdef __cplusplus
     #pragma push_macro("namespace")
     #define namespace namespace_
@@ -84,6 +90,7 @@ extern "C"
 #ifdef __cplusplus
 }
 #endif
+
 
 #ifdef HAVE_SCENEFX
     #ifdef __cplusplus
@@ -200,6 +207,7 @@ struct nnwm_server
     struct wlr_session *session;
     struct wlr_renderer *renderer;
     struct wlr_allocator *allocator;
+    struct wlr_compositor *compositor;
     struct wlr_scene *scene;
     struct wlr_scene_output_layout *scene_layout;
 
@@ -228,6 +236,10 @@ struct nnwm_server
     struct wlr_xdg_activation_v1 *xdg_activation;
     struct wl_listener request_activate;
     struct wl_list toplevels;
+#ifdef HAVE_XWAYLAND
+    struct wlr_xwayland    *xwayland;
+    struct wl_listener      new_xwayland_surface;
+#endif
 #ifdef HAVE_SCENEFX
     struct wl_list dying_toplevels; /* toplevels fading out after unmap */
 #endif
@@ -401,6 +413,10 @@ struct nnwm_toplevel
     bool urgent;
     bool in_scratchpad;
     struct wlr_xdg_toplevel *xdg_toplevel;
+    bool is_xwayland;
+#ifdef HAVE_XWAYLAND
+    struct wlr_xwayland_surface *xwayland_surface;
+#endif
     struct wlr_scene_tree *scene_tree;
     struct wlr_scene_rect *border[4]; /* top, bottom, left, right */
     float rule_opacity;  /* per-window override: <0 = use global cfg->opacity */
@@ -469,6 +485,15 @@ struct nnwm_toplevel
     struct wl_listener request_maximize;
     struct wl_listener request_fullscreen;
 };
+
+#ifdef HAVE_XWAYLAND
+struct nnwm_xwayland_or {
+    struct wlr_xwayland_surface *xwayland_surface;
+    struct nnwm_server *server;
+    struct wlr_scene_tree *scene_tree;
+    struct wl_listener map, unmap, destroy, request_configure;
+};
+#endif
 
 struct nnwm_popup
 {
@@ -581,6 +606,9 @@ struct nnwm_ext_workspace_manager
     bool stopped;
 };
 
+/* tl_wlr_surface, tl_app_id, tl_title, tl_send_close, tl_set_size
+ * are declared in nnwm_internal.hpp (defined in xwayland.cpp or nnwm.cpp) */
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -605,6 +633,9 @@ extern "C"
     void seat_request_cursor(struct wl_listener *, void *);
     void seat_pointer_focus_change(struct wl_listener *, void *);
     void seat_request_set_selection(struct wl_listener *, void *);
+#ifdef HAVE_XWAYLAND
+    void server_new_xwayland_surface(struct wl_listener *, void *);
+#endif
 #ifdef __cplusplus
 }
 #endif
