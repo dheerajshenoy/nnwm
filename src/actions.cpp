@@ -2,6 +2,7 @@
 #include "nnwm.hpp"
 #include "nnwm_internal.hpp"
 
+#include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <linux/input-event-codes.h>
@@ -1577,16 +1578,44 @@ void
 apply_keymap(wlr_keyboard *wlr_keyboard, nnwm_config *cfg)
 {
     struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-    xkb_rule_names names        = {};
-    auto nonempty               = [](const char *s) -> const char * {
-        return (s && s[0]) ? s : nullptr;
-    };
-    names.rules   = nonempty(cfg->keyboard.xkb_rules);
-    names.layout  = nonempty(cfg->keyboard.xkb_layout);
-    names.variant = nonempty(cfg->keyboard.xkb_variant);
-    names.options = nonempty(cfg->keyboard.xkb_options);
-    struct xkb_keymap *keymap = xkb_keymap_new_from_names(
-        context, &names, XKB_KEYMAP_COMPILE_NO_FLAGS);
+    struct xkb_keymap *keymap   = nullptr;
+
+    if (cfg->keyboard.xkb_file && cfg->keyboard.xkb_file[0])
+    {
+        FILE *f = fopen(cfg->keyboard.xkb_file, "r");
+        if (f)
+        {
+            keymap = xkb_keymap_new_from_file(context, f,
+                         XKB_KEYMAP_FORMAT_TEXT_V1,
+                         XKB_KEYMAP_COMPILE_NO_FLAGS);
+            fclose(f);
+            if (!keymap)
+                std::fprintf(stderr,
+                    "nnwm: failed to load XKB keymap from '%s', "
+                    "falling back to rules\n", cfg->keyboard.xkb_file);
+        }
+        else
+        {
+            std::fprintf(stderr,
+                "nnwm: cannot open XKB keymap file '%s': %s, "
+                "falling back to rules\n",
+                cfg->keyboard.xkb_file, strerror(errno));
+        }
+    }
+
+    if (!keymap)
+    {
+        xkb_rule_names names = {};
+        auto nonempty        = [](const char *s) -> const char * {
+            return (s && s[0]) ? s : nullptr;
+        };
+        names.rules   = nonempty(cfg->keyboard.xkb_rules);
+        names.layout  = nonempty(cfg->keyboard.xkb_layout);
+        names.variant = nonempty(cfg->keyboard.xkb_variant);
+        names.options = nonempty(cfg->keyboard.xkb_options);
+        keymap = xkb_keymap_new_from_names(context, &names,
+                     XKB_KEYMAP_COMPILE_NO_FLAGS);
+    }
 
     wlr_keyboard_set_keymap(wlr_keyboard, keymap);
     xkb_keymap_unref(keymap);

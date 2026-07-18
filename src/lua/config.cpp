@@ -1492,6 +1492,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "xkb_variant");
     lua_pushstring(L, cfg->keyboard.xkb_options ? cfg->keyboard.xkb_options : "");
     lua_setfield(L, -2, "xkb_options");
+    lua_pushstring(L, cfg->keyboard.xkb_file ? cfg->keyboard.xkb_file : "");
+    lua_setfield(L, -2, "xkb_file");
     lua_setfield(L, -2, "keyboard");
 
     lua_pushstring(L, cfg->seat_name);
@@ -1942,6 +1944,9 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         s = get_string_field(L, "xkb_options", cfg->keyboard.xkb_options);
         free(cfg->keyboard.xkb_options);
         cfg->keyboard.xkb_options = s;
+        s = get_string_field(L, "xkb_file", cfg->keyboard.xkb_file);
+        free(cfg->keyboard.xkb_file);
+        cfg->keyboard.xkb_file = s;
     }
     lua_pop(L, 1);
 
@@ -2637,6 +2642,7 @@ nnwm::config_defaults(void)
     cfg->keyboard.xkb_layout   = strdup("");
     cfg->keyboard.xkb_variant  = strdup("");
     cfg->keyboard.xkb_options  = strdup("");
+    cfg->keyboard.xkb_file     = strdup("");
 
     cfg->cursor_theme = strdup("default");
     cfg->cursor_size  = 24;
@@ -2742,6 +2748,7 @@ nnwm::config_free(struct nnwm_config *cfg)
     free(cfg->keyboard.xkb_layout);
     free(cfg->keyboard.xkb_variant);
     free(cfg->keyboard.xkb_options);
+    free(cfg->keyboard.xkb_file);
     free(cfg->titlebar.font);
     for (int i = 0; i < cfg->monitor_config_count; i++)
     {

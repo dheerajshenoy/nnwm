@@ -160,6 +160,7 @@ struct nnwm_config
         char *xkb_layout;
         char *xkb_variant;
         char *xkb_options;
+        char *xkb_file; /* path to a compiled XKB keymap file; overrides rules/layout/variant/options */
     } keyboard;
 
     /* Cursor */

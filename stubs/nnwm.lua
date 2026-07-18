@@ -51,6 +51,7 @@ MOD = {}
 ---@field xkb_layout?    string   XKB layout, e.g. `"us"`, `"de"`, `"us,ru"` (default: system default)
 ---@field xkb_variant?   string   XKB variant, e.g. `"dvorak"`, `"colemak"` (default: system default)
 ---@field xkb_options?   string   Comma-separated XKB options, e.g. `"caps:escape,compose:ralt"` (default: "")
+---@field xkb_file?      string   Path to a compiled XKB keymap file (e.g. output of `xkbcomp`). When set, overrides xkb_rules/layout/variant/options.
 
 ---@class nnwm.touchpad
 ---@field enabled?                   boolean                                          Enable the touchpad (default: true)
