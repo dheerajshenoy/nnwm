@@ -2366,7 +2366,7 @@ arrange_scratchpad(nnwm_server *server)
 /* ---- Focus management ---- */
 
 void
-focus_toplevel(nnwm_toplevel *toplevel)
+focus_toplevel(nnwm_toplevel *toplevel, bool warp)
 {
     if (toplevel == nullptr)
     {
@@ -2448,7 +2448,7 @@ focus_toplevel(nnwm_toplevel *toplevel)
             render_overview(server, out);
     }
 
-    if (cfg->mouse.warp_to_focused_window)
+    if (warp && cfg->mouse.warp_to_focused_window)
     {
         int nx, ny;
         if (wlr_scene_node_coords(&toplevel->scene_tree->node, &nx, &ny))

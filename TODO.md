@@ -155,6 +155,7 @@
 - [x] Overview mode
 - [x] Customizable workspace names and count
 - [x] file to load xkb options from
+- [x] Fix warp-to-focus being annoying
 
 ## TODO
 
@@ -183,5 +184,4 @@
     - [ ] blur
     - [ ] animation
     - [ ] border
-- [ ] Fix warp-to-focus being annoying
 - [ ] Don't allow resizing of tiled windows

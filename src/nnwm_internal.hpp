@@ -52,7 +52,7 @@ void show_config_error(struct nnwm_server *server, const char *message);
 void hide_config_error(struct nnwm_server *server);
 
 /* ---- Focus ---- */
-void focus_toplevel(struct nnwm_toplevel *toplevel);
+void focus_toplevel(struct nnwm_toplevel *toplevel, bool warp = true);
 void unfocus_all_borders(struct nnwm_server *server);
 struct nnwm_toplevel *get_focused_toplevel(struct nnwm_server *server);
 

@@ -248,7 +248,7 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
         wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
         wlr_seat_pointer_notify_motion(seat, time, sx, sy);
         if (real_motion && toplevel && server->config->focus_follows_mouse)
-            focus_toplevel(toplevel);
+            focus_toplevel(toplevel, false);
     }
     else
     {
