@@ -357,6 +357,9 @@ struct nnwm_server
     struct wl_list hooks;  /* nnwm_hook::link  — event → lua callback */
     struct wl_list timers; /* nnwm_timer::link — wl_event_source timers */
 
+    /* Overview drag state */
+    struct nnwm_toplevel *overview_drag_toplevel; /* non-null while dragging in overview */
+
     /* Cursor attention animation (find_cursor action) */
     struct wlr_scene_buffer *cursor_ring_buf;
     struct wl_event_source  *cursor_ring_timer;

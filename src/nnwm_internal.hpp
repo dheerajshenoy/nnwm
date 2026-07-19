@@ -46,6 +46,11 @@ struct nnwm_toplevel *ws_prev_float(struct nnwm_server *server,
 void render_overview(struct nnwm_server *server, struct nnwm_output *out);
 void overview_frame_update(struct nnwm_server *server, struct nnwm_output *out);
 void exit_overview(struct nnwm_server *server, struct nnwm_output *out);
+struct nnwm_toplevel *overview_toplevel_at(struct nnwm_server *server,
+                                            struct nnwm_output *out,
+                                            double cx, double cy,
+                                            int *out_ws);
+void overview_update_labels(struct nnwm_server *server, struct nnwm_output *out);
 
 /* ---- Config error overlay ---- */
 void show_config_error(struct nnwm_server *server, const char *message);

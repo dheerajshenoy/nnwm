@@ -509,8 +509,9 @@ main(int argc, char *argv[])
     wl_signal_add(&server.seat->events.start_drag, &server.start_drag);
     wl_list_init(&server.drag_icon_destroy.link);
     wl_list_init(&server.drag_destroy.link);
-    server.drag_icon_tree = nullptr;
-    server.current_drag   = nullptr;
+    server.drag_icon_tree            = nullptr;
+    server.current_drag              = nullptr;
+    server.overview_drag_toplevel    = nullptr;
 
 #ifdef HAVE_XWAYLAND
     nnwm_xwayland_init(&server);

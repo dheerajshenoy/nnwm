@@ -224,6 +224,15 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
                                     (int)server->cursor->y);
     }
 
+    /* During overview drag, only update the cheap Cairo overlay (slot highlight).
+     * The GPU texture pass is not re-run, so motion stays smooth. */
+    if (server->overview_drag_toplevel) {
+        nnwm_output *hov = output_at_cursor(server);
+        if (hov && hov->overview)
+            overview_update_labels(server, hov);
+        return;
+    }
+
     if (server->cursor_mode == nnwm_cursor_mode::MOVE)
     {
         process_cursor_move(server);
@@ -504,13 +513,120 @@ server_cursor_button(wl_listener *listener, void *data)
     nnwm_server *server = wl_container_of(listener, server, cursor_button);
     auto *event         = static_cast<wlr_pointer_button_event *>(data);
 
-    if (event->state == WL_POINTER_BUTTON_STATE_RELEASED)
+    /* Overview mode: intercept all button events */
+    if (!server->session_lock)
     {
-        /* Block release from reaching clients while overview is active */
         nnwm_output *hov = output_at_cursor(server);
         if (hov && hov->overview)
-            return;
+        {
+            wlr_box ob;
+            wlr_output_layout_get_box(server->output_layout, hov->wlr_output, &ob);
+            double cx = server->cursor->x - ob.x;
+            double cy = server->cursor->y - ob.y;
 
+            if (event->state == WL_POINTER_BUTTON_STATE_PRESSED
+                && event->button == BTN_LEFT)
+            {
+                /* Hit-test: window under cursor? Start drag. */
+                int hit_ws = -1;
+                nnwm_toplevel *hit = overview_toplevel_at(server, hov, cx, cy, &hit_ws);
+                if (hit) {
+                    server->overview_drag_toplevel = hit;
+                    /* Re-render to show drag state */
+                    overview_frame_update(server, hov);
+                }
+                /* else: press on empty space — wait for release to switch workspace */
+                return;
+            }
+
+            if (event->state == WL_POINTER_BUTTON_STATE_RELEASED)
+            {
+                if (server->overview_drag_toplevel) {
+                    /* Drop: find target workspace slot */
+                    const double OV_OUTER = 32.0;
+                    const double OV_INNER = 12.0;
+                    const int    OV_COLS  = 3;
+                    const int    num_ws   = server->config->workspace_count;
+                    const int    OV_ROWS  = (num_ws + OV_COLS - 1) / OV_COLS;
+                    double slot_w = (ob.width  - 2.0 * OV_OUTER - (OV_COLS - 1) * OV_INNER) / OV_COLS;
+                    double slot_h = (ob.height - 2.0 * OV_OUTER - (OV_ROWS - 1) * OV_INNER) / OV_ROWS;
+
+                    int target_ws = -1;
+                    for (int ws = 0; ws < num_ws; ws++) {
+                        int    col = ws % OV_COLS;
+                        int    row = ws / OV_COLS;
+                        double sx  = OV_OUTER + col * (slot_w + OV_INNER);
+                        double sy  = OV_OUTER + row * (slot_h + OV_INNER);
+                        if (cx >= sx && cx < sx + slot_w && cy >= sy && cy < sy + slot_h) {
+                            target_ws = ws;
+                            break;
+                        }
+                    }
+
+                    nnwm_toplevel *dtl = server->overview_drag_toplevel;
+                    server->overview_drag_toplevel = nullptr;
+
+                    if (target_ws >= 0 && target_ws != dtl->workspace) {
+                        dtl->workspace = target_ws;
+                        /* If the window was last-focused on the old ws, clear that */
+                        nnwm_output *out = dtl->output;
+                        if (out) {
+                            for (int w = 0; w < server->config->workspace_count; w++) {
+                                if (out->last_focused[w] == dtl && w != target_ws)
+                                    out->last_focused[w] = nullptr;
+                                if (out->prev_focused[w] == dtl && w != target_ws)
+                                    out->prev_focused[w] = nullptr;
+                            }
+                        }
+                    }
+
+                    /* Re-arrange and re-render overview */
+                    render_overview(server, hov);
+                } else {
+                    /* Click on empty space: switch workspace and exit */
+                    const double OV_OUTER = 32.0;
+                    const double OV_INNER = 12.0;
+                    const int    OV_COLS  = 3;
+                    const int    num_ws   = server->config->workspace_count;
+                    const int    OV_ROWS  = (num_ws + OV_COLS - 1) / OV_COLS;
+                    double slot_w = (ob.width  - 2.0 * OV_OUTER - (OV_COLS - 1) * OV_INNER) / OV_COLS;
+                    double slot_h = (ob.height - 2.0 * OV_OUTER - (OV_ROWS - 1) * OV_INNER) / OV_ROWS;
+
+                    int target_ws = -1;
+                    for (int ws = 0; ws < num_ws; ws++) {
+                        int    col = ws % OV_COLS;
+                        int    row = ws / OV_COLS;
+                        double sx  = OV_OUTER + col * (slot_w + OV_INNER);
+                        double sy  = OV_OUTER + row * (slot_h + OV_INNER);
+                        if (cx >= sx && cx < sx + slot_w && cy >= sy && cy < sy + slot_h) {
+                            target_ws = ws;
+                            break;
+                        }
+                    }
+
+                    /* Click on a window: focus it in its workspace */
+                    int hit_ws = -1;
+                    nnwm_toplevel *hit = overview_toplevel_at(server, hov, cx, cy, &hit_ws);
+
+                    server->focused_output = hov;
+                    exit_overview(server, hov);
+                    if (hit) {
+                        if (hit_ws >= 0 && hit_ws != hov->active_workspace)
+                            nnwm::workspace::switch_to(server, hit_ws);
+                        focus_toplevel(hit);
+                    } else if (target_ws >= 0) {
+                        nnwm::workspace::switch_to(server, target_ws);
+                    }
+                }
+                return;
+            }
+
+            return; /* swallow all other button events in overview */
+        }
+    }
+
+    if (event->state == WL_POINTER_BUTTON_STATE_RELEASED)
+    {
         if (server->cursor_mode != nnwm_cursor_mode::PASSTHROUGH)
         {
             /* Ending a compositor move/resize — don't forward to the window;
@@ -523,53 +639,6 @@ server_cursor_button(wl_listener *listener, void *data)
                                            event->button, event->state);
         }
         return;
-    }
-
-    /* Overview mode: intercept press — left click switches workspace, any
-     * click exits the overview. */
-    if (!server->session_lock)
-    {
-        nnwm_output *hov = output_at_cursor(server);
-        if (hov && hov->overview)
-        {
-            int target_ws = -1;
-            if (event->button == BTN_LEFT)
-            {
-                wlr_box ob;
-                wlr_output_layout_get_box(server->output_layout,
-                                          hov->wlr_output, &ob);
-                double cx = server->cursor->x - ob.x;
-                double cy = server->cursor->y - ob.y;
-
-                const double OV_OUTER = 32.0;
-                const double OV_INNER = 12.0;
-                const int    OV_COLS  = 3;
-                const int    num_ws   = server->config->workspace_count;
-                const int    OV_ROWS  = (num_ws + OV_COLS - 1) / OV_COLS;
-                double slot_w = (ob.width  - 2.0 * OV_OUTER - (OV_COLS - 1) * OV_INNER) / OV_COLS;
-                double slot_h = (ob.height - 2.0 * OV_OUTER - (OV_ROWS - 1) * OV_INNER) / OV_ROWS;
-
-                int col = (int)((cx - OV_OUTER) / (slot_w + OV_INNER));
-                int row = (int)((cy - OV_OUTER) / (slot_h + OV_INNER));
-                if (col >= 0 && col < OV_COLS && row >= 0 && row < OV_ROWS)
-                {
-                    double sx = OV_OUTER + col * (slot_w + OV_INNER);
-                    double sy = OV_OUTER + row * (slot_h + OV_INNER);
-                    if (cx >= sx && cx < sx + slot_w && cy >= sy && cy < sy + slot_h)
-                    {
-                        int ws = row * OV_COLS + col;
-                        if (ws < num_ws)
-                            target_ws = ws;
-                    }
-                }
-            }
-
-            server->focused_output = hov;
-            exit_overview(server, hov);
-            if (target_ws >= 0)
-                nnwm::workspace::switch_to(server, target_ws);
-            return;
-        }
     }
 
     /* Tab bar click: focus the clicked window */

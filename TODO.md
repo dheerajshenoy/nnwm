@@ -170,6 +170,8 @@
 - [x] XWayland
 - [x] Drag and drop
 - [x] Multi workspace viewing at once (like dwm)
+- [x] Move window from one workspace to another in the overview mode
+- [ ] Choose layouts
 
 ## TODO
 
@@ -182,6 +184,7 @@
 - Layouts
     - [ ] Dwindle
     - [ ] Sway like h/v choosable layout
+    - Floating
 - [ ] Jump label support (like MangoWM)
 - [ ] IPC for nnwm
 - Layer rules

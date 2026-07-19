@@ -1254,17 +1254,83 @@ ov_surface_iter(wlr_surface *surface, int sx, int sy, void *ud)
 
 static void render_overview_buffers(nnwm_server *server, nnwm_output *out);
 
+/* Hit-test the overview to find which toplevel (if any) is under output-local
+ * cursor position (cx, cy).  Returns null if over empty space.  If a toplevel
+ * is found, *out_ws is set to its workspace index. */
+nnwm_toplevel *
+overview_toplevel_at(nnwm_server *server, nnwm_output *out,
+                     double cx, double cy, int *out_ws)
+{
+    wlr_box ob;
+    wlr_output_layout_get_box(server->output_layout, out->wlr_output, &ob);
+    double W = ob.width, H = ob.height;
+    if (W <= 0 || H <= 0) return nullptr;
+
+    int num_ws  = server->config->workspace_count;
+    int ov_rows = (num_ws + OVERVIEW_COLS - 1) / OVERVIEW_COLS;
+    double slot_w = (W - 2.0 * OVERVIEW_OUTER - (OVERVIEW_COLS - 1) * OVERVIEW_INNER) / OVERVIEW_COLS;
+    double slot_h = (H - 2.0 * OVERVIEW_OUTER - (ov_rows - 1) * OVERVIEW_INNER) / ov_rows;
+
+    const wlr_box &ua = out->usable_area;
+    double ua_w = ua.width  > 0 ? (double)ua.width  : W;
+    double ua_h = ua.height > 0 ? (double)ua.height : H;
+    double s    = std::min(slot_w / ua_w, slot_h / ua_h);
+    double cx_off = (slot_w - ua_w * s) / 2.0;
+    double cy_off = (slot_h - ua_h * s) / 2.0;
+
+    nnwm_config *cfg = server->config;
+    int bw = cfg->border.width;
+    int th = cfg->titlebar.height;
+
+    for (int ws = 0; ws < num_ws; ws++) {
+        int    col = ws % OVERVIEW_COLS;
+        int    row = ws / OVERVIEW_COLS;
+        double sx  = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
+        double sy  = OVERVIEW_OUTER + row * (slot_h + OVERVIEW_INNER);
+
+        /* Skip if cursor is outside this slot */
+        if (cx < sx || cx >= sx + slot_w || cy < sy || cy >= sy + slot_h)
+            continue;
+
+        nnwm_toplevel *tl;
+        wl_list_for_each(tl, &server->toplevels, link) {
+            if (tl->output != out) continue;
+            if (tl->workspace != ws && !tl->sticky) continue;
+            if (tl->in_scratchpad) continue;
+
+            bool tabbed_tiled = !tl->floating && tl->output->layout_mode[tl->workspace]
+                                                    == nnwm_layout_mode::TABBED;
+            int eff_th = (tabbed_tiled || th <= 0) ? 0 : th;
+            wlr_box lb;
+            if (!tl_layout_box(tl, bw, eff_th, &lb)) continue;
+
+            double wx = sx + cx_off + (lb.x - ua.x) * s;
+            double wy = sy + cy_off + (lb.y - ua.y) * s;
+            double ww = lb.width  * s;
+            double wh = lb.height * s;
+
+            if (cx >= wx && cx < wx + ww && cy >= wy && cy < wy + wh) {
+                if (out_ws) *out_ws = ws;
+                return tl;
+            }
+        }
+        break; /* only one slot can match */
+    }
+    return nullptr;
+}
+
 void
 render_overview(nnwm_server *server, nnwm_output *out)
 {
     if (!out->overview_buf || !out->overview_labels) return;
 
     /* Arrange every workspace so all windows have valid cur_x/y/w/h.
-     * Direct impl call avoids re-entering arrange_windows → render_overview. */
+     * Direct impl call avoids re-entering arrange_windows → render_overview.
+     * All workspaces are arranged (including active) so that window moves in
+     * overview immediately reflect correct layouts in both source and target. */
     {
         int saved = out->active_workspace;
         for (int ws = 0; ws < server->config->workspace_count; ws++) {
-            if (ws == saved) continue;
             out->active_workspace = ws;
             arrange_windows_impl(server, out);
         }
@@ -1289,30 +1355,51 @@ overview_frame_update(nnwm_server *server, nnwm_output *out)
     render_overview_buffers(server, out);
 }
 
+struct ov_geom {
+    wlr_box out_box;
+    int W, H, buf_w, buf_h, num_ws;
+    double dpi, slot_w, slot_h, s, cx_off, cy_off;
+};
+
+static ov_geom
+ov_geom_compute(nnwm_server *server, nnwm_output *out)
+{
+    ov_geom g{};
+    wlr_output_layout_get_box(server->output_layout, out->wlr_output, &g.out_box);
+    g.W = g.out_box.width;
+    g.H = g.out_box.height;
+    g.dpi   = out->wlr_output->scale;
+    g.buf_w = (int)(g.W * g.dpi);
+    g.buf_h = (int)(g.H * g.dpi);
+    g.num_ws = server->config->workspace_count;
+    int ov_rows = (g.num_ws + OVERVIEW_COLS - 1) / OVERVIEW_COLS;
+    g.slot_w = (g.W - 2.0 * OVERVIEW_OUTER - (OVERVIEW_COLS - 1) * OVERVIEW_INNER) / OVERVIEW_COLS;
+    g.slot_h = (g.H - 2.0 * OVERVIEW_OUTER - (ov_rows - 1) * OVERVIEW_INNER) / ov_rows;
+    const wlr_box &ua = out->usable_area;
+    double ua_w = ua.width  > 0 ? (double)ua.width  : (double)g.W;
+    double ua_h = ua.height > 0 ? (double)ua.height : (double)g.H;
+    g.s      = std::min(g.slot_w / ua_w, g.slot_h / ua_h);
+    g.cx_off = (g.slot_w - ua_w * g.s) / 2.0;
+    g.cy_off = (g.slot_h - ua_h * g.s) / 2.0;
+    return g;
+}
+
+static void render_overview_labels(nnwm_server *server, nnwm_output *out,
+                                   const ov_geom &g, bool gpu_ok);
+
 static void
 render_overview_buffers(nnwm_server *server, nnwm_output *out)
 {
-    wlr_box out_box;
-    wlr_output_layout_get_box(server->output_layout, out->wlr_output, &out_box);
-    int W = out_box.width;
-    int H = out_box.height;
+    ov_geom g = ov_geom_compute(server, out);
+    int W = g.W, H = g.H;
     if (W <= 0 || H <= 0) return;
-
-    double dpi  = out->wlr_output->scale;
-    int buf_w   = (int)(W * dpi);
-    int buf_h   = (int)(H * dpi);
-
-    int num_ws = server->config->workspace_count;
-    int ov_rows = (num_ws + OVERVIEW_COLS - 1) / OVERVIEW_COLS;
-    double slot_w = (W - 2.0 * OVERVIEW_OUTER - (OVERVIEW_COLS - 1) * OVERVIEW_INNER) / OVERVIEW_COLS;
-    double slot_h = (H - 2.0 * OVERVIEW_OUTER - (ov_rows - 1) * OVERVIEW_INNER) / ov_rows;
+    int buf_w = g.buf_w, buf_h = g.buf_h;
+    int num_ws = g.num_ws;
+    double dpi = g.dpi, slot_w = g.slot_w, slot_h = g.slot_h;
+    double s = g.s, cx_off = g.cx_off, cy_off = g.cy_off;
+    wlr_box out_box = g.out_box;
 
     const wlr_box &ua = out->usable_area;
-    double ua_w = ua.width  > 0 ? (double)ua.width  : (double)W;
-    double ua_h = ua.height > 0 ? (double)ua.height : (double)H;
-    double s    = std::min(slot_w / ua_w, slot_h / ua_h);
-    double cx_off = (slot_w - ua_w * s) / 2.0;
-    double cy_off = (slot_h - ua_h * s) / 2.0;
 
     nnwm_config *cfg = server->config;
     int bw = cfg->border.width;
@@ -1402,7 +1489,6 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
                 if (tl->output != out) continue;
                 if (tl->workspace != ws && !tl->sticky) continue;
                 if (tl->in_scratchpad) continue;
-
                 bool tabbed_tiled = !tl->floating
                     && tl->output->layout_mode[tl->workspace]
                            == nnwm_layout_mode::TABBED;
@@ -1439,11 +1525,26 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
         wlr_scene_node_set_enabled(&out->overview_buf->node, false);
     }
 
-    /* ============================================================
-     * CAIRO OVERLAY: slot borders + workspace labels
-     * Fully transparent when GPU pass succeeded (GPU content shows through).
-     * Falls back to full schematic rendering if GPU pass failed.
-     * ============================================================ */
+    render_overview_labels(server, out, g, pass != nullptr);
+}
+
+static void
+render_overview_labels(nnwm_server *server, nnwm_output *out,
+                       const ov_geom &g, bool gpu_ok)
+{
+    int W = g.W, H = g.H;
+    if (W <= 0 || H <= 0) return;
+    int buf_w = g.buf_w, buf_h = g.buf_h;
+    int num_ws = g.num_ws;
+    double dpi = g.dpi, slot_w = g.slot_w, slot_h = g.slot_h;
+    double s = g.s, cx_off = g.cx_off, cy_off = g.cy_off;
+    wlr_box out_box = g.out_box;
+    const wlr_box &ua = out->usable_area;
+    nnwm_config *cfg = server->config;
+    int bw = cfg->border.width;
+    int th = cfg->titlebar.height;
+    bool pass = gpu_ok; /* alias — used where old code tested `pass` directly */
+
     nnwm_tbuf *tb = tbuf_create(buf_w, buf_h);
     cairo_surface_t *csurf = cairo_image_surface_create_for_data(
         tb->data, CAIRO_FORMAT_ARGB32, buf_w, buf_h, tb->stride);
@@ -1459,6 +1560,23 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
         /* Fallback: full schematic dark overlay */
         cairo_set_source_rgba(cr, 0.07, 0.07, 0.10, 0.93);
         cairo_paint(cr);
+    }
+
+    /* Determine which slot the cursor is over (for drag-target highlight) */
+    int drag_target_ws = -1;
+    if (server->overview_drag_toplevel) {
+        double dcx = server->cursor->x - out_box.x;
+        double dcy = server->cursor->y - out_box.y;
+        for (int ws = 0; ws < num_ws; ws++) {
+            int    col = ws % OVERVIEW_COLS;
+            int    row = ws / OVERVIEW_COLS;
+            double sx  = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
+            double sy  = OVERVIEW_OUTER + row * (slot_h + OVERVIEW_INNER);
+            if (dcx >= sx && dcx < sx + slot_w && dcy >= sy && dcy < sy + slot_h) {
+                drag_target_ws = ws;
+                break;
+            }
+        }
     }
 
     for (int ws = 0; ws < num_ws; ws++) {
@@ -1553,12 +1671,18 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
             }
         }
 
-        /* Slot border */
-        cairo_set_line_width(cr, active ? 2.0 : 1.0);
-        if (active)
-            cairo_set_source_rgba(cr, 0.45, 0.65, 1.0, 1.0);
-        else
-            cairo_set_source_rgba(cr, 0.28, 0.28, 0.40, 1.0);
+        /* Slot border — highlight when it's the drag-drop target */
+        bool drag_target = (ws == drag_target_ws);
+        if (drag_target) {
+            cairo_set_line_width(cr, 2.5);
+            cairo_set_source_rgba(cr, 0.95, 0.75, 0.20, 1.0); /* amber drop target */
+        } else {
+            cairo_set_line_width(cr, active ? 2.0 : 1.0);
+            if (active)
+                cairo_set_source_rgba(cr, 0.45, 0.65, 1.0, 1.0);
+            else
+                cairo_set_source_rgba(cr, 0.28, 0.28, 0.40, 1.0);
+        }
         cairo_rectangle(cr, sx + 0.5, sy + 0.5, slot_w - 1.0, slot_h - 1.0);
         cairo_stroke(cr);
 
@@ -1603,6 +1727,16 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
     wlr_scene_node_set_enabled(&out->overview_labels->node, true);
     /* labels must be above the GPU content buffer */
     wlr_scene_node_raise_to_top(&out->overview_labels->node);
+}
+
+/* Cheap re-render: only update the Cairo labels overlay (slot borders, labels,
+ * drag-target highlight).  Does NOT re-render window textures via the GPU pass.
+ * Use this during drag motion to keep things smooth. */
+void
+overview_update_labels(nnwm_server *server, nnwm_output *out)
+{
+    if (!out->overview || !out->overview_labels) return;
+    render_overview_labels(server, out, ov_geom_compute(server, out), true);
 }
 
 void
