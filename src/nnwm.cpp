@@ -750,6 +750,19 @@ animate_step_one(nnwm_server * /*server*/, nnwm_toplevel *tl, double now)
         tl->cur_y = cy;
         tl->cur_w = cw;
         tl->cur_h = ch;
+
+        /* Hide when the animated rect leaves the home output so it doesn't
+         * bleed onto adjacent monitors. Show it again as it re-enters. */
+        if (tl->output)
+        {
+            wlr_box ob;
+            wlr_output_layout_get_box(tl->server->output_layout,
+                                      tl->output->wlr_output, &ob);
+            bool inside = (cx + cw > ob.x && cx < ob.x + ob.width &&
+                           cy + ch > ob.y && cy < ob.y + ob.height);
+            wlr_scene_node_set_enabled(&tl->scene_tree->node, inside);
+        }
+
         if (t >= 1.0f)
         {
             tl->geo_anim = false;
