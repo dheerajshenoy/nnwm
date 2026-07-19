@@ -172,7 +172,8 @@
 - [x] Drag and drop
 - [x] Multi workspace viewing at once (like dwm)
 - [x] Move window from one workspace to another in the overview mode
-- [x] Choose layouts
+- [x] Choose layouts per-monitor and per-workspace
+- [x] Workspace names per-monitor
 
 ## TODO
 
@@ -194,3 +195,4 @@
 - [ ] Monitor hot-corners
 - [ ] Keybinding overlay
 - [ ] Handle minimized windows
+- [ ] Windows going invisible

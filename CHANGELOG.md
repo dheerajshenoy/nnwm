@@ -1,5 +1,33 @@
 # nnwm CHANGELOG
 
+## 0.1.2
+
+### Features
+
+- **Overview mode window drag-and-drop**: clicking a window thumbnail in the
+  overview now focuses it (switching to its workspace if needed) and exits the
+  overview. Dragging a window thumbnail to a different workspace slot moves the
+  window there while keeping the overview open so you can keep rearranging.
+  An amber border highlights the drop target slot during the drag. Motion
+  updates use a cheap Cairo-only redraw so dragging stays smooth.
+- **Float layout (`"float"`)**: a new layout mode where all windows in the
+  workspace are floating. Switching to float layout converts any existing tiled
+  windows to floating (centered at half output size if they have no prior
+  geometry). `nnwm.layout.toggle_float()` toggles between float and htile on
+  the active workspace. `nnwm.layout.set(name)` sets any layout directly by
+  name. `nnwm.layout.next()` and `nnwm.layout.prev()` now cycle through float
+  as well.
+- **Configurable default workspace layouts** (`nnwm.opt.workspace_layouts`):
+  a string array that sets the initial layout for each workspace on all
+  monitors. Array index corresponds to workspace number; workspaces without
+  an entry default to `"htile"`. Example:
+  `workspace_layouts = { "htile", "float", "tabbed", "vscroll" }`.
+- **Per-monitor workspace layout overrides** (`nnwm.monitor` `workspace_layouts`
+  field): overrides the global `workspace_layouts` for the matched monitor.
+  Only specified positions are overridden; unspecified workspaces fall back to
+  the global default then `"htile"`. Priority: monitor-specific >
+  global `workspace_layouts` > `"htile"`.
+
 ## 0.1.1
 
 ### Features

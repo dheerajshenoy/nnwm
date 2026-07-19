@@ -90,13 +90,15 @@ Multiple `nnwm.key()` calls with the same combo are allowed; the last one wins.
 
 ### Layout
 
-| Function                  | Description                                                |
-|---------------------------|------------------------------------------------------------|
-| `nnwm.layout.next()`      | Cycle to the next layout for the active workspace          |
-| `nnwm.layout.prev()`      | Cycle to the previous layout for the active workspace      |
-| `nnwm.layout.tabbed.toggle()` | Toggle tabbed mode for the active workspace            |
+| Function                      | Description                                                  |
+|-------------------------------|--------------------------------------------------------------|
+| `nnwm.layout.next()`          | Cycle to the next layout for the active workspace            |
+| `nnwm.layout.prev()`          | Cycle to the previous layout for the active workspace        |
+| `nnwm.layout.set(name)`       | Set the active workspace layout by name                      |
+| `nnwm.layout.toggle_float()`  | Toggle between float layout and htile                        |
+| `nnwm.layout.tabbed.toggle()` | Toggle tabbed mode for the active workspace                  |
 
-Available layouts (in cycle order): `tile` → `tabbed`.
+Available layouts (in cycle order): `"htile"` → `"vtile"` → `"tabbed"` → `"hscroll"` → `"vscroll"` → `"float"` → *(wraps)*
 
 ### Utility
 
@@ -145,7 +147,7 @@ Returns a snapshot of the active workspace on the focused output, or `nil`.
 | Field          | Type    | Description                                       |
 |----------------|---------|---------------------------------------------------|
 | `index`        | integer | 1-based workspace index                           |
-| `layout`       | string  | Layout name: `"htile"`, `"vtile"`, `"tabbed"`, `"hscroll"`, `"vscroll"` |
+| `layout`       | string  | Layout name: `"htile"`, `"vtile"`, `"tabbed"`, `"hscroll"`, `"vscroll"`, `"float"` |
 | `master_ratio` | number  | Current master split ratio for this workspace     |
 | `window_count` | integer | Number of tiled windows on this workspace         |
 | `output`       | string  | Name of the output                                |
@@ -319,6 +321,7 @@ Colors accept `{r, g, b, a}` float tables or hex strings: `"RRGGBB"`,
 | `new_window_master`  | bool    | `true`  | New windows become master; `false` = append to stack |
 | `smart_gaps`         | bool    | `false` | Collapse gaps when only one window is visible |
 | `smart_borders`      | bool    | `false` | Collapse borders when only one window is visible |
+| `workspace_layouts`  | string[] | `{}`   | Default layout per workspace. Array of layout name strings; length need not match workspace count. Unspecified workspaces use `"htile"`. |
 
 ---
 
@@ -356,6 +359,7 @@ grep "new output" /tmp/nnwm.log
 | `hdr`       | bool    | Enable HDR — wlroots 0.20+                                                             |
 | `disabled`  | bool    | Disable this output entirely                                                            |
 | `struts`    | table   | Reserve screen edges: `{ top=N, bottom=N, left=N, right=N }` (pixels)                 |
+| `workspace_layouts` | string[] | Per-workspace layout overrides for this monitor. Overrides the global `workspace_layouts` for matched positions. Unspecified positions fall back to the global default then `"htile"`. |
 
 ### Example
 
