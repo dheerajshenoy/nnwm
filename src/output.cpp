@@ -141,6 +141,24 @@ output_destroy(wl_listener *listener, void * /*data*/)
         wlr_scene_node_destroy(&output->overview_labels->node);
     for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
         free(output->workspace_names[i]);
+
+    /* Migrate toplevels that were on this output so no dangling tl->output
+     * pointers survive the delete below.  After a VT switch the DRM backend
+     * destroys and re-creates outputs; leaving stale pointers would segfault
+     * any WM action that dereferences tl->output. */
+    {
+        nnwm_output *replacement = server->focused_output;
+        nnwm_toplevel *tl;
+        wl_list_for_each(tl, &server->toplevels, link)
+        {
+            if (tl->output != output)
+                continue;
+            tl->output = replacement;
+        }
+        if (replacement)
+            arrange_windows(server, replacement);
+    }
+
     delete output;
 
     output_manager_build_config(server);
