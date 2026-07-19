@@ -1688,7 +1688,7 @@ render_overview_labels(nnwm_server *server, nnwm_output *out,
 
         /* Workspace label (configured name, or fallback to index) */
         char label_buf[32];
-        const char *label = server->config->workspace_names[ws];
+        const char *label = out->workspace_names[ws];
         if (!label || label[0] == '\0')
         {
             std::snprintf(label_buf, sizeof(label_buf), "%d", ws + 1);

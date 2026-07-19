@@ -685,6 +685,14 @@ l_nnwm_current_workspace(lua_State *L)
     lua_pushstring(L, out->wlr_output->name ? out->wlr_output->name : "");
     lua_setfield(L, -2, "output");
 
+    /* Effective workspace name (monitor override > global > nil) */
+    const char *ws_name = out->workspace_names[ws];
+    if (ws_name && ws_name[0] != '\0')
+        lua_pushstring(L, ws_name);
+    else
+        lua_pushnil(L);
+    lua_setfield(L, -2, "name");
+
     return 1;
 }
 
@@ -1287,6 +1295,8 @@ free_monitor_configs(struct nnwm_config *cfg)
         auto &mc = cfg->monitor_configs[i];
         free(mc.name);
         free(mc.description);
+        for (int j = 0; j < NNWM_NUM_WORKSPACES; j++)
+            free(mc.workspace_names[j]);
     }
     free(cfg->monitor_configs);
     cfg->monitor_configs      = nullptr;
@@ -1311,7 +1321,10 @@ l_nnwm_monitor(lua_State *L)
     mc.y         = INT_MAX;
     mc.transform = -1;
     for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
+    {
         mc.workspace_layouts[i] = -1;
+        mc.workspace_names[i]   = nullptr;
+    }
 
     lua_pushvalue(L, 1); /* push table to top so get_*_field helpers see it */
 
@@ -1364,13 +1377,14 @@ l_nnwm_monitor(lua_State *L)
     }
     lua_pop(L, 1); /* pop struts */
 
-    lua_getfield(L, -1, "workspace_layouts");
+    lua_getfield(L, -1, "workspaces");
     if (lua_istable(L, -1))
     {
-        int n = (int)lua_rawlen(L, -1);
-        for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
+        lua_getfield(L, -1, "layouts");
+        if (lua_istable(L, -1))
         {
-            if (i < n)
+            int n = (int)lua_rawlen(L, -1);
+            for (int i = 0; i < NNWM_NUM_WORKSPACES && i < n; i++)
             {
                 lua_rawgeti(L, -1, i + 1);
                 if (lua_isstring(L, -1))
@@ -1379,8 +1393,23 @@ l_nnwm_monitor(lua_State *L)
                 lua_pop(L, 1);
             }
         }
+        lua_pop(L, 1); /* pop layouts */
+
+        lua_getfield(L, -1, "names");
+        if (lua_istable(L, -1))
+        {
+            int n = (int)lua_rawlen(L, -1);
+            for (int i = 0; i < NNWM_NUM_WORKSPACES && i < n; i++)
+            {
+                lua_rawgeti(L, -1, i + 1);
+                if (lua_isstring(L, -1))
+                    mc.workspace_names[i] = strdup(lua_tostring(L, -1));
+                lua_pop(L, 1);
+            }
+        }
+        lua_pop(L, 1); /* pop names */
     }
-    lua_pop(L, 1); /* pop workspace_layouts */
+    lua_pop(L, 1); /* pop workspaces */
 
     lua_pop(L, 1); /* pop table copy */
     return 0;
@@ -2610,6 +2639,37 @@ nnwm::lua_reload(struct nnwm_server *server, struct nnwm_config *cfg)
 
     read_config_table(server->lua, cfg);
 
+    /* Refresh per-output workspace names from updated config */
+    {
+        struct nnwm_output *out;
+        wl_list_for_each(out, &server->outputs, link)
+        {
+            /* Find matching monitor config (same logic as output creation) */
+            const nnwm_monitor_config *mc = nullptr;
+            for (int m = 0; m < cfg->monitor_config_count; m++)
+            {
+                const auto &c = cfg->monitor_configs[m];
+                bool match = true;
+                if (c.name && strcmp(out->wlr_output->name, c.name) != 0)
+                    match = false;
+                if (match)
+                {
+                    mc = &c;
+                    break;
+                }
+            }
+            for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
+            {
+                free(out->workspace_names[i]);
+                const char *mon_name = (mc && mc->workspace_names[i])
+                                           ? mc->workspace_names[i] : nullptr;
+                const char *glb_name = cfg->workspace_names[i];
+                const char *eff      = mon_name ? mon_name : glb_name;
+                out->workspace_names[i] = eff ? strdup(eff) : nullptr;
+            }
+        }
+    }
+
     /* Clamp windows and output state to the new workspace count */
     {
         int max_ws = cfg->workspace_count - 1;
@@ -2867,6 +2927,8 @@ nnwm::config_free(struct nnwm_config *cfg)
         auto &mc = cfg->monitor_configs[i];
         free(mc.name);
         free(mc.description);
+        for (int j = 0; j < NNWM_NUM_WORKSPACES; j++)
+            free(mc.workspace_names[j]);
     }
     free(cfg->monitor_configs);
     free_window_rules(cfg);

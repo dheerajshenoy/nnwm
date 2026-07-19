@@ -184,8 +184,8 @@
     - [ ] border
 - [ ] Don't allow resizing of tiled windows
 - Layouts
-    - [ ] Dwindle
     - [ ] Sway like h/v choosable layout
+    - [ ] Dwindle
 - [ ] Jump label support (like MangoWM)
 - [ ] IPC for nnwm
 - Layer rules

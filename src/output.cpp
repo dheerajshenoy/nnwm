@@ -139,6 +139,8 @@ output_destroy(wl_listener *listener, void * /*data*/)
         wlr_scene_node_destroy(&output->overview_buf->node);
     if (output->overview_labels)
         wlr_scene_node_destroy(&output->overview_labels->node);
+    for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
+        free(output->workspace_names[i]);
     delete output;
 
     output_manager_build_config(server);
@@ -556,6 +558,12 @@ server_new_output(wl_listener *listener, void *data)
                                         : nnwm_layout_mode::HTILE;
         output->master_ratio[i]  = server->config->layout.master_ratio;
         output->scroll_offset[i] = 0;
+        /* Workspace name: monitor override > global config > nullptr */
+        const char *mon_name = (mc && mc->workspace_names[i])
+                                   ? mc->workspace_names[i] : nullptr;
+        const char *glb_name = server->config->workspace_names[i];
+        const char *eff_name = mon_name ? mon_name : glb_name;
+        output->workspace_names[i] = eff_name ? strdup(eff_name) : nullptr;
     }
     output->tab_bar = wlr_scene_buffer_create(server->scene_windows, nullptr);
     wlr_scene_node_set_enabled(&output->tab_bar->node, false);

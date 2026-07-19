@@ -120,6 +120,9 @@ struct nnwm_monitor_config
 
     /* Per-workspace default layout for this monitor; -1 = inherit global */
     int workspace_layouts[9];
+
+    /* Per-workspace name override for this monitor; NULL = inherit global */
+    char *workspace_names[9];
 };
 
 struct nnwm_config
