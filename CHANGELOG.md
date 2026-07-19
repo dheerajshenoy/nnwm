@@ -1,9 +1,15 @@
 # nnwm CHANGELOG
 
-## 0.1.2
+## 0.1.1
 
 ### Features
 
+- **Per-monitor workspace names** (`workspaces.names` in `nnwm.monitor()`):
+  workspace labels can now be overridden per monitor. The `nnwm.monitor()`
+  config table accepts a `workspaces` sub-table with `names` (string array)
+  and `layouts` (string array) fields. Priority for names: monitor-specific >
+  global `workspace_names` > numeric fallback. `nnwm.current_workspace()` now
+  includes a `name` field with the resolved effective label (`nil` if unset).
 - **Overview mode window drag-and-drop**: clicking a window thumbnail in the
   overview now focuses it (switching to its workspace if needed) and exits the
   overview. Dragging a window thumbnail to a different workspace slot moves the
@@ -27,11 +33,6 @@
   Only specified positions are overridden; unspecified workspaces fall back to
   the global default then `"htile"`. Priority: monitor-specific >
   global `workspace_layouts` > `"htile"`.
-
-## 0.1.1
-
-### Features
-
 - **Drag-and-drop between applications**: nnwm now fully handles the Wayland
   `wl_data_device` drag-and-drop protocol. The compositor validates
   `request_start_drag` events and starts pointer drags, renders the drag icon
@@ -145,6 +146,7 @@
   (`wlr_renderer_begin_buffer_pass`) to crash with the GPU context in an
   undefined state. The DRM cursor plane is also re-uploaded on VT resume via
   `wlr_cursor_set_xcursor` in `server_session_active`.
+
 
 ## 0.1.0
 
