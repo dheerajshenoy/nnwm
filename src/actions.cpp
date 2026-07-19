@@ -518,8 +518,9 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
     arrange_windows(server, out);
 
 #ifdef HAVE_SCENEFX
-    /* Workspace animation */
-    if (server->config->fx.animation.enabled
+    /* Workspace animation — suppressed in overview (layout is static there) */
+    if (!out->overview
+        && server->config->fx.animation.enabled
         && server->config->fx.animation.duration_ms > 0)
     {
         nnwm_config *cfg       = server->config;

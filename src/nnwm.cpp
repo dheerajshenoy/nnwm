@@ -1343,9 +1343,17 @@ render_overview(nnwm_server *server, nnwm_output *out)
      * overview immediately reflect correct layouts in both source and target. */
     {
         int saved = out->active_workspace;
+        nnwm_toplevel *tl;
         for (int ws = 0; ws < server->config->workspace_count; ws++) {
             out->active_workspace = ws;
             arrange_windows_impl(server, out);
+            /* arrange_windows_impl only enables tiled windows; also enable
+             * floating windows so their textures are valid for capture below. */
+            wl_list_for_each(tl, &server->toplevels, link) {
+                if (tl->output != out || tl->in_scratchpad) continue;
+                if (tl->floating && (tl->workspace == ws || tl->sticky))
+                    wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
+            }
         }
         out->active_workspace = saved;
     }
@@ -1761,7 +1769,20 @@ exit_overview(nnwm_server *server, nnwm_output *out)
     if (out->overview_labels)
         wlr_scene_node_set_enabled(&out->overview_labels->node, false);
 
-    /* Re-arrange to restore window scene nodes that were hidden during overview. */
+    /* Restore correct per-window visibility (render_overview hid all nodes;
+     * arrange_windows_impl only re-enables tiled windows, so floating windows
+     * on the active workspace would stay hidden without this sweep). */
+    {
+        nnwm_toplevel *t;
+        wl_list_for_each(t, &server->toplevels, link)
+        {
+            if (t->in_scratchpad) continue;
+            wlr_scene_node_set_enabled(
+                &t->scene_tree->node,
+                t->sticky || (t->output && t->output->active_workspace == t->workspace));
+        }
+    }
+
     arrange_windows(server, out);
 
     nnwm_toplevel *tl = ws_first(server, out);
