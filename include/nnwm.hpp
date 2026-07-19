@@ -27,7 +27,10 @@ extern "C"
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_gamma_control_v1.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_virtual_keyboard_v1.h>
+#include <wlr/types/wlr_virtual_pointer_v1.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -299,6 +302,13 @@ struct nnwm_server
     struct wlr_screencopy_manager_v1 *screencopy_manager;
     struct wlr_output_power_manager_v1 *output_power_manager;
     struct wl_listener output_power_set_mode;
+
+    struct wlr_virtual_pointer_manager_v1 *virtual_pointer_manager;
+    struct wl_listener new_virtual_pointer;
+    struct wlr_virtual_keyboard_manager_v1 *virtual_keyboard_manager;
+    struct wl_listener new_virtual_keyboard;
+    struct wlr_gamma_control_manager_v1 *gamma_control_manager;
+    struct wl_listener gamma_control_set_gamma;
     struct wlr_session_lock_manager_v1 *lock_manager;
     struct wl_listener new_lock;
     struct nnwm_session_lock
@@ -641,6 +651,9 @@ extern "C"
     void seat_request_set_selection(struct wl_listener *, void *);
     void seat_request_start_drag(struct wl_listener *, void *);
     void seat_start_drag(struct wl_listener *, void *);
+    void handle_new_virtual_pointer(struct wl_listener *, void *);
+    void handle_new_virtual_keyboard(struct wl_listener *, void *);
+    void handle_gamma_control_set_gamma(struct wl_listener *, void *);
 #ifdef HAVE_XWAYLAND
     void server_new_xwayland_surface(struct wl_listener *, void *);
 #endif

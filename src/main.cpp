@@ -254,6 +254,30 @@ main(int argc, char *argv[])
     wl_signal_add(&server.output_power_manager->events.set_mode,
                   &server.output_power_set_mode);
 
+    /* virtual-pointer: allows clients (gesture daemons, remote desktop) to
+     * inject synthetic pointer events */
+    server.virtual_pointer_manager
+        = wlr_virtual_pointer_manager_v1_create(server.wl_display);
+    server.new_virtual_pointer.notify = handle_new_virtual_pointer;
+    wl_signal_add(&server.virtual_pointer_manager->events.new_virtual_pointer,
+                  &server.new_virtual_pointer);
+
+    /* virtual-keyboard: allows clients (on-screen keyboards, macro tools) to
+     * inject synthetic key events */
+    server.virtual_keyboard_manager
+        = wlr_virtual_keyboard_manager_v1_create(server.wl_display);
+    server.new_virtual_keyboard.notify = handle_new_virtual_keyboard;
+    wl_signal_add(&server.virtual_keyboard_manager->events.new_virtual_keyboard,
+                  &server.new_virtual_keyboard);
+
+    /* gamma-control: allows clients (wlsunset, gammastep) to set display
+     * gamma/color correction curves per output */
+    server.gamma_control_manager
+        = wlr_gamma_control_manager_v1_create(server.wl_display);
+    server.gamma_control_set_gamma.notify = handle_gamma_control_set_gamma;
+    wl_signal_add(&server.gamma_control_manager->events.set_gamma,
+                  &server.gamma_control_set_gamma);
+
     /* session-lock: allows screen lockers like swaylock/waylock */
     server.lock_manager   = wlr_session_lock_manager_v1_create(server.wl_display);
     server.new_lock.notify = server_new_lock;
@@ -588,6 +612,9 @@ main(int argc, char *argv[])
     wl_display_destroy_clients(server.wl_display);
 
     wl_list_remove(&server.output_power_set_mode.link);
+    wl_list_remove(&server.new_virtual_pointer.link);
+    wl_list_remove(&server.new_virtual_keyboard.link);
+    wl_list_remove(&server.gamma_control_set_gamma.link);
     wl_list_remove(&server.new_lock.link);
     wl_list_remove(&server.new_decoration.link);
     wl_list_remove(&server.new_layer_surface.link);

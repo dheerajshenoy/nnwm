@@ -70,7 +70,16 @@ output_frame(wl_listener *listener, void * /*data*/)
     if (output->overview)
         overview_frame_update(output->server, output);
 
-    if (!wlr_scene_output_commit(scene_output, nullptr))
+    wlr_scene_output_state_options commit_opts = {};
+    if (output->server->gamma_control_manager)
+    {
+        wlr_gamma_control_v1 *gc = wlr_gamma_control_manager_v1_get_control(
+            output->server->gamma_control_manager, output->wlr_output);
+        if (gc)
+            commit_opts.color_transform = wlr_gamma_control_v1_get_color_transform(gc);
+    }
+
+    if (!wlr_scene_output_commit(scene_output, &commit_opts))
         return;
 
     struct timespec now;
@@ -583,4 +592,12 @@ server_new_output(wl_listener *listener, void *data)
 
     output_manager_build_config(server);
     fire_hook_output(server, "output_connect", output);
+}
+
+void
+handle_gamma_control_set_gamma(wl_listener *listener, void *data)
+{
+    nnwm_server *server = wl_container_of(listener, server, gamma_control_set_gamma);
+    auto *event = static_cast<wlr_gamma_control_manager_v1_set_gamma_event *>(data);
+    wlr_output_schedule_frame(event->output);
 }

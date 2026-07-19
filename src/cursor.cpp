@@ -449,6 +449,22 @@ seat_start_drag(wl_listener *listener, void *data)
 }
 
 void
+handle_new_virtual_pointer(wl_listener *listener, void *data)
+{
+    nnwm_server *server = wl_container_of(listener, server, new_virtual_pointer);
+    auto *event = static_cast<wlr_virtual_pointer_v1_new_pointer_event *>(data);
+    wlr_cursor_attach_input_device(server->cursor, &event->new_pointer->pointer.base);
+}
+
+void
+handle_new_virtual_keyboard(wl_listener *listener, void *data)
+{
+    nnwm_server *server = wl_container_of(listener, server, new_virtual_keyboard);
+    auto *vk            = static_cast<wlr_virtual_keyboard_v1 *>(data);
+    server_new_keyboard(server, &vk->keyboard.base);
+}
+
+void
 seat_request_set_selection(wl_listener *listener, void *data)
 {
     nnwm_server *server

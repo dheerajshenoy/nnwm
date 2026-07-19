@@ -77,6 +77,9 @@
     - [x] wlr-output-configuration-unstable-v1
     - [x] wlr-export-dmabuf-unstable-v1
     - [x] wlr-xdg-activation-v1
+    - [x] wlr-virtual-pointer-unstable-v1
+    - [x] wlr-virtual-keyboard-unstable-v1
+    - [x] wlr-gamma-control-unstable-v1
 - [x] Fake fullscreen mode
 - [x] Don't show titlebar in tabbed layout mode (if activated)
 - [x] Don't show titlebar in fullscreen mode
@@ -169,16 +172,11 @@
 
 ## TODO
 
-- [ ] possibly use xwayland-satellite for XWayland?
-- [ ] Monitor hot-corners
-- [ ] Keybinding overlay
+- [ ] Fix animation going outside the monitor and to the other monitors
+- [ ] Don't allow resizing of tiled windows
 - Layouts
     - [ ] Dwindle
     - [ ] Sway like h/v choosable layout
-- wlroots Protocols
-    - [ ] wlr-virtual-pointer-unstable-v1
-    - [ ] wlr-virtual-keyboard-unstable-v1
-    - [ ] wlr-gamma-control-unstable-v1
 - [ ] Multi workspace viewing at once (like dwm)
 - [ ] Handle minimized windows
 - [ ] Jump label support (like MangoWM)
@@ -190,5 +188,6 @@
     - [ ] blur
     - [ ] animation
     - [ ] border
-- [ ] Don't allow resizing of tiled windows
-- [ ] disable-power-key-handling
+- [ ] possibly use xwayland-satellite for XWayland?
+- [ ] Monitor hot-corners
+- [ ] Keybinding overlay
