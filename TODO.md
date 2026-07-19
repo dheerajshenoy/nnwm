@@ -169,25 +169,25 @@
     - [x] spotlight
 - [x] XWayland
 - [x] Drag and drop
+- [x] Multi workspace viewing at once (like dwm)
 
 ## TODO
 
+- Window Rules
+    - [ ] blur
+    - [ ] animation
+    - [ ] border
 - [ ] Fix animation going outside the monitor and to the other monitors
 - [ ] Don't allow resizing of tiled windows
 - Layouts
     - [ ] Dwindle
     - [ ] Sway like h/v choosable layout
-- [ ] Multi workspace viewing at once (like dwm)
-- [ ] Handle minimized windows
 - [ ] Jump label support (like MangoWM)
 - [ ] IPC for nnwm
 - Layer rules
     - [ ] layer z-order
     - [ ] opacity
-- Window Rules
-    - [ ] blur
-    - [ ] animation
-    - [ ] border
 - [ ] possibly use xwayland-satellite for XWayland?
 - [ ] Monitor hot-corners
 - [ ] Keybinding overlay
+- [ ] Handle minimized windows
