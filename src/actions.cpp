@@ -537,9 +537,9 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
             {
                 if (tl->output != out || tl->sticky)
                     continue;
-                /* Fullscreen windows cover the whole screen — skip animation;
-                 * the visibility sweep above already enabled/disabled them. */
-                if (tl->fullscreen || tl->fake_fullscreen)
+                /* Fullscreen and floating windows are handled by the
+                 * visibility sweep; skip geo/fade animation for them. */
+                if (tl->fullscreen || tl->fake_fullscreen || tl->floating)
                     continue;
                 float op = (tl->rule_opacity >= 0.0f) ? tl->rule_opacity
                                                       : cfg->fx.opacity;
@@ -567,9 +567,11 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
             {
                 if (tl->output != out || tl->sticky)
                     continue;
-                /* Fullscreen windows cover the whole screen — skip animation;
-                 * the visibility sweep above already enabled/disabled them. */
-                if (tl->fullscreen || tl->fake_fullscreen)
+                /* Fullscreen and floating windows are handled by the
+                 * visibility sweep; skip the geo animation for them.
+                 * Floating windows have no stable geo_to_x (it gets polluted
+                 * by slide-out), so animating them would move them off-screen. */
+                if (tl->fullscreen || tl->fake_fullscreen || tl->floating)
                     continue;
 
                 if (tl->workspace == old_ws)
