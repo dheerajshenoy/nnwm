@@ -574,8 +574,22 @@ layout_mode_str(nnwm_layout_mode m)
         case nnwm_layout_mode::TABBED:  return "tabbed";
         case nnwm_layout_mode::HSCROLL: return "hscroll";
         case nnwm_layout_mode::VSCROLL: return "vscroll";
+        case nnwm_layout_mode::FLOAT:   return "float";
         default:                        return "unknown";
     }
+}
+
+static nnwm_layout_mode
+parse_layout_mode(const char *s, nnwm_layout_mode dflt)
+{
+    if (!s) return dflt;
+    if (strcmp(s, "htile")   == 0) return nnwm_layout_mode::HTILE;
+    if (strcmp(s, "vtile")   == 0) return nnwm_layout_mode::VTILE;
+    if (strcmp(s, "tabbed")  == 0) return nnwm_layout_mode::TABBED;
+    if (strcmp(s, "hscroll") == 0) return nnwm_layout_mode::HSCROLL;
+    if (strcmp(s, "vscroll") == 0) return nnwm_layout_mode::VSCROLL;
+    if (strcmp(s, "float")   == 0) return nnwm_layout_mode::FLOAT;
+    return dflt;
 }
 
 static int
@@ -800,6 +814,22 @@ static int
 l_nnwm_layout_prev(lua_State *L)
 {
     nnwm::layout::prev(get_server(L));
+    return 0;
+}
+
+static int
+l_nnwm_toggle_float_layout(lua_State *L)
+{
+    nnwm::layout::toggle_float_layout(get_server(L));
+    return 0;
+}
+
+static int
+l_nnwm_set_layout(lua_State *L)
+{
+    const char *name = luaL_checkstring(L, 1);
+    nnwm_layout_mode m = parse_layout_mode(name, nnwm_layout_mode::HTILE);
+    nnwm::layout::set_layout(get_server(L), m);
     return 0;
 }
 
@@ -1590,6 +1620,16 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     }
     lua_setfield(L, -2, "workspace_names");
 
+    lua_newtable(L);
+    for (int i = 0; i < cfg->workspace_count; i++)
+    {
+        int v = cfg->workspace_default_layouts[i];
+        nnwm_layout_mode m = (v >= 0) ? (nnwm_layout_mode)v : nnwm_layout_mode::HTILE;
+        lua_pushstring(L, layout_mode_str(m));
+        lua_rawseti(L, -2, i + 1);
+    }
+    lua_setfield(L, -2, "workspace_layouts");
+
     lua_pushstring(L, cfg->find_cursor_style ? cfg->find_cursor_style : "rings");
     lua_setfield(L, -2, "find_cursor_style");
 
@@ -2064,6 +2104,30 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     }
 
     {
+        lua_getfield(L, -1, "workspace_layouts");
+        if (lua_istable(L, -1))
+        {
+            int n = (int)lua_rawlen(L, -1);
+            for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
+            {
+                cfg->workspace_default_layouts[i] = -1;
+                if (i < n)
+                {
+                    lua_rawgeti(L, -1, i + 1);
+                    if (lua_isstring(L, -1))
+                    {
+                        nnwm_layout_mode m = parse_layout_mode(
+                            lua_tostring(L, -1), nnwm_layout_mode::HTILE);
+                        cfg->workspace_default_layouts[i] = (int)m;
+                    }
+                    lua_pop(L, 1);
+                }
+            }
+        }
+        lua_pop(L, 1);
+    }
+
+    {
         char *s = get_string_field(L, "find_cursor_style", cfg->find_cursor_style);
         free(cfg->find_cursor_style);
         cfg->find_cursor_style = s;
@@ -2375,6 +2439,13 @@ nnwm::lua_init(struct nnwm_server *server)
 
     lua_pushcfunction(server->lua, l_nnwm_layout_prev);
     lua_setfield(server->lua, -2, "prev");
+
+    lua_pushcfunction(server->lua, l_nnwm_toggle_float_layout);
+    lua_setfield(server->lua, -2, "toggle_float");
+
+    lua_pushcfunction(server->lua, l_nnwm_set_layout);
+    lua_setfield(server->lua, -2, "set");
+
     lua_setfield(server->lua, -2, "layout");
 
     lua_setglobal(server->lua, "nnwm");
@@ -2748,8 +2819,10 @@ nnwm::config_defaults(void)
     cfg->window_rule_count = 0;
 
     cfg->workspace_count = NNWM_NUM_WORKSPACES;
-    for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
-        cfg->workspace_names[i] = nullptr;
+    for (int i = 0; i < NNWM_NUM_WORKSPACES; i++) {
+        cfg->workspace_names[i]           = nullptr;
+        cfg->workspace_default_layouts[i] = -1; /* -1 = htile */
+    }
 
     cfg->find_cursor_style = strdup("rings");
 

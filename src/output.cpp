@@ -546,7 +546,10 @@ server_new_output(wl_listener *listener, void *data)
     memset(output->prev_focused, 0, sizeof(output->prev_focused));
     for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
     {
-        output->layout_mode[i]   = nnwm_layout_mode::HTILE;
+        int dfl = server->config->workspace_default_layouts[i];
+        output->layout_mode[i]   = (dfl >= 0)
+                                        ? static_cast<nnwm_layout_mode>(dfl)
+                                        : nnwm_layout_mode::HTILE;
         output->master_ratio[i]  = server->config->layout.master_ratio;
         output->scroll_offset[i] = 0;
     }

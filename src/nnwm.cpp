@@ -1923,6 +1923,34 @@ arrange_windows_impl(nnwm_server *server, nnwm_output *out)
     nnwm_config *cfg    = server->config;
     nnwm_toplevel *tl;
 
+    /* ── Float layout: every tiled window in the workspace becomes floating ──
+     */
+    if (out->layout_mode[ws] == nnwm_layout_mode::FLOAT)
+    {
+        wlr_scene_node_set_enabled(&out->tab_bar->node, false);
+        wl_list_for_each(tl, &server->toplevels, link)
+        {
+            if (tl->output != out) continue;
+            if (tl->workspace != ws && !tl->sticky) continue;
+            if (tl->in_scratchpad || tl->fullscreen || tl->fake_fullscreen) continue;
+            if (!tl->floating)
+            {
+                tl->floating = true;
+                /* Give newly-floated windows a sensible size if they lack one */
+                if (tl->cur_w <= 0 || tl->cur_h <= 0)
+                {
+                    int fw = area.width  / 2;
+                    int fh = area.height / 2;
+                    int fx = area.x + (area.width  - fw) / 2;
+                    int fy = area.y + (area.height - fh) / 2;
+                    tl_set_geometry(tl, fx, fy, fw, fh, cfg->border.width);
+                }
+            }
+            wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
+        }
+        return;
+    }
+
     /* ── Tabbed layout ───────────────────────────────────────────────────────
      */
     if (out->layout_mode[ws] == nnwm_layout_mode::TABBED)

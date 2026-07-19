@@ -5,6 +5,7 @@
 #ifdef __cplusplus
 
 struct nnwm_server;
+enum class nnwm_layout_mode;
 
 namespace nnwm
 {
@@ -94,6 +95,10 @@ void
 toggle_horizontal_scroll(nnwm_server *server);
 void
 toggle_vertical_scroll(nnwm_server *server);
+void
+toggle_float_layout(nnwm_server *server);
+void
+set_layout(nnwm_server *server, nnwm_layout_mode mode);
 void
 master_ratio_grow(nnwm_server *server);
 void

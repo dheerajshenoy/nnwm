@@ -26,6 +26,7 @@
     - [x] Sway-like tabbed layout
     - [x] Horizontal scrolling
     - [x] Vertical scrolling
+    - [x] Floating
 - [x] Gaps
 - [x] Smart border
 - [x] Smart gaps
@@ -171,20 +172,19 @@
 - [x] Drag and drop
 - [x] Multi workspace viewing at once (like dwm)
 - [x] Move window from one workspace to another in the overview mode
-- [ ] Choose layouts
+- [x] Choose layouts
 
 ## TODO
 
+- [ ] Fix animation going outside the monitor and to the other monitors
 - Window Rules
     - [ ] blur
     - [ ] animation
     - [ ] border
-- [ ] Fix animation going outside the monitor and to the other monitors
 - [ ] Don't allow resizing of tiled windows
 - Layouts
     - [ ] Dwindle
     - [ ] Sway like h/v choosable layout
-    - Floating
 - [ ] Jump label support (like MangoWM)
 - [ ] IPC for nnwm
 - Layer rules

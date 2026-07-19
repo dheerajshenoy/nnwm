@@ -171,6 +171,7 @@ enum class nnwm_layout_mode
     TABBED,
     HSCROLL,
     VSCROLL,
+    FLOAT,
     COUNT,
 };
 

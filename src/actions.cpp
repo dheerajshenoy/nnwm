@@ -1351,6 +1351,32 @@ nnwm::layout::toggle_vertical_scroll(nnwm_server *server)
 }
 
 void
+nnwm::layout::toggle_float_layout(nnwm_server *server)
+{
+    if (server->scratchpad_visible)
+        return;
+    nnwm_output *out = server->focused_output;
+    if (!out)
+        return;
+    int ws = out->active_workspace;
+    out->layout_mode[ws] = (out->layout_mode[ws] == nnwm_layout_mode::FLOAT)
+                               ? nnwm_layout_mode::HTILE
+                               : nnwm_layout_mode::FLOAT;
+    arrange_windows(server, out);
+}
+
+void
+nnwm::layout::set_layout(nnwm_server *server, nnwm_layout_mode mode)
+{
+    nnwm_output *out = server->focused_output;
+    if (!out)
+        return;
+    int ws = out->active_workspace;
+    out->layout_mode[ws] = mode;
+    arrange_windows(server, out);
+}
+
+void
 nnwm::layout::next(nnwm_server *server)
 {
     if (server->scratchpad_visible)
