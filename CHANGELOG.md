@@ -1,5 +1,57 @@
 # nnwm CHANGELOG
 
+## 0.1.2
+
+### Features
+
+- **Per-monitor workspace names** (`workspaces.names` in `nnwm.monitor()`):
+  workspace labels can now be overridden per monitor. The `workspaces` sub-table
+  in `nnwm.monitor()` accepts a `names` string array. Priority: monitor-specific
+  `workspaces.names` > global `nnwm.opt.workspace_names` > numeric fallback.
+- **`current_workspace().name`**: `nnwm.current_workspace()` now returns a `name`
+  field containing the resolved effective workspace label for the focused output
+  (`nil` if no name is configured for that workspace slot).
+
+### Breaking Changes
+
+- **`nnwm.monitor()` workspace fields restructured**: the flat `workspace_layouts`
+  field is now nested under a `workspaces` sub-table. Replace:
+  ```lua
+  nnwm.monitor({ name = "eDP-1", workspace_layouts = { "htile", "float" } })
+  ```
+  with:
+  ```lua
+  nnwm.monitor({ name = "eDP-1", workspaces = { layouts = { "htile", "float" } } })
+  ```
+
+### Bug Fixes
+
+- **Workspace switch animation bleeds onto adjacent monitors**: windows sliding
+  off one monitor's edge were rendered on the neighbouring monitor by the wlroots
+  scene graph. The animation loop now hides a window's scene node whenever its
+  interpolated geometry no longer intersects its home output's bounding box,
+  matching the behaviour of Hyprland and Niri.
+- **Workspace switch animation fires in overview mode**: sliding windows during a
+  workspace switch while the overview was open produced a brief, jarring animation.
+  The animation block in `workspace::switch_to` is now skipped entirely when the
+  output is in overview mode, making workspace navigation instant there.
+- **Floating windows invisible in overview mode**: `arrange_windows_impl` only
+  enables tiled windows, so floating windows were hidden by the overview's
+  hide-all step and never re-enabled. The overview arrange loop now explicitly
+  re-enables floating windows for each workspace after `arrange_windows_impl`
+  runs.
+- **Floating windows invisible after exiting overview**: the exit-overview path
+  called `arrange_windows` which only re-enables tiled windows. Floating windows
+  hidden by the overview's hide-all step were never restored. A visibility sweep
+  now runs before `arrange_windows` in `exit_overview`, re-enabling every
+  non-scratchpad window whose workspace matches its output's active workspace.
+- **VT switching segfault**: switching to another VT and back could destroy and
+  recreate DRM outputs. `output_destroy` freed the `nnwm_output` object but left
+  `tl->output` on all toplevels pointing to freed memory. Any subsequent WM action
+  that dereferenced `tl->output` (e.g. `toggle_sticky`, workspace switch) segfaulted.
+  `output_destroy` now migrates all toplevels from the destroyed output to the
+  replacement output before calling `delete output`, eliminating the dangling pointer.
+
 ## 0.1.1
 
 ### Features
