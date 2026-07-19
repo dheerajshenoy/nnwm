@@ -151,6 +151,7 @@ Returns a snapshot of the active workspace on the focused output, or `nil`.
 | `master_ratio` | number  | Current master split ratio for this workspace     |
 | `window_count` | integer | Number of tiled windows on this workspace         |
 | `output`       | string  | Name of the output                                |
+| `name`         | string\|nil | Effective workspace label (monitor override → global → `nil`) |
 
 ### `nnwm.current_output()`
 
@@ -358,8 +359,15 @@ grep "new output" /tmp/nnwm.log
 | `transform` | string  | Rotation: `"none"`, `"90"`, `"180"`, `"270"`, `"flipped"`, `"flipped-90"`, `"flipped-180"`, `"flipped-270"` |
 | `hdr`       | bool    | Enable HDR — wlroots 0.20+                                                             |
 | `disabled`  | bool    | Disable this output entirely                                                            |
-| `struts`    | table   | Reserve screen edges: `{ top=N, bottom=N, left=N, right=N }` (pixels)                 |
-| `workspace_layouts` | string[] | Per-workspace layout overrides for this monitor. Overrides the global `workspace_layouts` for matched positions. Unspecified positions fall back to the global default then `"htile"`. |
+| `struts`      | table   | Reserve screen edges: `{ top=N, bottom=N, left=N, right=N }` (pixels)                 |
+| `workspaces`  | table   | Per-workspace overrides for this monitor (see below)                                   |
+
+#### `workspaces` sub-table
+
+| Field     | Type     | Description                                                                                   |
+|-----------|----------|-----------------------------------------------------------------------------------------------|
+| `layouts` | string[] | Per-workspace layout names. Unspecified positions fall back to the global default then `"htile"`. |
+| `names`   | string[] | Per-workspace label overrides. Unspecified positions fall back to the global `workspace_names`. |
 
 ### Example
 
@@ -372,6 +380,10 @@ nnwm.monitor({
     width = 1920, height = 1080,
     scale = 1.0,
     struts = { top = 32 },   -- reserve space for a panel
+    workspaces = {
+        layouts = { "htile", "vtile", "float" },
+        names   = { "web", "code", "media" },
+    },
 })
 
 nnwm.monitor({
