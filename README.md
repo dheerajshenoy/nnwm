@@ -4,7 +4,7 @@
 
 **NNWM (No Name Window Manager)** is a tiling Wayland compositor built on [wlroots](https://gitlab.freedesktop.org/wlroots/wlroots) with Lua configuration support.
 
-Latest Version: 0.1.0
+Latest Version: 0.1.1
 
 ## Why ?
 
