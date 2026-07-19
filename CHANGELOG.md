@@ -4,6 +4,16 @@
 
 ### Features
 
+- **Drag-and-drop between applications**: nnwm now fully handles the Wayland
+  `wl_data_device` drag-and-drop protocol. The compositor validates
+  `request_start_drag` events and starts pointer drags, renders the drag icon
+  surface as a scene node that tracks the cursor, and on a successful drop
+  focuses the window under the cursor so keyboard input follows the drop target.
+  Cancelled drags (Escape) leave focus unchanged.
+- **VSCROLL layout now behaves like Niri**: each window fills the full output
+  height (minus outer gaps). Windows are stacked vertically and the viewport
+  snaps to the focused window, showing exactly one window at a time. The
+  fractional `scroll_row_height` config field is no longer used for VSCROLL.
 - Add animation to window fullscreen action
 - Add `smart` option to `tabbed` layout, which automatically hides the tab bar when
   only one window is present. The tab bar reappears when a second window is added
@@ -50,6 +60,12 @@
 
 ### Bug Fixes
 
+- **Floating windows invisible after workspace switch**: the SLIDE and FADE
+  workspace animation loops iterated over floating windows and used stale
+  `geo_to_*` values (set during the previous slide-out) to drive the slide-in
+  animation, moving them to off-screen coordinates where they remained. Floating
+  windows are now excluded from both animation loops; the visibility sweep in
+  `switch_to` already shows and hides them correctly.
 - **`warp_to_focused_window` no longer fires on pointer motion**: the cursor warp
   was previously triggered by focus-follows-mouse (moving the physical pointer over
   a window), causing the cursor to jump back to the window centre mid-gesture.
@@ -195,7 +211,6 @@
   ```
   **Breaking change**: `nnwm.opt.monitors` is no longer read. Configs must be
   migrated to use `nnwm.monitor()` calls.
-
 - **Per-workspace master ratio**: the master split ratio is now tracked per
   workspace per output rather than globally. Each workspace starts at
   `nnwm.opt.layout.master_ratio`. `nnwm.master_ratio_grow()` and
@@ -388,7 +403,6 @@
     and `no_anim` (boolean) to override or disable animations for specific
     windows. Example:
     `nnwm.rule({ app_id = "rofi" }, { anim_open = "fade", anim_close = "fade" })`.
-
 - **Per-corner radius in tabbed and titlebar modes**: when `fx.rounding.radius`
   is set, corner rounding is now applied selectively per element rather than
   uniformly:
@@ -402,9 +416,6 @@
     fully rounded and the titlebar's top corners align with it.
   - The tab bar radius also respects `fx.rounding.smart`: with a single tiled
     window the radius collapses to 0 in step with the window corners.
-
-### Bug Fixes
-
 - **Smart corner rounding state desync**: when `fx.rounding.smart = true`, the
   effective radius is 0 with one tiled window and the configured value with
   multiple. Previously `update_borders` always read the raw configured radius
@@ -530,7 +541,6 @@
 - **Rofi focus**: launching rofi and selecting a window now correctly transfers
   keyboard focus to the chosen window. The compositor now handles the
   `set_focus` request from the activation protocol properly.
-
 - **ext-session-lock-v1**: screen locking support. Clients such as `swaylock`
   and `waylock` can acquire a session lock, covering every output with a lock
   surface that receives all input. Compositor keybindings, window focus, and
@@ -614,7 +624,6 @@
   preferred mode and auto-layout.
 - **`nnwm.host_name()`**: returns the machine hostname as a string. Useful for
   per-host config in a shared init file.
-
 - **Gaps support**: `nnwm.outer_gap` (space between windows and screen edge)
   and `nnwm.inner_gap` (space between adjacent windows) config fields. Both
   default to `0`. Applied in the tiling layout for all window arrangements.
@@ -622,7 +631,6 @@
   one window is on screen (default: `false`).
 - **Smart borders**: `nnwm.smart_borders = true` collapses border width to
   zero when only one window is on screen (default: `false`).
-
 - **Lua config with hot-reload**: Lua 5.4 configuration loaded from
   `~/.config/nnwm/init.lua` (or `-c` path). Edits are picked up automatically
   via inotify without restarting the compositor.
@@ -655,7 +663,6 @@
   `toggle_float` now sends a `set_size(0, 0)` configure so the client can
   settle at its preferred dimensions, and the commit handler resizes the border
   rects to match the geometry the client actually commits.
-
 - **Monitor config hot-reload**: editing `nnwm.monitors` in the config file and
   saving now immediately applies mode, scale, transform, position, and
   enable/disable changes to live outputs. Previously these settings were only
@@ -671,8 +678,6 @@
   window. Now resolves the focused toplevel from `seat->keyboard_state.focused_surface`.
   Fixes `nnwm.close()`, `nnwm.focus_right/next/prev()`, and all `nnwm.swap_*()` actions
   when called after a focus change.
-
-
 - **VT switching**: Ctrl+Alt+F<n> now switches to the corresponding TTY.
   The compositor intercepts `XF86Switch_VT_1..12` keysyms and calls
   `wlr_session_change_vt`; no-op when running nested (session is null).
