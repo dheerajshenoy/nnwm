@@ -546,7 +546,11 @@ server_new_output(wl_listener *listener, void *data)
     memset(output->prev_focused, 0, sizeof(output->prev_focused));
     for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
     {
-        int dfl = server->config->workspace_default_layouts[i];
+        /* Priority: monitor-specific > global default > htile */
+        int mon_dfl = (mc && mc->workspace_layouts[i] >= 0)
+                          ? mc->workspace_layouts[i] : -1;
+        int glb_dfl = server->config->workspace_default_layouts[i];
+        int dfl     = (mon_dfl >= 0) ? mon_dfl : glb_dfl;
         output->layout_mode[i]   = (dfl >= 0)
                                         ? static_cast<nnwm_layout_mode>(dfl)
                                         : nnwm_layout_mode::HTILE;

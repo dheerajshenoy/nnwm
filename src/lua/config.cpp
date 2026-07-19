@@ -1310,6 +1310,8 @@ l_nnwm_monitor(lua_State *L)
     mc.x         = INT_MAX;
     mc.y         = INT_MAX;
     mc.transform = -1;
+    for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
+        mc.workspace_layouts[i] = -1;
 
     lua_pushvalue(L, 1); /* push table to top so get_*_field helpers see it */
 
@@ -1361,6 +1363,24 @@ l_nnwm_monitor(lua_State *L)
         mc.strut_right  = get_int_field(L, "right",  0);
     }
     lua_pop(L, 1); /* pop struts */
+
+    lua_getfield(L, -1, "workspace_layouts");
+    if (lua_istable(L, -1))
+    {
+        int n = (int)lua_rawlen(L, -1);
+        for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
+        {
+            if (i < n)
+            {
+                lua_rawgeti(L, -1, i + 1);
+                if (lua_isstring(L, -1))
+                    mc.workspace_layouts[i] = (int)parse_layout_mode(
+                        lua_tostring(L, -1), nnwm_layout_mode::HTILE);
+                lua_pop(L, 1);
+            }
+        }
+    }
+    lua_pop(L, 1); /* pop workspace_layouts */
 
     lua_pop(L, 1); /* pop table copy */
     return 0;

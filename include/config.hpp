@@ -117,6 +117,9 @@ struct nnwm_monitor_config
 
     /* Reserved pixels on each edge, applied after layer-shell exclusive zones */
     int strut_top, strut_bottom, strut_left, strut_right;
+
+    /* Per-workspace default layout for this monitor; -1 = inherit global */
+    int workspace_layouts[9];
 };
 
 struct nnwm_config
