@@ -99,6 +99,20 @@
   that dereferenced `tl->output` (e.g. `toggle_sticky`, workspace switch) segfaulted.
   `output_destroy` now migrates all toplevels from the destroyed output to the
   replacement output before calling `delete output`, eliminating the dangling pointer.
+- **Scratchpad windows leaking into directional focus/move**: `focus_dir` and
+  `move_dir` were including `in_scratchpad` windows in the on-output candidate
+  search even when the scratchpad was hidden. Scratchpad windows are now excluded
+  from both searches so they are invisible to normal tiled navigation.
+- **Focus navigation not confined to scratchpad when visible**: when the scratchpad
+  was open, `focus::left`, `focus::right`, `focus::next`, `focus::prev`, and
+  `focus::dir` still iterated over regular workspace windows. All five functions now
+  route through scratchpad-only helpers (`scratch_first/last/next/prev`) when
+  `scratchpad_visible` is true; `mode_toggle`, `next_float`, and `prev_float` are
+  no-ops while the scratchpad is open.
+- **Cursor not visible at startup until mouse moved**: the default `"default"` xcursor
+  image was never applied at initialisation; it was only set on the first pointer
+  motion event. `wlr_cursor_set_xcursor` is now called immediately after the xcursor
+  manager is created so the cursor appears as soon as the compositor starts.
 
 ## 0.1.1
 
