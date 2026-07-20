@@ -1666,19 +1666,15 @@ render_overview_labels(nnwm_server *server, nnwm_output *out,
                 double wy = sy + cy_off + (lb.y - ua.y) * s;
                 double ww = lb.width * s;
                 double wh = lb.height * s;
-                if (focused)
-                    cairo_set_source_rgba(cr, 0.28, 0.48, 0.82, 0.90);
-                else
-                    cairo_set_source_rgba(cr, 0.18, 0.22, 0.40, 0.85);
+                cairo_set_source_rgba(cr, 0.18, 0.22, 0.40, 0.85);
                 cairo_rectangle(cr, wx, wy, ww, wh);
                 cairo_fill(cr);
-                cairo_set_line_width(cr, 1.0);
-                if (focused)
-                    cairo_set_source_rgba(cr, 0.50, 0.70, 1.0, 0.9);
-                else
+                if (!focused) {
+                    cairo_set_line_width(cr, 1.0);
                     cairo_set_source_rgba(cr, 0.35, 0.38, 0.58, 0.8);
-                cairo_rectangle(cr, wx + 0.5, wy + 0.5, ww - 1.0, wh - 1.0);
-                cairo_stroke(cr);
+                    cairo_rectangle(cr, wx + 0.5, wy + 0.5, ww - 1.0, wh - 1.0);
+                    cairo_stroke(cr);
+                }
                 const char *title = tl_title(tl);
                 if (title && title[0] && ww > 18 && wh > 8) {
                     double fs = std::max(6.0, std::min(wh * 0.32, 11.0));
@@ -1711,13 +1707,15 @@ render_overview_labels(nnwm_server *server, nnwm_output *out,
                 any = true;
 
                 bool focused = (tl == out->last_focused[ws]);
-                const float *bc = focused ? cfg->border.focused_color
-                                          : cfg->border.unfocused_color;
+                /* Skip border for the focused window — it adds no information */
+                if (focused)
+                    continue;
+                const float *bc = cfg->border.unfocused_color;
                 double wx = sx + cx_off + (lb.x - ua.x) * s;
                 double wy = sy + cy_off + (lb.y - ua.y) * s;
                 double ww = lb.width * s;
                 double wh = lb.height * s;
-                cairo_set_line_width(cr, focused ? 1.5 : 0.75);
+                cairo_set_line_width(cr, 0.75);
                 cairo_set_source_rgba(cr, bc[0], bc[1], bc[2], bc[3]);
                 cairo_rectangle(cr, wx + 0.5, wy + 0.5, ww - 1.0, wh - 1.0);
                 cairo_stroke(cr);
