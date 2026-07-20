@@ -1563,6 +1563,13 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         lua_rawseti(L, -2, i + 1);
     }
     lua_setfield(L, -2, "unfocused_color");
+    lua_newtable(L);
+    for (int i = 0; i < 4; i++)
+    {
+        lua_pushnumber(L, cfg->border.urgent_color[i]);
+        lua_rawseti(L, -2, i + 1);
+    }
+    lua_setfield(L, -2, "urgent_color");
     lua_setfield(L, -2, "border");
 
     /* keyboard sub-table */
@@ -1620,6 +1627,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_newtable(L);
     lua_pushboolean(L, cfg->focus_follows_mouse);
     lua_setfield(L, -2, "focus_follows_mouse");
+    lua_pushboolean(L, cfg->focus_on_activate);
+    lua_setfield(L, -2, "focus_on_activate");
     lua_pushboolean(L, cfg->workspace_back_and_forth);
     lua_setfield(L, -2, "workspace_back_and_forth");
     lua_pushstring(L, cfg->cursor_theme);
@@ -2022,6 +2031,9 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         float dflt_unf[4] = {cfg->border.unfocused_color[0], cfg->border.unfocused_color[1],
                              cfg->border.unfocused_color[2], cfg->border.unfocused_color[3]};
         get_color_field(L, "unfocused_color", cfg->border.unfocused_color, dflt_unf);
+        float dflt_urg[4] = {cfg->border.urgent_color[0], cfg->border.urgent_color[1],
+                             cfg->border.urgent_color[2], cfg->border.urgent_color[3]};
+        get_color_field(L, "urgent_color", cfg->border.urgent_color, dflt_urg);
     }
     lua_pop(L, 1);
 
@@ -2090,6 +2102,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     {
         cfg->focus_follows_mouse = get_bool_field(L, "focus_follows_mouse",
                                                   cfg->focus_follows_mouse);
+        cfg->focus_on_activate   = get_bool_field(L, "focus_on_activate",
+                                                  cfg->focus_on_activate);
         cfg->workspace_back_and_forth = get_bool_field(
             L, "workspace_back_and_forth", cfg->workspace_back_and_forth);
         cfg->show_config_error_overlay = get_bool_field(
@@ -2803,6 +2817,10 @@ nnwm::config_defaults(void)
     cfg->border.unfocused_color[1] = 0.15f;
     cfg->border.unfocused_color[2] = 0.15f;
     cfg->border.unfocused_color[3] = 1.0f;
+    cfg->border.urgent_color[0]    = 0.8f;
+    cfg->border.urgent_color[1]    = 0.4f;
+    cfg->border.urgent_color[2]    = 0.0f;
+    cfg->border.urgent_color[3]    = 1.0f;
 
     cfg->keyboard.repeat_rate  = 25;
     cfg->keyboard.repeat_delay = 600;
@@ -2826,6 +2844,7 @@ nnwm::config_defaults(void)
     cfg->touchpad.scroll_method        = 1; /* two_finger */
 
     cfg->focus_follows_mouse              = false;
+    cfg->focus_on_activate                = false;
     cfg->workspace_back_and_forth         = false;
     cfg->show_config_error_overlay        = true;
     cfg->mouse.accel_speed                = 0.0f;

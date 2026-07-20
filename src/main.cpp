@@ -357,20 +357,32 @@ main(int argc, char *argv[])
             wlr_surface *focused = server->seat->keyboard_state.focused_surface;
             if (tl_wlr_surface(tl) == focused)
                 return;
-            tl->urgent = true;
+
             nnwm_config *cfg = server->config;
-            if (cfg->titlebar.height > 0 && tl->titlebar_width > 0)
+
+            if (cfg->focus_on_activate)
             {
-                wlr_surface *fs = server->seat->keyboard_state.focused_surface;
-                render_titlebar(tl, tl->titlebar_width,
-                                tl_wlr_surface(tl) == fs);
+                /* Switch to the window's workspace and focus it */
+                if (tl->output)
+                    nnwm::workspace::switch_to(server, tl->workspace);
+                focus_toplevel(tl);
+                return;
             }
+
+            /* Mark urgent: flash border and titlebar in urgent color */
+            tl->urgent = true;
+#ifdef HAVE_SCENEFX
+            tl_start_border_color(tl, cfg->border.urgent_color);
+#else
+            for (int b = 0; b < 4; b++)
+                wlr_scene_rect_set_color(tl->border[b], cfg->border.urgent_color);
+#endif
+            if (cfg->titlebar.height > 0 && tl->titlebar_width > 0)
+                render_titlebar(tl, tl->titlebar_width, false);
             if (tl->output && !tl->floating
                 && tl->output->layout_mode[tl->workspace]
                        == nnwm_layout_mode::TABBED)
-            {
                 rerender_tab_bar(server, tl->output);
-            }
             return;
         }
     };

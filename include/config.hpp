@@ -154,6 +154,7 @@ struct nnwm_config
         int width;
         float focused_color[4];
         float unfocused_color[4];
+        float urgent_color[4];
         bool smart;
     } border;
 
@@ -201,6 +202,7 @@ struct nnwm_config
 
     /* Focus */
     bool focus_follows_mouse;
+    bool focus_on_activate;
     bool workspace_back_and_forth; /* switching to the active workspace jumps
                                       to the previously visited one instead */
 

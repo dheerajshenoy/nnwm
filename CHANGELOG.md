@@ -4,6 +4,14 @@
 
 ### Features
 
+- **XDG activation (`focus_on_activate`)**: activation requests from clients
+  are now handled properly. By default (`focus_on_activate = false`) the
+  requesting window is marked urgent — its border changes to `border.urgent_color`
+  (default orange) and its titlebar renders in urgent colours — without stealing
+  focus. Setting `focus_on_activate = true` in `nnwm.opt{}` switches to the
+  window's workspace and focuses it immediately. The urgent state clears
+  automatically when the window is next focused. A new `border.urgent_color`
+  config field (default `{0.8, 0.4, 0.0, 1.0}`) controls the urgent border colour.
 - **`wlr-idle-inhibit-v1` protocol**: nnwm now advertises the idle inhibit
   manager. Clients such as video players, games, and presentation tools can
   hold an inhibitor object to prevent idle daemons (e.g. `hypridle`) from
