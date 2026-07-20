@@ -65,6 +65,8 @@
 - [x] Rounded corners
 - [x] Show error messages when config fails to load
 - wlr protocols
+    - [x] wlr-pointer-constraints-unstable-v1
+    - [x] wlr-idle-inhibit-v1
     - [x] wlr-foreign-toplevel-management
     - [x] wlr-layer-shell-unstable-v1
     - [x] wlr-output-management-unstable-v1
@@ -178,6 +180,7 @@
 - [x] Clickable buttons in tabbed layout
 - [x] Windows going invisible
 - [x] Fix animation going outside the monitor and to the other monitors
+- [x] Pointer constraints + relative pointer — games that grab the mouse (FPS, etc.) won't work correctly
 
 ## TODO
 
@@ -197,3 +200,6 @@
 - [ ] possibly use xwayland-satellite for XWayland?
 - [ ] Monitor hot-corners
 - [ ] Keybinding overlay
+- [ ] Keyboard-driven resize — you can move windows with keys but resizing tiled windows (adjusting split ratio) via keyboard seems absent
+- [ ] XDG activation — apps requesting focus (xdg-activation-v1) currently probably steal focus unconditionally or silently fail; proper handling lets you choose to honour or ignore the request
+- [ ] Named scratchpads — a single global scratchpad is limiting; per-name scratchpads (each with their own toggle) are a common pattern

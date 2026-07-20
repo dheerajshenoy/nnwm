@@ -45,6 +45,10 @@ struct nnwm_toplevel *ws_prev_float(struct nnwm_server *server,
 /* ---- find_cursor zoom ---- */
 void cursor_zoom_update_pos(struct nnwm_server *server);
 
+/* ---- Pointer constraints ---- */
+void pointer_constraint_activate(struct nnwm_server *server,
+                                 struct wlr_pointer_constraint_v1 *constraint);
+
 /* ---- Scratchpad-window navigation helpers ---- */
 struct nnwm_toplevel *scratch_first(struct nnwm_server *server);
 struct nnwm_toplevel *scratch_last(struct nnwm_server *server);

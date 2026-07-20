@@ -4,6 +4,16 @@
 
 ### Features
 
+- **`wlr-idle-inhibit-v1` protocol**: nnwm now advertises the idle inhibit
+  manager. Clients such as video players, games, and presentation tools can
+  hold an inhibitor object to prevent idle daemons (e.g. `hypridle`) from
+  blanking or locking the screen while they are active.
+- **`wlr-pointer-constraints-v1` + `wlr-relative-pointer-v1` protocols**:
+  nnwm now supports pointer locking and confinement. Games and remote-desktop
+  clients can lock the pointer in place (cursor hidden, raw deltas forwarded)
+  or confine it to a surface region. Unaccelerated relative motion is also sent
+  to any listening client on every motion event via the relative-pointer
+  protocol, enabling precise mouse input for games without needing a lock.
 - **`wlr-foreign-toplevel-management` protocol**: nnwm now advertises the
   `zwlr_foreign_toplevel_manager_v1` global. Clients such as waybar's
   `wlr/taskbar` module can enumerate all windows, track title/app-id changes,
@@ -113,6 +123,17 @@
   image was never applied at initialisation; it was only set on the first pointer
   motion event. `wlr_cursor_set_xcursor` is now called immediately after the xcursor
   manager is created so the cursor appears as soon as the compositor starts.
+- **`find_cursor` zoom style blurry and shows ghost cursor on move**: two bugs in
+  the zoom variant of `find_cursor`. (1) The xcursor image was uploaded at native
+  resolution and upscaled by `ZOOM_FACTOR` via `dest_size`, causing blur at peak
+  zoom. Fixed by loading the theme at `out_scale × ZOOM_FACTOR` so the buffer has
+  enough physical pixels and the peak-zoom render is pixel-perfect. (2) Cursor
+  motion handlers called `wlr_cursor_set_xcursor`/`wlr_cursor_set_surface`
+  unconditionally, restoring the HW cursor alongside the scene-buffer image. All
+  three call sites now check `cursor_zoom_active` and skip when zoom is running.
+  As a bonus, the scene buffer position is now updated immediately on every motion
+  event rather than waiting for the next 16 ms tick, so the zoomed image tracks
+  the cursor without lag.
 
 ## 0.1.1
 

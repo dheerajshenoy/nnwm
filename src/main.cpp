@@ -530,6 +530,43 @@ main(int argc, char *argv[])
     server.current_drag              = nullptr;
     server.overview_drag_toplevel    = nullptr;
 
+    /* idle-inhibit-v1: lets clients (video players, games) prevent screen
+     * blanking / locking while they hold an inhibitor object. */
+    server.idle_inhibit_manager = wlr_idle_inhibit_v1_create(server.wl_display);
+    server.new_idle_inhibitor.notify = [](wl_listener *, void *) {
+        /* wlroots manages the inhibitor list internally; idle daemons such as
+         * hypridle query wlr_idle_inhibit_manager_v1 directly to check whether
+         * any active inhibitor exists. No extra bookkeeping needed here. */
+    };
+    wl_signal_add(&server.idle_inhibit_manager->events.new_inhibitor,
+                  &server.new_idle_inhibitor);
+
+    /* relative-pointer-v1: exposes unaccelerated relative motion to clients
+     * (games, remote-desktop tools). Must be created before pointer constraints
+     * so it is ready when the first constraint activates. */
+    server.relative_pointer_manager
+        = wlr_relative_pointer_manager_v1_create(server.wl_display);
+
+    /* pointer-constraints-v1: lets clients lock or confine the pointer to a
+     * surface region (games, remote-desktop, colour-pickers, etc.). */
+    server.active_constraint = nullptr;
+    server.pointer_constraints
+        = wlr_pointer_constraints_v1_create(server.wl_display);
+    server.new_pointer_constraint.notify = [](wl_listener *listener, void *data)
+    {
+        nnwm_server *server
+            = wl_container_of(listener, server, new_pointer_constraint);
+        auto *constraint
+            = static_cast<wlr_pointer_constraint_v1 *>(data);
+
+        /* Activate immediately if the constrained surface already has focus. */
+        wlr_surface *focused = server->seat->pointer_state.focused_surface;
+        if (focused == constraint->surface)
+            pointer_constraint_activate(server, constraint);
+    };
+    wl_signal_add(&server.pointer_constraints->events.new_constraint,
+                  &server.new_pointer_constraint);
+
 #ifdef HAVE_XWAYLAND
     nnwm_xwayland_init(&server);
 #endif
@@ -629,6 +666,10 @@ main(int argc, char *argv[])
      * server. */
     wl_display_destroy_clients(server.wl_display);
 
+    wl_list_remove(&server.new_idle_inhibitor.link);
+    wl_list_remove(&server.new_pointer_constraint.link);
+    if (server.active_constraint)
+        wl_list_remove(&server.constraint_destroy.link);
     wl_list_remove(&server.output_power_set_mode.link);
     wl_list_remove(&server.new_virtual_pointer.link);
     wl_list_remove(&server.new_virtual_keyboard.link);

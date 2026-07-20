@@ -88,6 +88,9 @@ struct wlr_xwayland_surface;
 #include <wlr/types/wlr_output_power_management_v1.h>
 #include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/types/wlr_session_lock_v1.h>
+#include <wlr/types/wlr_idle_inhibit_v1.h>
+#include <wlr/types/wlr_pointer_constraints_v1.h>
+#include <wlr/types/wlr_relative_pointer_v1.h>
 #include <wlr/util/edges.h>
 #include <wlr/util/log.h>
 #ifdef __cplusplus
@@ -328,6 +331,16 @@ struct nnwm_server
         *output_capture_source_manager;
 
     struct wlr_foreign_toplevel_manager_v1 *foreign_toplevel_manager;
+
+    struct wlr_idle_inhibit_manager_v1 *idle_inhibit_manager;
+    struct wl_listener new_idle_inhibitor;
+
+    struct wlr_pointer_constraints_v1 *pointer_constraints;
+    struct wl_listener new_pointer_constraint;
+    struct wlr_pointer_constraint_v1 *active_constraint;
+    struct wl_listener constraint_destroy;
+
+    struct wlr_relative_pointer_manager_v1 *relative_pointer_manager;
 
     struct wl_global *ext_workspace_global;
     struct wl_list

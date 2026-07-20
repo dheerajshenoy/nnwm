@@ -481,6 +481,8 @@ server_new_input(wl_listener *listener, void *data)
     wlr_seat_set_capabilities(server->seat, caps);
 }
 
+static void pointer_constraint_check_focus(nnwm_server *server);
+
 void
 seat_request_cursor(wl_listener *listener, void *data)
 {
@@ -509,6 +511,7 @@ seat_pointer_focus_change(wl_listener *listener, void *data)
     {
         wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
     }
+    pointer_constraint_check_focus(server);
 }
 
 static void
@@ -607,6 +610,52 @@ seat_request_set_selection(wl_listener *listener, void *data)
     wlr_seat_set_selection(server->seat, event->source, event->serial);
 }
 
+/* ---- Pointer constraints ---- */
+
+void
+pointer_constraint_activate(nnwm_server *server,
+                             wlr_pointer_constraint_v1 *constraint)
+{
+    if (server->active_constraint == constraint)
+        return;
+
+    /* Deactivate the old one first */
+    if (server->active_constraint)
+    {
+        wlr_pointer_constraint_v1_send_deactivated(server->active_constraint);
+        wl_list_remove(&server->constraint_destroy.link);
+    }
+
+    server->active_constraint = constraint;
+
+    if (!constraint)
+        return;
+
+    wlr_pointer_constraint_v1_send_activated(constraint);
+
+    server->constraint_destroy.notify = [](wl_listener *listener, void *) {
+        nnwm_server *server = wl_container_of(listener, server, constraint_destroy);
+        server->active_constraint = nullptr;
+        wl_list_remove(&server->constraint_destroy.link);
+    };
+    wl_signal_add(&constraint->events.destroy, &server->constraint_destroy);
+}
+
+static void
+pointer_constraint_check_focus(nnwm_server *server)
+{
+    wlr_surface *focused = server->seat->pointer_state.focused_surface;
+    if (!focused)
+    {
+        pointer_constraint_activate(server, nullptr);
+        return;
+    }
+    wlr_pointer_constraint_v1 *constraint
+        = wlr_pointer_constraints_v1_constraint_for_surface(
+            server->pointer_constraints, focused, server->seat);
+    pointer_constraint_activate(server, constraint);
+}
+
 /* ---- Cursor event listeners ---- */
 
 void
@@ -614,8 +663,62 @@ server_cursor_motion(wl_listener *listener, void *data)
 {
     nnwm_server *server = wl_container_of(listener, server, cursor_motion);
     auto *event         = static_cast<wlr_pointer_motion_event *>(data);
-    wlr_cursor_move(server->cursor, &event->pointer->base, event->delta_x,
-                    event->delta_y);
+
+    double dx = event->delta_x;
+    double dy = event->delta_y;
+    double udx = event->unaccel_dx;
+    double udy = event->unaccel_dy;
+
+    if (server->active_constraint)
+    {
+        wlr_pointer_constraint_v1 *c = server->active_constraint;
+        if (c->type == WLR_POINTER_CONSTRAINT_V1_LOCKED)
+        {
+            /* Locked: block all cursor movement, just send relative motion */
+            wlr_relative_pointer_manager_v1_send_relative_motion(
+                server->relative_pointer_manager, server->seat,
+                (uint64_t)event->time_msec * 1000,
+                dx, dy, udx, udy);
+            return;
+        }
+        /* Confined: clamp movement to the constraint region */
+        double cx = server->cursor->x;
+        double cy = server->cursor->y;
+
+        /* Surface-local hotspot offset */
+        double sx, sy;
+        wlr_surface *surf = nullptr;
+        desktop_toplevel_at(server, cx, cy, &surf, &sx, &sy);
+
+        double nx = cx + dx;
+        double ny = cy + dy;
+
+        if (surf == c->surface)
+        {
+            /* Convert proposed position to surface-local */
+            double nsx = sx + dx;
+            double nsy = sy + dy;
+            if (!pixman_region32_contains_point(
+                    &c->region, (int)nsx, (int)nsy, nullptr))
+            {
+                /* Clamp: keep cursor at boundary */
+                dx = 0;
+                dy = 0;
+                nx = cx;
+                ny = cy;
+            }
+        }
+        (void)nx; (void)ny;
+    }
+
+    wlr_cursor_move(server->cursor, &event->pointer->base, dx, dy);
+
+    /* Send relative motion to any listening client (e.g. games) */
+    wlr_relative_pointer_manager_v1_send_relative_motion(
+        server->relative_pointer_manager, server->seat,
+        (uint64_t)event->time_msec * 1000,
+        dx, dy, udx, udy);
+
     process_cursor_motion(server, event->time_msec, true);
 }
 
