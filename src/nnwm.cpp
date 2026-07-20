@@ -404,7 +404,8 @@ tl_set_geometry(nnwm_toplevel *tl, int x, int y, int w, int h, int bw)
 {
     nnwm_config *cfg = tl->server->config;
 #ifdef HAVE_SCENEFX
-    bool do_anim = cfg->fx.animation.enabled && cfg->fx.animation.duration_ms > 0;
+    bool do_anim = cfg->fx.animation.enabled && cfg->fx.animation.duration_ms > 0
+                   && !(tl->output && tl->output->overview);
     bool first   = (tl->cur_w == 0 && tl->cur_h == 0);
     bool changed = (x != tl->cur_x || y != tl->cur_y || w != tl->cur_w
                     || h != tl->cur_h);
@@ -713,7 +714,8 @@ tl_start_border_color(nnwm_toplevel *tl, const float to[4])
     nnwm_config *cfg    = tl->server->config;
     nnwm_focus_style fs = cfg->fx.animation.focus_style;
 
-    if (!cfg->fx.animation.enabled || fs == nnwm_focus_style::NONE)
+    if (!cfg->fx.animation.enabled || fs == nnwm_focus_style::NONE
+        || (tl->output && tl->output->overview))
     {
         for (int i = 0; i < 4; i++)
             tl->bcol_to[i] = to[i];
