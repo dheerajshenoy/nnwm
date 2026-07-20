@@ -197,4 +197,3 @@
 - [ ] possibly use xwayland-satellite for XWayland?
 - [ ] Monitor hot-corners
 - [ ] Keybinding overlay
-- [ ] Handle minimized windows
