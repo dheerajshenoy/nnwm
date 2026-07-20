@@ -161,11 +161,22 @@ xwayland_surface_map(wl_listener *listener, void * /*data*/)
     else
         wl_list_insert(server->toplevels.prev, &toplevel->link);
 
-    if (toplevel->rule_focused && out)
-        nnwm::workspace::switch_to(server, toplevel->workspace);
-
-    focus_toplevel(toplevel);
-    arrange_windows(server, out);
+    if (server->scratchpad_visible)
+    {
+        toplevel->in_scratchpad = true;
+        toplevel->floating      = false;
+        wlr_scene_node_reparent(&toplevel->scene_tree->node,
+                                server->scene_scratchpad);
+        focus_toplevel(toplevel);
+        arrange_scratchpad(server);
+    }
+    else
+    {
+        if (toplevel->rule_focused && out)
+            nnwm::workspace::switch_to(server, toplevel->workspace);
+        focus_toplevel(toplevel);
+        arrange_windows(server, out);
+    }
     ftl_map(toplevel);
     fire_hook_window(server, "window_open", toplevel);
 }
