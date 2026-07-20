@@ -2484,13 +2484,6 @@ arrange_scratchpad(nnwm_server *server)
     if (!out)
         return;
 
-    if (scratch_count_all(server) == 0)
-    {
-        server->scratchpad_visible = false;
-        wlr_scene_node_set_enabled(&server->scene_scratch_dim->node, false);
-        wlr_scene_node_set_enabled(&server->scene_scratchpad->node, false);
-        return;
-    }
     int n = scratch_count(server); /* tiled scratchpad windows only */
 
     /* Position the dim rect over the focused output */
