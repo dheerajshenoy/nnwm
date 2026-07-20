@@ -26,6 +26,12 @@
 
 ### Bug Fixes
 
+- **Tab bar clicks now work for all tab positions**: clicking a tab in tabbed
+  layout now correctly focuses the corresponding window regardless of whether the
+  tab bar is positioned at the top, bottom, left, or right. Previously only the
+  TOP position was handled. The hit-test also now uses the correct
+  `layout.tab_bar_height` config field instead of the unrelated `titlebar.height`.
+
 - **Workspace switch animation bleeds onto adjacent monitors**: windows sliding
   off one monitor's edge were rendered on the neighbouring monitor by the wlroots
   scene graph. The animation loop now hides a window's scene node whenever its
