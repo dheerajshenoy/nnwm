@@ -1959,6 +1959,46 @@ ws_last(nnwm_server *server, nnwm_output *out)
     return last;
 }
 
+nnwm_toplevel *
+scratch_first(nnwm_server *server)
+{
+    nnwm_toplevel *t;
+    wl_list_for_each(t, &server->toplevels, link) if (t->in_scratchpad) return t;
+    return nullptr;
+}
+
+nnwm_toplevel *
+scratch_last(nnwm_server *server)
+{
+    nnwm_toplevel *t, *last = nullptr;
+    wl_list_for_each(t, &server->toplevels, link) if (t->in_scratchpad) last = t;
+    return last;
+}
+
+nnwm_toplevel *
+scratch_next(nnwm_server *server, nnwm_toplevel *cur)
+{
+    for (wl_list *it = cur->link.next; it != &server->toplevels; it = it->next)
+    {
+        nnwm_toplevel *t = wl_container_of(it, t, link);
+        if (t->in_scratchpad)
+            return t;
+    }
+    return nullptr;
+}
+
+nnwm_toplevel *
+scratch_prev(nnwm_server *server, nnwm_toplevel *cur)
+{
+    for (wl_list *it = cur->link.prev; it != &server->toplevels; it = it->prev)
+    {
+        nnwm_toplevel *t = wl_container_of(it, t, link);
+        if (t->in_scratchpad)
+            return t;
+    }
+    return nullptr;
+}
+
 int
 ws_count(nnwm_server *server, nnwm_output *out)
 {

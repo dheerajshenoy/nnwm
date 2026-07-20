@@ -217,6 +217,13 @@ nnwm::spawn_once(nnwm_server *server, const char *cmd)
 void
 nnwm::focus::left(nnwm_server *server)
 {
+    if (server->scratchpad_visible)
+    {
+        nnwm_toplevel *tl = scratch_first(server);
+        if (tl)
+            focus_toplevel(tl);
+        return;
+    }
     nnwm_output *out = server->focused_output;
     if (!out)
         return;
@@ -228,11 +235,18 @@ nnwm::focus::left(nnwm_server *server)
 void
 nnwm::focus::right(nnwm_server *server)
 {
-    nnwm_output *out = server->focused_output;
-    if (!out)
-        return;
     nnwm_toplevel *cur = get_focused_toplevel(server);
     if (!cur)
+        return;
+    if (server->scratchpad_visible)
+    {
+        nnwm_toplevel *next = scratch_next(server, cur);
+        if (next)
+            focus_toplevel(next);
+        return;
+    }
+    nnwm_output *out = server->focused_output;
+    if (!out)
         return;
     nnwm_toplevel *next = ws_next(server, out, cur);
     if (next)
@@ -242,11 +256,20 @@ nnwm::focus::right(nnwm_server *server)
 void
 nnwm::focus::next(nnwm_server *server)
 {
-    nnwm_output *out = server->focused_output;
-    if (!out)
-        return;
     nnwm_toplevel *cur = get_focused_toplevel(server);
     if (!cur)
+        return;
+    if (server->scratchpad_visible)
+    {
+        nnwm_toplevel *next = scratch_next(server, cur);
+        if (!next)
+            next = scratch_first(server);
+        if (next)
+            focus_toplevel(next);
+        return;
+    }
+    nnwm_output *out = server->focused_output;
+    if (!out)
         return;
     nnwm_toplevel *next = ws_next(server, out, cur);
     if (!next)
@@ -258,11 +281,20 @@ nnwm::focus::next(nnwm_server *server)
 void
 nnwm::focus::prev(nnwm_server *server)
 {
-    nnwm_output *out = server->focused_output;
-    if (!out)
-        return;
     nnwm_toplevel *cur = get_focused_toplevel(server);
     if (!cur)
+        return;
+    if (server->scratchpad_visible)
+    {
+        nnwm_toplevel *prev = scratch_prev(server, cur);
+        if (!prev)
+            prev = scratch_last(server);
+        if (prev)
+            focus_toplevel(prev);
+        return;
+    }
+    nnwm_output *out = server->focused_output;
+    if (!out)
         return;
     nnwm_toplevel *prev = ws_prev(server, out, cur);
     if (!prev)
@@ -274,6 +306,8 @@ nnwm::focus::prev(nnwm_server *server)
 void
 nnwm::focus::mode_toggle(nnwm_server *server)
 {
+    if (server->scratchpad_visible)
+        return;
     nnwm_output *out = server->focused_output;
     if (!out)
         return;
@@ -295,6 +329,8 @@ nnwm::focus::mode_toggle(nnwm_server *server)
 void
 nnwm::focus::next_float(nnwm_server *server)
 {
+    if (server->scratchpad_visible)
+        return;
     nnwm_output *out = server->focused_output;
     if (!out)
         return;
@@ -309,6 +345,8 @@ nnwm::focus::next_float(nnwm_server *server)
 void
 nnwm::focus::prev_float(nnwm_server *server)
 {
+    if (server->scratchpad_visible)
+        return;
     nnwm_output *out = server->focused_output;
     if (!out)
         return;
@@ -740,6 +778,30 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
     }
 
     nnwm_toplevel *focused = get_focused_toplevel(server);
+
+    /* ---- Scratchpad mode: navigate only within scratchpad windows ---- */
+    if (server->scratchpad_visible)
+    {
+        bool go_prev = is_left || is_up;
+        if (go_prev)
+        {
+            nnwm_toplevel *prev = focused ? scratch_prev(server, focused) : nullptr;
+            if (!prev)
+                prev = scratch_last(server);
+            if (prev)
+                focus_toplevel(prev);
+        }
+        else
+        {
+            nnwm_toplevel *next = focused ? scratch_next(server, focused) : nullptr;
+            if (!next)
+                next = scratch_first(server);
+            if (next)
+                focus_toplevel(next);
+        }
+        return;
+    }
+
     int ws = out->active_workspace;
 
     /* ---- Tabbed mode: cycle to the adjacent tab ---- */
@@ -798,6 +860,7 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
             if (tl == focused) continue;
             if (tl->output != out) continue;
             if (tl->workspace != ws && !tl->sticky) continue;
+            if (tl->in_scratchpad) continue;
 
             int cx = tl->cur_x + tl->cur_w / 2;
             int cy = tl->cur_y + tl->cur_h / 2;
@@ -948,6 +1011,7 @@ nnwm::focus::move_dir(nnwm_server *server, const char *direction)
         if (tl->output != out) continue;
         if (tl->workspace != ws && !tl->sticky) continue;
         if (tl->floating) continue;
+        if (tl->in_scratchpad) continue;
 
         int cx = tl->cur_x + tl->cur_w / 2;
         int cy = tl->cur_y + tl->cur_h / 2;

@@ -42,6 +42,14 @@ struct nnwm_toplevel *ws_prev_float(struct nnwm_server *server,
                                     struct nnwm_output *out,
                                     struct nnwm_toplevel *cur);
 
+/* ---- Scratchpad-window navigation helpers ---- */
+struct nnwm_toplevel *scratch_first(struct nnwm_server *server);
+struct nnwm_toplevel *scratch_last(struct nnwm_server *server);
+struct nnwm_toplevel *scratch_next(struct nnwm_server *server,
+                                   struct nnwm_toplevel *cur);
+struct nnwm_toplevel *scratch_prev(struct nnwm_server *server,
+                                   struct nnwm_toplevel *cur);
+
 /* ---- Overview ---- */
 void render_overview(struct nnwm_server *server, struct nnwm_output *out);
 void overview_frame_update(struct nnwm_server *server, struct nnwm_output *out);
