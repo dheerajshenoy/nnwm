@@ -2,6 +2,7 @@
 #include "nnwm_internal.hpp"
 #include "actions.hpp"
 
+#include <algorithm>
 #include <ctime>
 #include <linux/input-event-codes.h>
 #include <wlr/types/wlr_data_device.h>
@@ -141,9 +142,37 @@ tab_toplevel_at(nnwm_server *server, double lx, double ly)
 
 /* ---- Cursor mode management ---- */
 
+static void
+tile_drop_border_hide(nnwm_server *server)
+{
+    for (int i = 0; i < 4; i++)
+        wlr_scene_node_set_enabled(&server->tile_drop_border[i]->node, false);
+    server->tile_drag_target = nullptr;
+}
+
+static void
+tile_drop_border_show(nnwm_server *server, int x, int y, int w, int h)
+{
+    int bw = std::max(2, server->config->border.width);
+    /* top, bottom, left, right */
+    int lx[4] = { x,          x,          x,          x + w - bw };
+    int ly[4] = { y,          y + h - bw, y,          y          };
+    int lw[4] = { w,          w,          bw,         bw         };
+    int lh[4] = { bw,         bw,         h,          h          };
+    for (int i = 0; i < 4; i++)
+    {
+        wlr_scene_rect_set_size(server->tile_drop_border[i], lw[i], lh[i]);
+        wlr_scene_node_set_position(&server->tile_drop_border[i]->node, lx[i], ly[i]);
+        wlr_scene_node_set_enabled(&server->tile_drop_border[i]->node, true);
+        wlr_scene_node_raise_to_top(&server->tile_drop_border[i]->node);
+    }
+}
+
 void
 reset_cursor_mode(nnwm_server *server)
 {
+    if (server->cursor_mode == nnwm_cursor_mode::TILE_DRAG)
+        tile_drop_border_hide(server);
     server->cursor_mode      = nnwm_cursor_mode::PASSTHROUGH;
     server->grabbed_toplevel = nullptr;
     wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
@@ -184,6 +213,29 @@ process_cursor_move(nnwm_server *server)
     {
         toplevel->output    = cur_out;
         toplevel->workspace = cur_out->active_workspace;
+    }
+}
+
+static void
+process_tile_drag_motion(nnwm_server *server)
+{
+    nnwm_toplevel *grabbed = server->grabbed_toplevel;
+    double sx, sy;
+    wlr_surface *surface    = nullptr;
+    nnwm_toplevel *under    = desktop_toplevel_at(
+        server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+
+    if (under && under != grabbed && !under->floating
+        && under->output == grabbed->output
+        && under->workspace == grabbed->workspace)
+    {
+        server->tile_drag_target = under;
+        tile_drop_border_show(server, under->cur_x, under->cur_y,
+                              under->cur_w, under->cur_h);
+    }
+    else
+    {
+        tile_drop_border_hide(server);
     }
 }
 
@@ -290,6 +342,11 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
     else if (server->cursor_mode == nnwm_cursor_mode::RESIZE)
     {
         process_cursor_resize(server);
+        return;
+    }
+    else if (server->cursor_mode == nnwm_cursor_mode::TILE_DRAG)
+    {
+        process_tile_drag_motion(server);
         return;
     }
 
@@ -676,7 +733,38 @@ server_cursor_button(wl_listener *listener, void *data)
 
     if (event->state == WL_POINTER_BUTTON_STATE_RELEASED)
     {
-        if (server->cursor_mode != nnwm_cursor_mode::PASSTHROUGH)
+        if (server->cursor_mode == nnwm_cursor_mode::TILE_DRAG)
+        {
+            nnwm_toplevel *grabbed = server->grabbed_toplevel;
+            nnwm_toplevel *target  = server->tile_drag_target;
+            tile_drop_border_hide(server);
+
+            if (grabbed && target)
+            {
+                /* Swap grabbed and target in the toplevel list so they exchange
+                 * tile slots on the next arrange. */
+                wl_list *before_grabbed  = grabbed->link.prev;
+                bool b_before_a = (before_grabbed == &target->link);
+
+                wl_list_remove(&grabbed->link);
+                /* Insert grabbed where target currently is (before target) */
+                wl_list_insert(target->link.prev, &grabbed->link);
+
+                wl_list_remove(&target->link);
+                if (b_before_a)
+                    wl_list_insert(&grabbed->link, &target->link);
+                else
+                    wl_list_insert(before_grabbed, &target->link);
+            }
+
+            reset_cursor_mode(server);
+            if (grabbed)
+            {
+                focus_toplevel(grabbed);
+                arrange_windows(server, grabbed->output);
+            }
+        }
+        else if (server->cursor_mode != nnwm_cursor_mode::PASSTHROUGH)
         {
             /* Ending a compositor move/resize — don't forward to the window;
              * it never received the matching press either. */
@@ -709,22 +797,29 @@ server_cursor_button(wl_listener *listener, void *data)
     nnwm_toplevel *toplevel = desktop_toplevel_at(
         server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
 
-    /* Super + left click -> move, Super + right click -> resize */
+    /* Super + left click -> move/tile-drag, Super + right click -> resize */
     wlr_keyboard *kb = wlr_seat_get_keyboard(server->seat);
     uint32_t mods    = kb ? wlr_keyboard_get_modifiers(kb) : 0;
     if (!server->session_lock && (mods & WLR_MODIFIER_LOGO) && toplevel)
     {
-        if (!toplevel->floating)
-        {
-            toplevel->floating = true;
-            arrange_windows(server, toplevel->output);
-        }
         focus_toplevel(toplevel);
         if (event->button == BTN_LEFT)
-            begin_interactive(toplevel, nnwm_cursor_mode::MOVE, 0);
+        {
+            if (toplevel->floating)
+                begin_interactive(toplevel, nnwm_cursor_mode::MOVE, 0);
+            else
+                begin_interactive(toplevel, nnwm_cursor_mode::TILE_DRAG, 0);
+        }
         else if (event->button == BTN_RIGHT)
+        {
+            if (!toplevel->floating)
+            {
+                toplevel->floating = true;
+                arrange_windows(server, toplevel->output);
+            }
             begin_interactive(toplevel, nnwm_cursor_mode::RESIZE,
                               WLR_EDGE_BOTTOM | WLR_EDGE_RIGHT);
+        }
         return; /* press not forwarded to the window */
     }
 

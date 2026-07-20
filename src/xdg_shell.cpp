@@ -385,7 +385,7 @@ begin_interactive(nnwm_toplevel *toplevel, nnwm_cursor_mode mode,
     server->grabbed_toplevel = toplevel;
     server->cursor_mode      = mode;
 
-    if (mode == nnwm_cursor_mode::MOVE)
+    if (mode == nnwm_cursor_mode::MOVE || mode == nnwm_cursor_mode::TILE_DRAG)
     {
         wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "move");
         server->grab_x = server->cursor->x - toplevel->scene_tree->node.x;

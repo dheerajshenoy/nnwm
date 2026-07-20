@@ -202,6 +202,7 @@ enum class nnwm_cursor_mode
     PASSTHROUGH,
     MOVE,
     RESIZE,
+    TILE_DRAG, /* drag a tiled window to swap with another tiled window */
 };
 
 struct nnwm_server
@@ -287,6 +288,8 @@ struct nnwm_server
     bool cursor_hidden_by_typing;
     struct wlr_box grab_geobox;
     uint32_t resize_edges;
+    struct nnwm_toplevel *tile_drag_target;   /* hovered drop target during TILE_DRAG */
+    struct wlr_scene_rect *tile_drop_border[4]; /* outline preview at drop site */
 
     struct wl_listener
         session_active; /* VT switch resume → re-tile all outputs */
