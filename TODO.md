@@ -174,6 +174,7 @@
 - [x] Move window from one workspace to another in the overview mode
 - [x] Choose layouts per-monitor and per-workspace
 - [x] Workspace names per-monitor
+- [x] Clickable buttons in tabbed layout
 
 ## TODO
 
