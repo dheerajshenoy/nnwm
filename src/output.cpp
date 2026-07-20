@@ -63,6 +63,30 @@ output_frame(wl_listener *listener, void * /*data*/)
 
 #ifdef HAVE_SCENEFX
     animate_step(output->server);
+
+    /* Before committing this output: temporarily hide any geo-animated window
+     * whose home output is a *different* monitor.  Without this, wlroots
+     * renders the node on every output whose viewport it overlaps, causing
+     * workspace-slide windows to bleed onto adjacent screens. */
+    {
+        nnwm_toplevel *tl;
+        wl_list_for_each(tl, &server->toplevels, link)
+        {
+            tl->commit_hidden = false;
+            if (!tl->geo_anim || !tl->output || tl->output == output) continue;
+            if (!tl->scene_tree->node.enabled) continue;
+            wlr_scene_node_set_enabled(&tl->scene_tree->node, false);
+            tl->commit_hidden = true;
+        }
+        wl_list_for_each(tl, &server->dying_toplevels, dying_link)
+        {
+            tl->commit_hidden = false;
+            if (!tl->geo_anim || !tl->output || tl->output == output) continue;
+            if (!tl->scene_tree->node.enabled) continue;
+            wlr_scene_node_set_enabled(&tl->scene_tree->node, false);
+            tl->commit_hidden = true;
+        }
+    }
 #endif
 
     /* In overview mode, rebuild the GPU buffer every frame so window textures
@@ -79,7 +103,32 @@ output_frame(wl_listener *listener, void * /*data*/)
             commit_opts.color_transform = wlr_gamma_control_v1_get_color_transform(gc);
     }
 
-    if (!wlr_scene_output_commit(scene_output, &commit_opts))
+    bool committed = wlr_scene_output_commit(scene_output, &commit_opts);
+
+#ifdef HAVE_SCENEFX
+    /* Restore windows that were hidden solely for this output's commit. */
+    {
+        nnwm_toplevel *tl;
+        wl_list_for_each(tl, &server->toplevels, link)
+        {
+            if (tl->commit_hidden)
+            {
+                wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
+                tl->commit_hidden = false;
+            }
+        }
+        wl_list_for_each(tl, &server->dying_toplevels, dying_link)
+        {
+            if (tl->commit_hidden)
+            {
+                wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
+                tl->commit_hidden = false;
+            }
+        }
+    }
+#endif
+
+    if (!committed)
         return;
 
     struct timespec now;

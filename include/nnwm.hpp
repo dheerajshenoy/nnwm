@@ -479,6 +479,7 @@ struct nnwm_toplevel
     int geo_to_x, geo_to_y, geo_to_w, geo_to_h;
     int geo_bw;
     bool geo_then_hide;
+    bool commit_hidden; /* temporarily disabled before an adjacent output's commit */
 
     /* Fade animation (open/close) */
     bool fade_anim;

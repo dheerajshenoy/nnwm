@@ -751,8 +751,9 @@ animate_step_one(nnwm_server * /*server*/, nnwm_toplevel *tl, double now)
         tl->cur_w = cw;
         tl->cur_h = ch;
 
-        /* Hide when the animated rect leaves the home output so it doesn't
-         * bleed onto adjacent monitors. Show it again as it re-enters. */
+        /* Hide when the animated rect leaves the home output entirely.
+         * Per-output bleed prevention (partial overlap) is handled in
+         * output_frame before each output's commit. */
         if (tl->output)
         {
             wlr_box ob;
