@@ -175,6 +175,7 @@
 - [x] Choose layouts per-monitor and per-workspace
 - [x] Workspace names per-monitor
 - [x] Clickable buttons in tabbed layout
+- [x] Windows going invisible
 
 ## TODO
 
@@ -196,4 +197,3 @@
 - [ ] Monitor hot-corners
 - [ ] Keybinding overlay
 - [ ] Handle minimized windows
-- [ ] Windows going invisible
