@@ -390,6 +390,7 @@ main(int argc, char *argv[])
      * HiDPI support). */
     server.cursor_mgr = wlr_xcursor_manager_create(
         server.config->cursor_theme, server.config->cursor_size);
+    wlr_cursor_set_xcursor(server.cursor, server.cursor_mgr, "default");
 
     /*
      * wlr_cursor *only* displays an image on screen. It does not move around
