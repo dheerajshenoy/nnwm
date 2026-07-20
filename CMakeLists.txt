@@ -182,6 +182,7 @@ add_executable(nnwm
     src/output.cpp
     src/session_lock.cpp
     src/ext_workspace.cpp
+    src/foreign_toplevel.cpp
     src/lua/config.cpp
 )
 add_dependencies(nnwm protocol_headers)

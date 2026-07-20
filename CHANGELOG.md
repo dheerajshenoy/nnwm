@@ -4,6 +4,24 @@
 
 ### Features
 
+- **`wlr-foreign-toplevel-management` protocol**: nnwm now advertises the
+  `zwlr_foreign_toplevel_manager_v1` global. Clients such as waybar's
+  `wlr/taskbar` module can enumerate all windows, track title/app-id changes,
+  follow focus changes, and request activation or close. This also lets waybar
+  infer which workspaces are occupied so they can be styled differently in CSS.
+- **Overview mode fade animation**: entering the overview now fades the GPU
+  composite buffer in from transparent; dismissing it (toggle key or Escape)
+  fades it back out before restoring windows. Duration follows the open/close
+  animation durations from config. No animation plays when `fx.animation` is
+  disabled.
+- **Tile drag across monitors**: Super+left-click tile-drag now works across
+  monitors. Dragging over a tiled window on another monitor swaps both the list
+  order and output/workspace assignments on release. Dragging to empty space on
+  another monitor shows a full-output drop zone; releasing moves the grabbed
+  window there.
+- **`focus_dir` in tabbed layout**: left/up moves to the previous tab and
+  right/down moves to the next tab (by tile-list order). At the first or last
+  tab the direction falls through to cross-monitor navigation as usual.
 - **Per-monitor workspace names** (`workspaces.names` in `nnwm.monitor()`):
   workspace labels can now be overridden per monitor. The `workspaces` sub-table
   in `nnwm.monitor()` accepts a `names` string array. Priority: monitor-specific
@@ -63,6 +81,13 @@
   hidden by the overview's hide-all step were never restored. A visibility sweep
   now runs before `arrange_windows` in `exit_overview`, re-enabling every
   non-scratchpad window whose workspace matches its output's active workspace.
+- **Tile drag cross-monitor window not appearing until mouse moved**: after a
+  cross-monitor tile drag the window moved to the new output but did not render
+  there until the pointer moved over it. The geo-animation was starting from the
+  old output's absolute coordinates, which are outside the new output's scene
+  viewport. Fixed by resetting `cur_w/cur_h` to 0 on moved windows before
+  `arrange_windows` so `tl_set_geometry` treats them as first-layout placements
+  and computes the animation from within the new output's viewport.
 - **VT switching segfault**: switching to another VT and back could destroy and
   recreate DRM outputs. `output_destroy` freed the `nnwm_output` object but left
   `tl->output` on all toplevels pointing to freed memory. Any subsequent WM action

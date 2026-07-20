@@ -9,6 +9,7 @@ extern "C" {
 #include <fcntl.h>
 #include <signal.h>
 #include <unistd.h>
+#include <wlr/types/wlr_foreign_toplevel_management_v1.h>
 }
 
 static int
@@ -260,6 +261,8 @@ main(int argc, char *argv[])
 
     /* screencopy: allows clients like grim to capture screen contents */
     server.screencopy_manager = wlr_screencopy_manager_v1_create(server.wl_display);
+    server.foreign_toplevel_manager =
+        wlr_foreign_toplevel_manager_v1_create(server.wl_display);
 
     /* output power management: allows clients to DPMS-blank outputs */
     server.output_power_manager = wlr_output_power_manager_v1_create(server.wl_display);

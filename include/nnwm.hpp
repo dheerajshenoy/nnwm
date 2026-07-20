@@ -195,6 +195,8 @@ struct nnwm_lua_gesture
 };
 
 struct nnwm_decoration; /* forward declaration — defined below nnwm_toplevel */
+struct wlr_foreign_toplevel_handle_v1; /* forward declaration */
+struct wlr_foreign_toplevel_manager_v1; /* forward declaration */
 
 /* For brevity's sake, struct members are annotated where they are used. */
 enum class nnwm_cursor_mode
@@ -324,6 +326,8 @@ struct nnwm_server
     struct wlr_ext_image_copy_capture_manager_v1 *image_copy_capture_manager;
     struct wlr_ext_output_image_capture_source_manager_v1
         *output_capture_source_manager;
+
+    struct wlr_foreign_toplevel_manager_v1 *foreign_toplevel_manager;
 
     struct wl_global *ext_workspace_global;
     struct wl_list
@@ -504,6 +508,10 @@ struct nnwm_toplevel
     bool dying;
     struct wl_list dying_link;
 #endif /* HAVE_SCENEFX */
+
+    struct wlr_foreign_toplevel_handle_v1 *foreign_handle;
+    struct wl_listener foreign_request_activate;
+    struct wl_listener foreign_request_close;
 
     struct wl_listener map;
     struct wl_listener unmap;

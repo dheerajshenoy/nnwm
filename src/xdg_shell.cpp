@@ -146,6 +146,7 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
 
     focus_toplevel(toplevel);
     arrange_windows(server, out);
+    ftl_map(toplevel);
     fire_hook_window(server, "window_open", toplevel);
 }
 
@@ -156,6 +157,7 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
 
     nnwm_server *server = toplevel->server;
     fire_hook_window(server, "window_close", toplevel);
+    ftl_unmap(toplevel);
 
     /* Start close animation before removing from active list */
 #ifdef HAVE_SCENEFX
@@ -620,6 +622,7 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
         {
             rerender_tab_bar(server, tl->output);
         }
+        ftl_set_title(tl);
     };
     wl_signal_add(&xdg_toplevel->events.set_title, &toplevel->set_title);
 

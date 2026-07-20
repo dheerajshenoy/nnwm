@@ -65,6 +65,7 @@
 - [x] Rounded corners
 - [x] Show error messages when config fails to load
 - wlr protocols
+    - [x] wlr-foreign-toplevel-management
     - [x] wlr-layer-shell-unstable-v1
     - [x] wlr-output-management-unstable-v1
     - [x] xdg-output-unstable-v1
@@ -176,10 +177,10 @@
 - [x] Workspace names per-monitor
 - [x] Clickable buttons in tabbed layout
 - [x] Windows going invisible
+- [x] Fix animation going outside the monitor and to the other monitors
 
 ## TODO
 
-- [ ] Fix animation going outside the monitor and to the other monitors
 - Window Rules
     - [ ] blur
     - [ ] animation

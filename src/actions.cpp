@@ -37,6 +37,7 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
     else
 #endif
         wlr_xdg_toplevel_set_fullscreen(tl->xdg_toplevel, tl->fullscreen);
+    ftl_set_fullscreen(tl, tl->fullscreen);
 
     nnwm_server *server = tl->server;
     nnwm_output *out    = tl->output;
@@ -1216,6 +1217,7 @@ nnwm::window::toggle_maximize(nnwm_server *server)
     if (!tl)
         return;
     tl->maximize = !tl->maximize;
+    ftl_set_maximized(tl, tl->maximize);
     if (tl->output)
         arrange_windows(server, tl->output);
 }

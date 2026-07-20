@@ -785,6 +785,8 @@ server_cursor_button(wl_listener *listener, void *data)
                     target->workspace  = tmp_ws;
                     grabbed->cur_w = grabbed->cur_h = 0;
                     target->cur_w  = target->cur_h  = 0;
+                    ftl_update_output(grabbed, tmp_out);
+                    ftl_update_output(target, grabbed->output);
                 }
             }
             else if (grabbed && target_out && target_out != grabbed->output)
@@ -794,6 +796,7 @@ server_cursor_button(wl_listener *listener, void *data)
                 grabbed->output    = target_out;
                 grabbed->workspace = target_out->active_workspace;
                 grabbed_out        = old_out; /* arrange old output too */
+                ftl_update_output(grabbed, old_out);
             }
 
             reset_cursor_mode(server);

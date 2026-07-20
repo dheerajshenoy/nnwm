@@ -229,6 +229,15 @@ static inline void tl_xdg_set_tiled(struct nnwm_toplevel *tl, uint32_t edges)
     wlr_xdg_toplevel_set_tiled(tl->xdg_toplevel, edges);
 }
 
+/* ---- Foreign toplevel management ---- */
+void ftl_map(struct nnwm_toplevel *tl);
+void ftl_unmap(struct nnwm_toplevel *tl);
+void ftl_set_title(struct nnwm_toplevel *tl);
+void ftl_set_activated(struct nnwm_toplevel *tl, bool activated);
+void ftl_set_fullscreen(struct nnwm_toplevel *tl, bool fullscreen);
+void ftl_set_maximized(struct nnwm_toplevel *tl, bool maximized);
+void ftl_update_output(struct nnwm_toplevel *tl, struct nnwm_output *old_out);
+
 /* ---- Animation ---- */
 void tl_set_geometry(struct nnwm_toplevel *tl, int x, int y, int w, int h, int bw);
 #ifdef HAVE_SCENEFX

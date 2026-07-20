@@ -2654,6 +2654,14 @@ focus_toplevel(nnwm_toplevel *toplevel, bool warp)
     }
     if (prev_surface)
     {
+        nnwm_toplevel *prev_tl_ftl;
+        wl_list_for_each(prev_tl_ftl, &server->toplevels, link) {
+            if (tl_wlr_surface(prev_tl_ftl) == prev_surface) {
+                ftl_set_activated(prev_tl_ftl, false);
+                break;
+            }
+        }
+
         wlr_xdg_toplevel *prev_toplevel
             = wlr_xdg_toplevel_try_from_wlr_surface(prev_surface);
         if (prev_toplevel != nullptr)
@@ -2684,6 +2692,7 @@ focus_toplevel(nnwm_toplevel *toplevel, bool warp)
 #endif
         wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
     toplevel->urgent = false;
+    ftl_set_activated(toplevel, true);
 
     /* Update border colors, titlebar focus state, and opacity for all windows */
     nnwm_config *cfg = server->config;
