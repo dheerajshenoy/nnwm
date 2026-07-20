@@ -363,10 +363,14 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
         return;
     }
 
+    if (server->cursor_zoom_active)
+        cursor_zoom_update_pos(server);
+
     if (real_motion && server->cursor_hidden_by_typing)
     {
         server->cursor_hidden_by_typing = false;
-        wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+        if (!server->cursor_zoom_active)
+            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
     }
 
     /* Track which output the cursor is on. When focus_follows_mouse is off,
@@ -394,7 +398,7 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
     wlr_surface *surface    = nullptr;
     nnwm_toplevel *toplevel = desktop_toplevel_at(
         server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
-    if (!toplevel)
+    if (!toplevel && !server->cursor_zoom_active)
     {
         wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
     }
@@ -488,7 +492,7 @@ seat_request_cursor(wl_listener *listener, void *data)
         = static_cast<wlr_seat_pointer_request_set_cursor_event *>(data);
     wlr_seat_client *focused_client
         = server->seat->pointer_state.focused_client;
-    if (focused_client == event->seat_client)
+    if (focused_client == event->seat_client && !server->cursor_zoom_active)
     {
         wlr_cursor_set_surface(server->cursor, event->surface, event->hotspot_x,
                                event->hotspot_y);
@@ -501,7 +505,7 @@ seat_pointer_focus_change(wl_listener *listener, void *data)
     nnwm_server *server
         = wl_container_of(listener, server, pointer_focus_change);
     auto *event = static_cast<wlr_seat_pointer_focus_change_event *>(data);
-    if (event->new_surface == nullptr)
+    if (event->new_surface == nullptr && !server->cursor_zoom_active)
     {
         wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
     }

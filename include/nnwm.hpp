@@ -379,9 +379,10 @@ struct nnwm_server
     int cursor_ring_out_w, cursor_ring_out_h;
     double cursor_ring_out_scale;
     /* zoom style: cursor image dimensions and hotspot (logical px at scale 1) */
-    bool cursor_zoom_active;
-    int  cursor_zoom_img_w, cursor_zoom_img_h;
-    int  cursor_zoom_hot_x, cursor_zoom_hot_y;
+    bool  cursor_zoom_active;
+    float cursor_zoom_scale;   /* current scale factor, updated each tick */
+    int   cursor_zoom_img_w, cursor_zoom_img_h;
+    int   cursor_zoom_hot_x, cursor_zoom_hot_y;
 };
 
 struct nnwm_hook

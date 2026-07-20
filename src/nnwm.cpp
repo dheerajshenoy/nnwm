@@ -2864,6 +2864,16 @@ void cursor_ring_stop(nnwm_server *server)
     }
 }
 
+void cursor_zoom_update_pos(nnwm_server *server)
+{
+    if (!server->cursor_zoom_active || !server->cursor_ring_buf)
+        return;
+    float scale = server->cursor_zoom_scale;
+    int pos_x   = (int)(server->cursor->x - server->cursor_zoom_hot_x * scale);
+    int pos_y   = (int)(server->cursor->y - server->cursor_zoom_hot_y * scale);
+    wlr_scene_node_set_position(&server->cursor_ring_buf->node, pos_x, pos_y);
+}
+
 /* Upload spotlight buffer at full opacity; scene node opacity handles the envelope. */
 static void spotlight_upload(nnwm_server *server)
 {
@@ -2960,6 +2970,7 @@ static int cursor_ring_tick(void *data)
             float p = (t - ZOOM_HOLD_OUT) / (1.0f - ZOOM_HOLD_OUT);
             scale = 1.0f + (ZOOM_FACTOR - 1.0f) * std::cos(p * (float)(M_PI / 2));
         }
+        server->cursor_zoom_scale = scale;
         int dest_w = (int)(server->cursor_zoom_img_w * scale);
         int dest_h = (int)(server->cursor_zoom_img_h * scale);
         int pos_x  = (int)(server->cursor->x - server->cursor_zoom_hot_x * scale);
@@ -3075,19 +3086,21 @@ cursor_ring_start(nnwm_server *server)
 
     if (is_zoom)
     {
-        /* Use the output scale we already snapshotted so the theme is loaded */
-        float out_scale = (float)server->cursor_ring_out_scale;
-        wlr_xcursor_manager_load(server->cursor_mgr, out_scale); /* idempotent */
+        /* Load cursor at ZOOM_FACTOR × output scale so the buffer has enough
+         * physical pixels to stay sharp at peak zoom with no upscaling. */
+        float out_scale  = (float)server->cursor_ring_out_scale;
+        float load_scale = out_scale * (float)ZOOM_FACTOR;
+        wlr_xcursor_manager_load(server->cursor_mgr, load_scale); /* idempotent */
         struct wlr_xcursor *xc = wlr_xcursor_manager_get_xcursor(
-            server->cursor_mgr, "default", out_scale);
+            server->cursor_mgr, "default", load_scale);
         if (!xc || xc->image_count == 0)
         {
-            /* fallback: force-load scale 1.0 */
-            wlr_xcursor_manager_load(server->cursor_mgr, 1.0f);
-            xc = wlr_xcursor_manager_get_xcursor(server->cursor_mgr, "default", 1.0f);
+            /* fallback: native scale */
+            wlr_xcursor_manager_load(server->cursor_mgr, out_scale);
+            xc = wlr_xcursor_manager_get_xcursor(server->cursor_mgr, "default", out_scale);
             if (!xc || xc->image_count == 0)
                 return;
-            out_scale = 1.0f;
+            load_scale = out_scale;
         }
         struct wlr_xcursor_image *img = xc->images[0];
 
@@ -3110,11 +3123,11 @@ cursor_ring_start(nnwm_server *server)
             }
         }
 
-        /* Logical dimensions: scene buffer dest_size is in logical (unscaled) pixels */
-        int lw = (int)((float)img->width  / out_scale);
-        int lh = (int)((float)img->height / out_scale);
-        int hx = (int)((float)img->hotspot_x / out_scale);
-        int hy = (int)((float)img->hotspot_y / out_scale);
+        /* Logical dimensions derived from the high-res load_scale */
+        int lw = (int)((float)img->width  / load_scale);
+        int lh = (int)((float)img->height / load_scale);
+        int hx = (int)((float)img->hotspot_x / load_scale);
+        int hy = (int)((float)img->hotspot_y / load_scale);
 
         server->cursor_zoom_img_w = lw;
         server->cursor_zoom_img_h = lh;
@@ -3133,6 +3146,7 @@ cursor_ring_start(nnwm_server *server)
         /* Hide the HW cursor; the scene buffer replaces it during the animation */
         wlr_cursor_unset_image(server->cursor);
         server->cursor_zoom_active = true;
+        server->cursor_zoom_scale  = 1.0f;
     }
     else
     {
