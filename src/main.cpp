@@ -222,7 +222,8 @@ main(int argc, char *argv[])
             wlr_scene_node_set_enabled(&server.tile_drop_border[i]->node, false);
         }
     }
-    server.tile_drag_target = nullptr;
+    server.tile_drag_target        = nullptr;
+    server.tile_drag_target_output = nullptr;
 
     server.scene_scratchpad = wlr_scene_tree_create(&server.scene->tree);
     wlr_scene_node_set_enabled(&server.scene_scratchpad->node, false);

@@ -741,17 +741,48 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
     nnwm_toplevel *focused = get_focused_toplevel(server);
     int ws = out->active_workspace;
 
+    /* ---- Tabbed mode: cycle to the adjacent tab ---- */
+    bool skip_on_output_search = false;
+    if (out->layout_mode[ws] == nnwm_layout_mode::TABBED) {
+        bool go_prev = is_left || is_up;
+
+        /* Find the tiled window immediately before or after focused in list order */
+        nnwm_toplevel *tab_target = nullptr;
+        if (go_prev) {
+            nnwm_toplevel *tl, *prev = nullptr;
+            wl_list_for_each(tl, &server->toplevels, link) {
+                if (tl->output != out || tl->floating) continue;
+                if (tl->workspace != ws && !tl->sticky) continue;
+                if (tl == focused) { tab_target = prev; break; }
+                prev = tl;
+            }
+        } else {
+            nnwm_toplevel *tl;
+            bool found = false;
+            wl_list_for_each(tl, &server->toplevels, link) {
+                if (found) {
+                    if (tl->output != out || tl->floating) continue;
+                    if (tl->workspace != ws && !tl->sticky) continue;
+                    tab_target = tl;
+                    break;
+                }
+                if (tl == focused) found = true;
+            }
+        }
+        if (tab_target) {
+            focus_toplevel(tab_target);
+            return;
+        }
+        skip_on_output_search = true; /* at edge — try cross-monitor below */
+    }
+
     /* Reference point: center of focused window, or center of usable area */
-    int fcx, fcy;
+    int fcx = out->usable_area.x + out->usable_area.width  / 2;
+    int fcy = out->usable_area.y + out->usable_area.height / 2;
     if (focused && focused->output == out)
     {
         fcx = focused->cur_x + focused->cur_w / 2;
         fcy = focused->cur_y + focused->cur_h / 2;
-    }
-    else
-    {
-        fcx = out->usable_area.x + out->usable_area.width  / 2;
-        fcy = out->usable_area.y + out->usable_area.height / 2;
     }
 
     /* Find the nearest window in the requested direction on the current output */
@@ -759,29 +790,31 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
     int            best_pri = INT_MAX; /* primary-axis distance (smaller = closer) */
     int            best_sec = INT_MAX; /* secondary-axis distance (tiebreak)       */
 
-    nnwm_toplevel *tl;
-    wl_list_for_each(tl, &server->toplevels, link)
-    {
-        if (tl == focused) continue;
-        if (tl->output != out) continue;
-        if (tl->workspace != ws && !tl->sticky) continue;
-
-        int cx = tl->cur_x + tl->cur_w / 2;
-        int cy = tl->cur_y + tl->cur_h / 2;
-
-        int pri, sec;
-        bool valid = false;
-
-        if (is_left  && cx < fcx) { pri = fcx - cx; sec = abs(cy - fcy); valid = true; }
-        if (is_right && cx > fcx) { pri = cx - fcx; sec = abs(cy - fcy); valid = true; }
-        if (is_up    && cy < fcy) { pri = fcy - cy; sec = abs(cx - fcx); valid = true; }
-        if (is_down  && cy > fcy) { pri = cy - fcy; sec = abs(cx - fcx); valid = true; }
-
-        if (valid && (pri < best_pri || (pri == best_pri && sec < best_sec)))
+    if (!skip_on_output_search) {
+        nnwm_toplevel *tl;
+        wl_list_for_each(tl, &server->toplevels, link)
         {
-            best     = tl;
-            best_pri = pri;
-            best_sec = sec;
+            if (tl == focused) continue;
+            if (tl->output != out) continue;
+            if (tl->workspace != ws && !tl->sticky) continue;
+
+            int cx = tl->cur_x + tl->cur_w / 2;
+            int cy = tl->cur_y + tl->cur_h / 2;
+
+            int pri, sec;
+            bool valid = false;
+
+            if (is_left  && cx < fcx) { pri = fcx - cx; sec = abs(cy - fcy); valid = true; }
+            if (is_right && cx > fcx) { pri = cx - fcx; sec = abs(cy - fcy); valid = true; }
+            if (is_up    && cy < fcy) { pri = fcy - cy; sec = abs(cx - fcx); valid = true; }
+            if (is_down  && cy > fcy) { pri = cy - fcy; sec = abs(cx - fcx); valid = true; }
+
+            if (valid && (pri < best_pri || (pri == best_pri && sec < best_sec)))
+            {
+                best     = tl;
+                best_pri = pri;
+                best_sec = sec;
+            }
         }
     }
 
@@ -1495,17 +1528,34 @@ handle_keybinding(nnwm_server *server, uint32_t modifiers, xkb_keysym_t sym)
 
 /* ---- Overview ---- */
 
+static void
+begin_exit_overview(nnwm_server *server, nnwm_output *out)
+{
+#ifdef HAVE_SCENEFX
+    if (server->config->fx.animation.enabled && !out->ov_anim_exiting) {
+        nnwm_config *cfg = server->config;
+        out->ov_anim           = true;
+        out->ov_anim_t0        = anim_now();
+        out->ov_anim_duration_ms = eff_duration(cfg, cfg->fx.animation.close_duration_ms);
+        out->ov_anim_exiting   = true;
+        return;
+    }
+#endif
+    exit_overview(server, out);
+}
+
 void
 nnwm::toggle_overview(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
     if (!out) return;
 
-    out->overview = !out->overview;
-    if (out->overview)
+    if (out->overview) {
+        begin_exit_overview(server, out);
+    } else {
+        out->overview = true;
         render_overview(server, out);
-    else
-        exit_overview(server, out);
+    }
 }
 
 /* ---- Keyboard event handling ---- */
@@ -1552,7 +1602,7 @@ keyboard_handle_key(wl_listener *listener, void *data)
         {
             if (syms[i] == XKB_KEY_Escape)
             {
-                exit_overview(server, server->focused_output);
+                begin_exit_overview(server, server->focused_output);
                 handled = true;
                 break;
             }

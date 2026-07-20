@@ -31,12 +31,24 @@
   tab bar is positioned at the top, bottom, left, or right. Previously only the
   TOP position was handled. The hit-test also now uses the correct
   `layout.tab_bar_height` config field instead of the unrelated `titlebar.height`.
+- **Tiled window drag-to-swap**: Super+left-click on a tiled window now enters a
+  tile-drag mode instead of floating the window. Dragging over another tiled window
+  shows a cyan outline at the drop target; releasing swaps the two windows in the
+  tiling order. Super+left-click on floating windows continues to work as a free
+  drag (unchanged). Super+right-click still floats and resizes.
+- **`focus_dir` crosses to the correct window on adjacent monitors**: when no
+  window exists in the requested direction on the current output and focus crosses
+  to a neighbouring monitor, the last-focused window on that monitor is selected
+  first. If no history exists, `left`/`up` selects the last tiled window and
+  `right`/`down` selects the first, matching the spatial expectation.
 
 - **Workspace switch animation bleeds onto adjacent monitors**: windows sliding
-  off one monitor's edge were rendered on the neighbouring monitor by the wlroots
-  scene graph. The animation loop now hides a window's scene node whenever its
-  interpolated geometry no longer intersects its home output's bounding box,
-  matching the behaviour of Hyprland and Niri.
+  during a workspace switch were rendered on neighbouring monitors by the wlroots
+  scene graph (which renders a node on every output its bounding box overlaps).
+  Fixed by temporarily disabling geo-animated windows that belong to a different
+  output just before each output's commit, then restoring them immediately after.
+  The full slide animation remains visible on the home monitor; adjacent monitors
+  never see any part of it.
 - **Workspace switch animation fires in overview mode**: sliding windows during a
   workspace switch while the overview was open produced a brief, jarring animation.
   The animation block in `workspace::switch_to` is now skipped entirely when the

@@ -288,7 +288,8 @@ struct nnwm_server
     bool cursor_hidden_by_typing;
     struct wlr_box grab_geobox;
     uint32_t resize_edges;
-    struct nnwm_toplevel *tile_drag_target;   /* hovered drop target during TILE_DRAG */
+    struct nnwm_toplevel *tile_drag_target;        /* hovered tiled window drop target */
+    struct nnwm_output   *tile_drag_target_output; /* hovered output when no window target */
     struct wlr_scene_rect *tile_drop_border[4]; /* outline preview at drop site */
 
     struct wl_listener
@@ -414,6 +415,10 @@ struct nnwm_output
     struct wlr_scene_buffer *overview_buf;    /* GPU content: wallpaper + windows */
     struct wlr_scene_buffer *overview_labels; /* Cairo overlay: borders + labels */
     bool overview;
+    bool ov_anim;
+    double ov_anim_t0;
+    int ov_anim_duration_ms;
+    bool ov_anim_exiting;
     struct nnwm_toplevel *last_focused[NNWM_NUM_WORKSPACES];
     struct nnwm_toplevel
         *prev_focused[NNWM_NUM_WORKSPACES]; /* focused before last_focused */

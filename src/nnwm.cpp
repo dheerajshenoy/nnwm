@@ -1368,12 +1368,53 @@ render_overview(nnwm_server *server, nnwm_output *out)
         if (tl->output == out && !tl->in_scratchpad)
             wlr_scene_node_set_enabled(&tl->scene_tree->node, false);
     }
+
+#ifdef HAVE_SCENEFX
+    if (server->config->fx.animation.enabled) {
+        nnwm_config *cfg = server->config;
+        wlr_scene_buffer_set_opacity(out->overview_buf, 0.0f);
+        wlr_scene_buffer_set_opacity(out->overview_labels, 0.0f);
+        out->ov_anim           = true;
+        out->ov_anim_t0        = anim_now();
+        out->ov_anim_duration_ms = eff_duration(cfg, cfg->fx.animation.open_duration_ms);
+        out->ov_anim_exiting   = false;
+    }
+#endif
 }
 
 void
 overview_frame_update(nnwm_server *server, nnwm_output *out)
 {
     if (!out->overview || !out->overview_buf || !out->overview_labels) return;
+
+#ifdef HAVE_SCENEFX
+    if (out->ov_anim && server->config->fx.animation.enabled) {
+        double now = anim_now();
+        float t = anim_t(out->ov_anim_t0, now, out->ov_anim_duration_ms, nnwm_easing::OUT);
+        if (out->ov_anim_exiting) {
+            float opacity = lerpf(1.0f, 0.0f, t);
+            wlr_scene_buffer_set_opacity(out->overview_buf, opacity);
+            wlr_scene_buffer_set_opacity(out->overview_labels, opacity);
+            if (t >= 1.0f) {
+                out->ov_anim = false;
+                exit_overview(server, out);
+            }
+            return;
+        } else {
+            render_overview_buffers(server, out);
+            float opacity = lerpf(0.0f, 1.0f, t);
+            wlr_scene_buffer_set_opacity(out->overview_buf, opacity);
+            wlr_scene_buffer_set_opacity(out->overview_labels, opacity);
+            if (t >= 1.0f) {
+                out->ov_anim = false;
+                wlr_scene_buffer_set_opacity(out->overview_buf, 1.0f);
+                wlr_scene_buffer_set_opacity(out->overview_labels, 1.0f);
+            }
+            return;
+        }
+    }
+#endif
+
     render_overview_buffers(server, out);
 }
 

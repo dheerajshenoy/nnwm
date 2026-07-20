@@ -147,7 +147,8 @@ tile_drop_border_hide(nnwm_server *server)
 {
     for (int i = 0; i < 4; i++)
         wlr_scene_node_set_enabled(&server->tile_drop_border[i]->node, false);
-    server->tile_drag_target = nullptr;
+    server->tile_drag_target        = nullptr;
+    server->tile_drag_target_output = nullptr;
 }
 
 static void
@@ -225,17 +226,29 @@ process_tile_drag_motion(nnwm_server *server)
     nnwm_toplevel *under    = desktop_toplevel_at(
         server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
 
-    if (under && under != grabbed && !under->floating
-        && under->output == grabbed->output
-        && under->workspace == grabbed->workspace)
+    if (under && under != grabbed && !under->floating)
     {
-        server->tile_drag_target = under;
+        server->tile_drag_target        = under;
+        server->tile_drag_target_output = nullptr;
         tile_drop_border_show(server, under->cur_x, under->cur_y,
                               under->cur_w, under->cur_h);
     }
     else
     {
-        tile_drop_border_hide(server);
+        /* No tiled window under cursor — check if cursor is on a different output.
+         * If so, show the usable area of that output as a drop zone. */
+        nnwm_output *hover_out = output_at_cursor(server);
+        if (hover_out && hover_out != grabbed->output)
+        {
+            server->tile_drag_target        = nullptr;
+            server->tile_drag_target_output = hover_out;
+            const wlr_box &ua = hover_out->usable_area;
+            tile_drop_border_show(server, ua.x, ua.y, ua.width, ua.height);
+        }
+        else
+        {
+            tile_drop_border_hide(server);
+        }
     }
 }
 
@@ -735,19 +748,21 @@ server_cursor_button(wl_listener *listener, void *data)
     {
         if (server->cursor_mode == nnwm_cursor_mode::TILE_DRAG)
         {
-            nnwm_toplevel *grabbed = server->grabbed_toplevel;
-            nnwm_toplevel *target  = server->tile_drag_target;
+            nnwm_toplevel *grabbed    = server->grabbed_toplevel;
+            nnwm_toplevel *target     = server->tile_drag_target;
+            nnwm_output   *target_out = target ? target->output
+                                               : server->tile_drag_target_output;
             tile_drop_border_hide(server);
+            nnwm_output *grabbed_out = grabbed ? grabbed->output : nullptr;
 
             if (grabbed && target)
             {
                 /* Swap grabbed and target in the toplevel list so they exchange
                  * tile slots on the next arrange. */
-                wl_list *before_grabbed  = grabbed->link.prev;
+                wl_list *before_grabbed = grabbed->link.prev;
                 bool b_before_a = (before_grabbed == &target->link);
 
                 wl_list_remove(&grabbed->link);
-                /* Insert grabbed where target currently is (before target) */
                 wl_list_insert(target->link.prev, &grabbed->link);
 
                 wl_list_remove(&target->link);
@@ -755,13 +770,53 @@ server_cursor_button(wl_listener *listener, void *data)
                     wl_list_insert(&grabbed->link, &target->link);
                 else
                     wl_list_insert(before_grabbed, &target->link);
+
+                /* Cross-monitor: swap output and workspace assignments and
+                 * reset geometry so tl_set_geometry uses first-layout placement
+                 * (animation from within the new output's viewport). */
+                if (grabbed->output != target->output
+                    || grabbed->workspace != target->workspace)
+                {
+                    nnwm_output *tmp_out = grabbed->output;
+                    int          tmp_ws  = grabbed->workspace;
+                    grabbed->output    = target->output;
+                    grabbed->workspace = target->workspace;
+                    target->output     = tmp_out;
+                    target->workspace  = tmp_ws;
+                    grabbed->cur_w = grabbed->cur_h = 0;
+                    target->cur_w  = target->cur_h  = 0;
+                }
+            }
+            else if (grabbed && target_out && target_out != grabbed->output)
+            {
+                /* Dropped onto an empty area of another output — move there */
+                nnwm_output *old_out = grabbed->output;
+                grabbed->output    = target_out;
+                grabbed->workspace = target_out->active_workspace;
+                grabbed_out        = old_out; /* arrange old output too */
             }
 
             reset_cursor_mode(server);
             if (grabbed)
             {
+                /* If grabbed moved to a different output, reset its geometry so
+                 * tl_set_geometry treats it as a first-layout placement — the
+                 * animation from-position is then computed relative to the
+                 * destination on the new output instead of the old output's
+                 * coordinates, which would be outside the new viewport. */
+                if (grabbed->output != grabbed_out) {
+                    grabbed->cur_x = 0;
+                    grabbed->cur_y = 0;
+                    grabbed->cur_w = 0;
+                    grabbed->cur_h = 0;
+                }
                 focus_toplevel(grabbed);
                 arrange_windows(server, grabbed->output);
+                if (grabbed_out && grabbed_out != grabbed->output)
+                    arrange_windows(server, grabbed_out);
+                if (target_out && target_out != grabbed->output
+                               && target_out != grabbed_out)
+                    arrange_windows(server, target_out);
             }
         }
         else if (server->cursor_mode != nnwm_cursor_mode::PASSTHROUGH)
