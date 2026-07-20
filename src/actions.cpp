@@ -1557,6 +1557,17 @@ nnwm::toggle_overview(nnwm_server *server)
     } else {
         out->overview = true;
         render_overview(server, out);
+#ifdef HAVE_SCENEFX
+        if (server->config->fx.animation.enabled) {
+            nnwm_config *cfg = server->config;
+            wlr_scene_buffer_set_opacity(out->overview_buf, 0.0f);
+            wlr_scene_buffer_set_opacity(out->overview_labels, 0.0f);
+            out->ov_anim             = true;
+            out->ov_anim_t0          = anim_now();
+            out->ov_anim_duration_ms = eff_duration(cfg, cfg->fx.animation.open_duration_ms);
+            out->ov_anim_exiting     = false;
+        }
+#endif
     }
 }
 

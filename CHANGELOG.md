@@ -81,6 +81,11 @@
   hidden by the overview's hide-all step were never restored. A visibility sweep
   now runs before `arrange_windows` in `exit_overview`, re-enabling every
   non-scratchpad window whose workspace matches its output's active workspace.
+- **Spurious animations during overview mode**: focusing or moving a window
+  while the overview was open triggered geo and border-color animations on the
+  hidden windows. Both `tl_set_geometry` and `tl_start_border_color` now skip
+  animation when the window's output is in overview mode, applying changes
+  instantly instead.
 - **Tile drag cross-monitor window not appearing until mouse moved**: after a
   cross-monitor tile drag the window moved to the new output but did not render
   there until the pointer moved over it. The geo-animation was starting from the

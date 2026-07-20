@@ -568,7 +568,7 @@ void
 tl_open_anim(nnwm_toplevel *tl)
 {
     nnwm_config *cfg = tl->server->config;
-    if (!cfg->fx.animation.enabled)
+    if (!cfg->fx.animation.enabled || (tl->output && tl->output->overview))
         return;
 
     nnwm_open_style open_style
@@ -1370,18 +1370,6 @@ render_overview(nnwm_server *server, nnwm_output *out)
         if (tl->output == out && !tl->in_scratchpad)
             wlr_scene_node_set_enabled(&tl->scene_tree->node, false);
     }
-
-#ifdef HAVE_SCENEFX
-    if (server->config->fx.animation.enabled) {
-        nnwm_config *cfg = server->config;
-        wlr_scene_buffer_set_opacity(out->overview_buf, 0.0f);
-        wlr_scene_buffer_set_opacity(out->overview_labels, 0.0f);
-        out->ov_anim           = true;
-        out->ov_anim_t0        = anim_now();
-        out->ov_anim_duration_ms = eff_duration(cfg, cfg->fx.animation.open_duration_ms);
-        out->ov_anim_exiting   = false;
-    }
-#endif
 }
 
 void
