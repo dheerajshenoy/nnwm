@@ -829,7 +829,22 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
     if (!best_out) return;
 
     server->focused_output = best_out;
-    nnwm_toplevel *next = ws_first(server, best_out);
+
+    /* Prefer the last-focused window on the target output; fall back to the
+     * direction-appropriate end: last window when entering from the right/bottom,
+     * first when entering from the left/top. */
+    int best_ws = best_out->active_workspace;
+    nnwm_toplevel *hist = best_out->last_focused[best_ws];
+    if (hist && hist->output == best_out && hist->workspace == best_ws
+        && !hist->floating && !hist->fullscreen && !hist->fake_fullscreen)
+        hist = hist; /* use it */
+    else
+        hist = nullptr;
+
+    nnwm_toplevel *next = hist
+        ? hist
+        : ((is_left || is_up) ? ws_last(server, best_out)
+                               : ws_first(server, best_out));
     if (next)
         focus_toplevel(next);
     else

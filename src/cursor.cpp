@@ -43,6 +43,8 @@ nnwm_toplevel *
 tab_toplevel_at(nnwm_server *server, double lx, double ly)
 {
     nnwm_output *hit = nullptr;
+    int hit_tbx = 0, hit_tby = 0, hit_tbw = 0, hit_tbh = 0;
+
     nnwm_output *o;
     wl_list_for_each(o, &server->outputs, link)
     {
@@ -51,14 +53,53 @@ tab_toplevel_at(nnwm_server *server, double lx, double ly)
         int ws = o->active_workspace;
         if (o->layout_mode[ws] != nnwm_layout_mode::TABBED)
             continue;
-        int tab_h           = o->server->config->titlebar.height > 0
-                                  ? o->server->config->titlebar.height
-                                  : 24;
-        const wlr_box &area = o->usable_area;
-        if (lx >= area.x && lx < area.x + area.width && ly >= area.y
-            && ly < area.y + tab_h)
+
+        nnwm_config *cfg       = o->server->config;
+        int n                  = ws_count(server, o);
+        bool solo              = (n == 1);
+        bool hide_tabs         = solo && cfg->layout.tab_smart;
+        if (hide_tabs)
+            continue;
+
+        int og     = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
+        int tab_sz = cfg->layout.tab_bar_height > 0 ? cfg->layout.tab_bar_height : 24;
+        nnwm_tab_position tab_pos = cfg->layout.tab_position;
+        const wlr_box &area       = o->usable_area;
+
+        int tbx, tby, tbw, tbh;
+        switch (tab_pos)
+        {
+            case nnwm_tab_position::BOTTOM:
+                tbx = area.x + og;
+                tby = area.y + area.height - og - tab_sz;
+                tbw = area.width - 2 * og;
+                tbh = tab_sz;
+                break;
+            case nnwm_tab_position::LEFT:
+                tbx = area.x + og;
+                tby = area.y + og;
+                tbw = tab_sz;
+                tbh = area.height - 2 * og;
+                break;
+            case nnwm_tab_position::RIGHT:
+                tbx = area.x + area.width - og - tab_sz;
+                tby = area.y + og;
+                tbw = tab_sz;
+                tbh = area.height - 2 * og;
+                break;
+            default: /* TOP */
+                tbx = area.x + og;
+                tby = area.y + og;
+                tbw = area.width - 2 * og;
+                tbh = tab_sz;
+                break;
+        }
+
+        if (lx >= tbx && lx < tbx + tbw && ly >= tby && ly < tby + tbh)
         {
             hit = o;
+            hit_tbx = tbx; hit_tby = tby;
+            hit_tbw = tbw; hit_tbh = tbh;
             break;
         }
     }
@@ -70,12 +111,20 @@ tab_toplevel_at(nnwm_server *server, double lx, double ly)
     if (n == 0)
         return nullptr;
 
-    int rel_x   = (int)(lx - hit->usable_area.x);
-    int tab_idx = (int)((long)rel_x * n / hit->usable_area.width);
-    if (tab_idx < 0)
-        tab_idx = 0;
-    if (tab_idx >= n)
-        tab_idx = n - 1;
+    nnwm_tab_position tab_pos = hit->server->config->layout.tab_position;
+    int tab_idx;
+    if (tab_pos == nnwm_tab_position::LEFT || tab_pos == nnwm_tab_position::RIGHT)
+    {
+        int rel_y = (int)(ly - hit_tby);
+        tab_idx   = rel_y * n / hit_tbh;
+    }
+    else
+    {
+        int rel_x = (int)(lx - hit_tbx);
+        tab_idx   = rel_x * n / hit_tbw;
+    }
+    if (tab_idx < 0)  tab_idx = 0;
+    if (tab_idx >= n) tab_idx = n - 1;
 
     int i = 0;
     nnwm_toplevel *tl;
