@@ -1233,29 +1233,44 @@ nnwm::window::toggle_float(nnwm_server *server)
             gw = geo->width;
             gh = geo->height;
         }
-        int x        = area.x + (area.width - gw) / 2;
-        int y        = area.y + (area.height - gh) / 2;
-        wlr_scene_node_set_position(&tl->scene_tree->node, x, y);
+        int x = area.x + (area.width - gw) / 2;
+        int y = area.y + (area.height - gh) / 2;
+
+#ifdef HAVE_SCENEFX
+        nnwm_config *cfg = server->config;
+        if (cfg->fx.animation.enabled && cfg->fx.animation.layout_duration_ms > 0
+            && !(out && out->overview))
+        {
+            /* Animate from tiled slot to centered float position */
+            int bw           = cfg->border.width;
+            int to_w         = gw + 2 * bw;
+            int to_h         = gh + 2 * bw;
+            tl->geo_from_x   = tl->cur_x;
+            tl->geo_from_y   = tl->cur_y;
+            tl->geo_from_w   = tl->cur_w;
+            tl->geo_from_h   = tl->cur_h;
+            tl->geo_to_x     = x;
+            tl->geo_to_y     = y;
+            tl->geo_to_w     = to_w;
+            tl->geo_to_h     = to_h;
+            tl->geo_bw       = bw;
+            tl->geo_then_hide = false;
+            tl->geo_anim     = true;
+            tl->geo_t0       = anim_now();
+            tl->geo_duration_ms = eff_duration(cfg, cfg->fx.animation.layout_duration_ms);
+            tl->geo_easing      = eff_easing(cfg, cfg->fx.animation.layout_easing);
+            wlr_scene_node_set_position(&tl->scene_tree->node, tl->geo_from_x,
+                                        tl->geo_from_y);
+            update_borders(tl, tl->geo_from_w, tl->geo_from_h, bw);
+        }
+        else
+#endif
+        {
+            wlr_scene_node_set_position(&tl->scene_tree->node, x, y);
+        }
     }
 
     arrange_windows(server, out);
-
-#ifdef HAVE_SCENEFX
-    /* Float→tile: snap to the tiled position immediately. Animating from the
-     * old floating position to the tile slot is disorienting and unnecessary.
-     */
-    if (was_floating && !tl->floating && tl->geo_anim)
-    {
-        tl->geo_anim = false;
-        wlr_scene_node_set_position(&tl->scene_tree->node, tl->geo_to_x,
-                                    tl->geo_to_y);
-        update_borders(tl, tl->geo_to_w, tl->geo_to_h, tl->geo_bw);
-        tl->cur_x = tl->geo_to_x;
-        tl->cur_y = tl->geo_to_y;
-        tl->cur_w = tl->geo_to_w;
-        tl->cur_h = tl->geo_to_h;
-    }
-#endif
 }
 
 void
