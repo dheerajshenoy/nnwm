@@ -182,7 +182,7 @@
 - [x] Fix animation going outside the monitor and to the other monitors
 - [x] Pointer constraints + relative pointer — games that grab the mouse (FPS, etc.) won't work correctly
 - [x] XDG activation — apps requesting focus (xdg-activation-v1) currently probably steal focus unconditionally or silently fail; proper handling lets you choose to honour or ignore the request
-- [ ] Named scratchpads — a single global scratchpad is limiting; per-name scratchpads (each with their own toggle) are a common pattern
+- [x] Named scratchpads — a single global scratchpad is limiting; per-name scratchpads (each with their own toggle) are a common pattern
 
 ## TODO
 
