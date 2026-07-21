@@ -2,6 +2,23 @@
 
 ## 0.1.3
 
+### Bug Fixes
+
+- **`focus_dir` with fullscreen windows**: two bugs prevented fullscreen windows
+  from being focused via directional navigation.
+  - *Cross-monitor*: when crossing to an adjacent output whose active window was
+    fullscreen, the last-focused check rejected it and `ws_first`/`ws_last` skip
+    fullscreen windows (via the `WS_TILED` macro), leaving nothing to focus.
+    The last-focused check now accepts fullscreen windows, and a fallback loop
+    finds any fullscreen window on the target output if the tiled list is empty.
+  - *Same-output*: the non-animated fullscreen path did not update `cur_x/y/w/h`,
+    so the directional search used stale pre-fullscreen coordinates. These fields
+    are now written to the output's full area immediately when going fullscreen.
+- **Toggle float animation**: `nnwm::window::toggle_float` now animates in both
+  directions using the layout easing/duration. Tile→float tweens the window from
+  its tiled slot to the centered floating position; float→tile lets
+  `arrange_windows` play the normal layout slide animation instead of snapping.
+
 ### Features
 
 - **Named scratchpads**: `nnwm.move_to_scratchpad()` and `nnwm.scratchpad_toggle()`

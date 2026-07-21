@@ -98,6 +98,10 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
                               (uint16_t)area.width, (uint16_t)area.height);
 #endif
         update_borders(tl, area.width, area.height, 0);
+        tl->cur_x = area.x;
+        tl->cur_y = area.y;
+        tl->cur_w = area.width;
+        tl->cur_h = area.height;
     }
 
     apply_fx_decorations(tl);
@@ -933,8 +937,8 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
     int best_ws = best_out->active_workspace;
     nnwm_toplevel *hist = best_out->last_focused[best_ws];
     if (hist && hist->output == best_out && hist->workspace == best_ws
-        && !hist->floating && !hist->fullscreen && !hist->fake_fullscreen)
-        hist = hist; /* use it */
+        && !hist->floating)
+        ; /* use it — fullscreen windows are valid focus targets */
     else
         hist = nullptr;
 
@@ -942,6 +946,23 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
         ? hist
         : ((is_left || is_up) ? ws_last(server, best_out)
                                : ws_first(server, best_out));
+
+    /* ws_first/ws_last skip fullscreen windows (WS_TILED macro); find one
+     * explicitly if nothing else was returned. */
+    if (!next)
+    {
+        nnwm_toplevel *tl;
+        wl_list_for_each(tl, &server->toplevels, link)
+        {
+            if (tl->output == best_out && tl->workspace == best_ws
+                && (tl->fullscreen || tl->fake_fullscreen))
+            {
+                next = tl;
+                break;
+            }
+        }
+    }
+
     if (next)
         focus_toplevel(next);
     else
