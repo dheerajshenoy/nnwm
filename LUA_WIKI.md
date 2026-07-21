@@ -88,6 +88,32 @@ Multiple `nnwm.key()` calls with the same combo are allowed; the last one wins.
 | `nnwm.move_to_monitor_next()`    | Move the focused window to the next monitor        |
 | `nnwm.move_to_monitor_prev()`    | Move the focused window to the previous monitor    |
 
+### Scratchpad
+
+| Function                          | Description                                                     |
+|-----------------------------------|-----------------------------------------------------------------|
+| `nnwm.scratchpad_toggle()`        | Show/hide the global scratchpad overlay                         |
+| `nnwm.move_to_scratchpad()`       | Move the focused window into the global scratchpad              |
+| `nnwm.scratchpad_toggle(name)`    | Show/hide the named scratchpad `name`                           |
+| `nnwm.move_to_scratchpad(name)`   | Move the focused window into the named scratchpad `name`        |
+
+Named scratchpads are independent floating overlays identified by a string. Each
+has its own window set, dim overlay, visibility state, and layout (HTILE by
+default). They are created lazily on first use — no upfront configuration needed.
+Any number of named scratchpads can coexist; toggling one has no effect on others.
+
+```lua
+-- Global scratchpad
+nnwm.key({"Super", "grave"},       function() nnwm.scratchpad_toggle() end)
+nnwm.key({"Super", "Shift", "grave"}, function() nnwm.move_to_scratchpad() end)
+
+-- Named scratchpads
+nnwm.key({"Super", "F1"},          function() nnwm.scratchpad_toggle("terminal") end)
+nnwm.key({"Super", "Shift", "F1"}, function() nnwm.move_to_scratchpad("terminal") end)
+nnwm.key({"Super", "F2"},          function() nnwm.scratchpad_toggle("music") end)
+nnwm.key({"Super", "Shift", "F2"}, function() nnwm.move_to_scratchpad("music") end)
+```
+
 ### Layout
 
 | Function                      | Description                                                  |

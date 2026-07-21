@@ -1355,21 +1355,21 @@ nnwm::scratchpad::toggle(nnwm_server *server)
         wlr_scene_node_set_enabled(&server->scene_scratch_dim->node, true);
         wlr_scene_node_set_enabled(&server->scene_scratchpad->node, true);
 
-        /* Enable all scratchpad window nodes */
+        /* Enable global scratchpad window nodes (not named scratchpad windows) */
         nnwm_toplevel *tl;
         wl_list_for_each(tl, &server->toplevels, link)
         {
-            if (tl->in_scratchpad)
+            if (tl->in_scratchpad && tl->scratchpad_name.empty())
                 wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
         }
 
         arrange_scratchpad(server);
 
-        /* Focus first scratchpad window */
+        /* Focus first global scratchpad window */
         nnwm_toplevel *first = nullptr;
         wl_list_for_each(tl, &server->toplevels, link)
         {
-            if (tl->in_scratchpad)
+            if (tl->in_scratchpad && tl->scratchpad_name.empty())
             {
                 first = tl;
                 break;
@@ -1385,6 +1385,95 @@ nnwm::scratchpad::toggle(nnwm_server *server)
         wlr_scene_node_set_enabled(&server->scene_scratchpad->node, false);
 
         /* Re-focus last active window on focused output */
+        if (out)
+        {
+            nnwm_toplevel *next = out->last_focused[out->active_workspace];
+            if (!next)
+                next = ws_first(server, out);
+            if (next)
+                focus_toplevel(next);
+            else
+                wlr_seat_keyboard_clear_focus(server->seat);
+        }
+    }
+}
+
+/* ---- Named Scratchpad ---- */
+
+void
+nnwm::named_scratchpad::move_to(nnwm_server *server, const char *name)
+{
+    nnwm_toplevel *tl = get_focused_toplevel(server);
+    if (!tl || tl->in_scratchpad)
+        return;
+
+    nnwm_named_scratchpad *nsp = get_or_create_named_scratchpad(server, name);
+    nnwm_output *out = tl->output;
+
+    if (out)
+    {
+        if (out->last_focused[tl->workspace] == tl)
+            out->last_focused[tl->workspace] = nullptr;
+        if (out->prev_focused[tl->workspace] == tl)
+            out->prev_focused[tl->workspace] = nullptr;
+    }
+
+    tl->in_scratchpad    = true;
+    tl->scratchpad_name  = name;
+    tl->floating         = false;
+
+    wlr_scene_node_reparent(&tl->scene_tree->node, nsp->scene_tree);
+    wlr_scene_node_set_enabled(&tl->scene_tree->node, nsp->visible);
+
+    if (out)
+    {
+        nnwm_toplevel *next = out->last_focused[out->active_workspace];
+        if (!next)
+            next = ws_first(server, out);
+        if (next)
+            focus_toplevel(next);
+        else
+            wlr_seat_keyboard_clear_focus(server->seat);
+        arrange_windows(server, out);
+    }
+
+    if (nsp->visible)
+        arrange_named_scratchpad(server, nsp);
+}
+
+void
+nnwm::named_scratchpad::toggle(nnwm_server *server, const char *name)
+{
+    nnwm_named_scratchpad *nsp = get_or_create_named_scratchpad(server, name);
+    nsp->visible = !nsp->visible;
+
+    nnwm_output *out = server->focused_output;
+    if (!out && !wl_list_empty(&server->outputs))
+        out = wl_container_of(server->outputs.next, out, link);
+
+    if (nsp->visible)
+    {
+        wlr_scene_node_set_enabled(&nsp->dim_rect->node, true);
+        wlr_scene_node_set_enabled(&nsp->scene_tree->node, true);
+
+        nnwm_toplevel *tl;
+        wl_list_for_each(tl, &server->toplevels, link)
+        {
+            if (tl->in_scratchpad && tl->scratchpad_name == name)
+                wlr_scene_node_set_enabled(&tl->scene_tree->node, true);
+        }
+
+        arrange_named_scratchpad(server, nsp);
+
+        nnwm_toplevel *first = named_scratch_first(server, name);
+        if (first)
+            focus_toplevel(first);
+    }
+    else
+    {
+        wlr_scene_node_set_enabled(&nsp->dim_rect->node, false);
+        wlr_scene_node_set_enabled(&nsp->scene_tree->node, false);
+
         if (out)
         {
             nnwm_toplevel *next = out->last_focused[out->active_workspace];

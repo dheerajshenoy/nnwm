@@ -127,6 +127,14 @@ void
 toggle(nnwm_server *server);
 } // namespace scratchpad
 
+namespace named_scratchpad
+{
+void
+move_to(nnwm_server *server, const char *name);
+void
+toggle(nnwm_server *server, const char *name);
+} // namespace named_scratchpad
+
 } // namespace nnwm
 
 #endif /* __cplusplus */

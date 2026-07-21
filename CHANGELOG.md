@@ -1,5 +1,28 @@
 # nnwm CHANGELOG
 
+## 0.1.3
+
+### Features
+
+- **Named scratchpads**: `nnwm.move_to_scratchpad()` and `nnwm.scratchpad_toggle()`
+  now accept an optional name string. Passing a name creates an independent
+  scratchpad identified by that name — each has its own dim overlay, window set,
+  visibility state, and layout mode. Named scratchpads are created lazily on first
+  use; no upfront configuration is required. Calling either function without an
+  argument (or with `nil`) continues to use the existing global unnamed scratchpad,
+  preserving backward compatibility.
+
+  ```lua
+  -- Global scratchpad (unchanged)
+  nnwm.key({"Super", "grave"}, function() nnwm.scratchpad_toggle() end)
+  nnwm.key({"Super", "Shift", "grave"}, function() nnwm.move_to_scratchpad() end)
+
+  -- Named scratchpads
+  nnwm.key({"Super", "F1"}, function() nnwm.scratchpad_toggle("terminal") end)
+  nnwm.key({"Super", "Shift", "F1"}, function() nnwm.move_to_scratchpad("terminal") end)
+  nnwm.key({"Super", "F2"}, function() nnwm.scratchpad_toggle("music") end)
+  ```
+
 ## 0.1.2
 
 ### Features

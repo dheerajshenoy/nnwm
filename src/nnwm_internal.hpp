@@ -80,6 +80,14 @@ struct nnwm_toplevel *get_focused_toplevel(struct nnwm_server *server);
 void arrange_windows(struct nnwm_server *server, struct nnwm_output *out);
 void arrange_all_outputs(struct nnwm_server *server);
 void arrange_scratchpad(struct nnwm_server *server);
+#ifdef __cplusplus
+#include <string>
+struct nnwm_named_scratchpad;
+void arrange_named_scratchpad(struct nnwm_server *server, struct nnwm_named_scratchpad *nsp);
+nnwm_named_scratchpad *get_or_create_named_scratchpad(struct nnwm_server *server,
+                                                       const std::string &name);
+nnwm_toplevel *named_scratch_first(struct nnwm_server *server, const std::string &name);
+#endif
 
 /* ---- Cursor attention ring ---- */
 void cursor_ring_start(struct nnwm_server *server);

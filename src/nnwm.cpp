@@ -1961,7 +1961,8 @@ nnwm_toplevel *
 scratch_first(nnwm_server *server)
 {
     nnwm_toplevel *t;
-    wl_list_for_each(t, &server->toplevels, link) if (t->in_scratchpad) return t;
+    wl_list_for_each(t, &server->toplevels, link)
+        if (t->in_scratchpad && t->scratchpad_name.empty()) return t;
     return nullptr;
 }
 
@@ -1969,7 +1970,8 @@ nnwm_toplevel *
 scratch_last(nnwm_server *server)
 {
     nnwm_toplevel *t, *last = nullptr;
-    wl_list_for_each(t, &server->toplevels, link) if (t->in_scratchpad) last = t;
+    wl_list_for_each(t, &server->toplevels, link)
+        if (t->in_scratchpad && t->scratchpad_name.empty()) last = t;
     return last;
 }
 
@@ -1979,7 +1981,7 @@ scratch_next(nnwm_server *server, nnwm_toplevel *cur)
     for (wl_list *it = cur->link.next; it != &server->toplevels; it = it->next)
     {
         nnwm_toplevel *t = wl_container_of(it, t, link);
-        if (t->in_scratchpad)
+        if (t->in_scratchpad && t->scratchpad_name.empty())
             return t;
     }
     return nullptr;
@@ -1991,10 +1993,180 @@ scratch_prev(nnwm_server *server, nnwm_toplevel *cur)
     for (wl_list *it = cur->link.prev; it != &server->toplevels; it = it->prev)
     {
         nnwm_toplevel *t = wl_container_of(it, t, link);
-        if (t->in_scratchpad)
+        if (t->in_scratchpad && t->scratchpad_name.empty())
             return t;
     }
     return nullptr;
+}
+
+/* ---- Named scratchpad helpers ---- */
+
+nnwm_named_scratchpad *
+get_or_create_named_scratchpad(nnwm_server *server, const std::string &name)
+{
+    auto it = server->named_scratchpads.find(name);
+    if (it != server->named_scratchpads.end())
+        return it->second;
+
+    nnwm_named_scratchpad *nsp = new nnwm_named_scratchpad();
+    nsp->name    = name;
+    nsp->visible = false;
+    nsp->layout  = nnwm_layout_mode::HTILE;
+
+    const float dim_color[4] = {0.0f, 0.0f, 0.0f, 0.5f};
+    nsp->dim_rect = wlr_scene_rect_create(server->scene_named_scratchpads, 0, 0, dim_color);
+    wlr_scene_node_set_enabled(&nsp->dim_rect->node, false);
+
+    nsp->scene_tree = wlr_scene_tree_create(server->scene_named_scratchpads);
+    wlr_scene_node_set_enabled(&nsp->scene_tree->node, false);
+
+    server->named_scratchpads[name] = nsp;
+    return nsp;
+}
+
+nnwm_toplevel *
+named_scratch_first(nnwm_server *server, const std::string &name)
+{
+    nnwm_toplevel *t;
+    wl_list_for_each(t, &server->toplevels, link)
+        if (t->in_scratchpad && t->scratchpad_name == name) return t;
+    return nullptr;
+}
+
+static int  /* internal only — used by arrange_named_scratchpad */
+named_scratch_count(nnwm_server *server, const std::string &name)
+{
+    int n = 0;
+    nnwm_toplevel *t;
+    wl_list_for_each(t, &server->toplevels, link)
+        if (t->in_scratchpad && t->scratchpad_name == name && !t->floating) n++;
+    return n;
+}
+
+void
+arrange_named_scratchpad(nnwm_server *server, nnwm_named_scratchpad *nsp)
+{
+    if (!nsp->visible)
+        return;
+
+    nnwm_output *out = server->focused_output;
+    if (!out && !wl_list_empty(&server->outputs))
+        out = wl_container_of(server->outputs.next, out, link);
+    if (!out)
+        return;
+
+    int n = named_scratch_count(server, nsp->name);
+
+    wlr_box area;
+    wlr_output_layout_get_box(server->output_layout, out->wlr_output, &area);
+    wlr_scene_rect_set_size(nsp->dim_rect, area.width, area.height);
+    wlr_scene_node_set_position(&nsp->dim_rect->node, area.x, area.y);
+
+    nnwm_config *cfg = server->config;
+    bool solo        = (n == 1);
+    int bw           = (solo && cfg->border.smart) ? 0 : cfg->border.width;
+    int ig           = (solo && cfg->gap.smart) ? 0 : cfg->gap.inner;
+    int og           = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
+    int th           = cfg->titlebar.height;
+
+    int x0 = area.x + og;
+    int y0 = area.y + og;
+    int W  = area.width - 2 * og;
+    int H  = area.height - 2 * og;
+
+    wlr_surface *focused_surface = server->seat->keyboard_state.focused_surface;
+
+    nnwm_toplevel *tl;
+    if (nsp->layout == nnwm_layout_mode::HTILE)
+    {
+        if (n == 1)
+        {
+            wl_list_for_each(tl, &server->toplevels, link)
+            {
+                if (!tl->in_scratchpad || tl->scratchpad_name != nsp->name || tl->floating) continue;
+                tl_xdg_set_tiled(tl, WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
+                tl_xdg_set_size(tl, W - 2 * bw, H - 2 * bw - th);
+                tl_set_geometry(tl, x0, y0, W, H, bw);
+                render_titlebar(tl, W - 2 * bw, tl_wlr_surface(tl) == focused_surface);
+                break;
+            }
+        }
+        else
+        {
+            int mw = (int)(W * out->master_ratio[out->active_workspace]);
+            int sw = W - mw - ig;
+            int ns = n - 1;
+            int sh = (H - (ns - 1) * ig) / ns;
+            int i  = 0;
+            wl_list_for_each(tl, &server->toplevels, link)
+            {
+                if (!tl->in_scratchpad || tl->scratchpad_name != nsp->name || tl->floating) continue;
+                bool focused = (tl_wlr_surface(tl) == focused_surface);
+                if (i == 0)
+                {
+                    tl_xdg_set_tiled(tl, WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
+                    tl_xdg_set_size(tl, mw - 2 * bw, H - 2 * bw - th);
+                    tl_set_geometry(tl, x0, y0, mw, H, bw);
+                    render_titlebar(tl, mw - 2 * bw, focused);
+                }
+                else
+                {
+                    int sy = y0 + (i - 1) * (sh + ig);
+                    int h  = (i < ns) ? sh : H - (i - 1) * (sh + ig);
+                    tl_xdg_set_tiled(tl, WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
+                    tl_xdg_set_size(tl, sw - 2 * bw, h - 2 * bw - th);
+                    tl_set_geometry(tl, x0 + mw + ig, sy, sw, h, bw);
+                    render_titlebar(tl, sw - 2 * bw, focused);
+                }
+                ++i;
+            }
+        }
+    }
+    else /* VTILE */
+    {
+        if (n == 1)
+        {
+            wl_list_for_each(tl, &server->toplevels, link)
+            {
+                if (!tl->in_scratchpad || tl->scratchpad_name != nsp->name || tl->floating) continue;
+                tl_xdg_set_tiled(tl, WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
+                tl_xdg_set_size(tl, W - 2 * bw, H - 2 * bw - th);
+                tl_set_geometry(tl, x0, y0, W, H, bw);
+                render_titlebar(tl, W - 2 * bw, tl_wlr_surface(tl) == focused_surface);
+                break;
+            }
+        }
+        else
+        {
+            int mh = (int)(H * out->master_ratio[out->active_workspace]);
+            int sh = H - mh - ig;
+            int ns = n - 1;
+            int sw = (W - (ns - 1) * ig) / ns;
+            int i  = 0;
+            wl_list_for_each(tl, &server->toplevels, link)
+            {
+                if (!tl->in_scratchpad || tl->scratchpad_name != nsp->name || tl->floating) continue;
+                bool focused = (tl_wlr_surface(tl) == focused_surface);
+                if (i == 0)
+                {
+                    tl_xdg_set_tiled(tl, WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
+                    tl_xdg_set_size(tl, W - 2 * bw, mh - 2 * bw - th);
+                    tl_set_geometry(tl, x0, y0, W, mh, bw);
+                    render_titlebar(tl, W - 2 * bw, focused);
+                }
+                else
+                {
+                    int sx = x0 + (i - 1) * (sw + ig);
+                    int w  = (i < ns) ? sw : W - (i - 1) * (sw + ig);
+                    tl_xdg_set_tiled(tl, WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
+                    tl_xdg_set_size(tl, w - 2 * bw, sh - 2 * bw - th);
+                    tl_set_geometry(tl, sx, y0 + mh + ig, w, sh, bw);
+                    render_titlebar(tl, w - 2 * bw, focused);
+                }
+                ++i;
+            }
+        }
+    }
 }
 
 int
@@ -2496,7 +2668,7 @@ scratch_count(nnwm_server *server)
     int n = 0;
     nnwm_toplevel *t;
     wl_list_for_each(t, &server->toplevels, link)
-        if (t->in_scratchpad && !t->floating) n++;
+        if (t->in_scratchpad && t->scratchpad_name.empty() && !t->floating) n++;
     return n;
 }
 
@@ -2506,7 +2678,7 @@ scratch_count_all(nnwm_server *server)
     int n = 0;
     nnwm_toplevel *t;
     wl_list_for_each(t, &server->toplevels, link)
-        if (t->in_scratchpad) n++;
+        if (t->in_scratchpad && t->scratchpad_name.empty()) n++;
     return n;
 }
 
@@ -2552,7 +2724,7 @@ arrange_scratchpad(nnwm_server *server)
         {
             wl_list_for_each(tl, &server->toplevels, link)
             {
-                if (!tl->in_scratchpad || tl->floating) continue;
+                if (!tl->in_scratchpad || !tl->scratchpad_name.empty() || tl->floating) continue;
                 tl_xdg_set_tiled(tl,
                                            WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                                | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
@@ -2574,7 +2746,7 @@ arrange_scratchpad(nnwm_server *server)
             int i = 0;
             wl_list_for_each(tl, &server->toplevels, link)
             {
-                if (!tl->in_scratchpad || tl->floating) continue;
+                if (!tl->in_scratchpad || !tl->scratchpad_name.empty() || tl->floating) continue;
                 bool focused = (tl_wlr_surface(tl) == focused_surface);
                 if (i == 0)
                 {
@@ -2606,7 +2778,7 @@ arrange_scratchpad(nnwm_server *server)
         {
             wl_list_for_each(tl, &server->toplevels, link)
             {
-                if (!tl->in_scratchpad || tl->floating) continue;
+                if (!tl->in_scratchpad || !tl->scratchpad_name.empty() || tl->floating) continue;
                 tl_xdg_set_tiled(tl,
                                            WLR_EDGE_TOP | WLR_EDGE_BOTTOM
                                                | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
@@ -2628,7 +2800,7 @@ arrange_scratchpad(nnwm_server *server)
             int i = 0;
             wl_list_for_each(tl, &server->toplevels, link)
             {
-                if (!tl->in_scratchpad || tl->floating) continue;
+                if (!tl->in_scratchpad || !tl->scratchpad_name.empty() || tl->floating) continue;
                 bool focused = (tl_wlr_surface(tl) == focused_surface);
                 if (i == 0)
                 {

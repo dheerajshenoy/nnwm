@@ -94,7 +94,12 @@ output_frame(wl_listener *listener, void * /*data*/)
     if (output->overview)
         overview_frame_update(output->server, output);
 
+    /* scenefx handles gamma/color-transform internally via its own
+     * gamma_control_v1 listener; passing it again via commit_opts causes
+     * scene_output_combine_color_transforms to produce a transform that the
+     * fx renderer cannot satisfy, triggering the fx_get_render_pass assert. */
     wlr_scene_output_state_options commit_opts = {};
+#ifndef HAVE_SCENEFX
     if (output->server->gamma_control_manager)
     {
         wlr_gamma_control_v1 *gc = wlr_gamma_control_manager_v1_get_control(
@@ -102,6 +107,7 @@ output_frame(wl_listener *listener, void * /*data*/)
         if (gc)
             commit_opts.color_transform = wlr_gamma_control_v1_get_color_transform(gc);
     }
+#endif
 
     bool committed = wlr_scene_output_commit(scene_output, &commit_opts);
 

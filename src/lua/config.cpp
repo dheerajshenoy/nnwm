@@ -858,14 +858,22 @@ l_nnwm_toggle_overview(lua_State *L)
 static int
 l_nnwm_move_to_scratchpad(lua_State *L)
 {
-    nnwm::scratchpad::move_to(get_server(L));
+    const char *name = lua_tostring(L, 1); /* nil if not provided */
+    if (name)
+        nnwm::named_scratchpad::move_to(get_server(L), name);
+    else
+        nnwm::scratchpad::move_to(get_server(L));
     return 0;
 }
 
 static int
 l_nnwm_scratchpad_toggle(lua_State *L)
 {
-    nnwm::scratchpad::toggle(get_server(L));
+    const char *name = lua_tostring(L, 1); /* nil if not provided */
+    if (name)
+        nnwm::named_scratchpad::toggle(get_server(L), name);
+    else
+        nnwm::scratchpad::toggle(get_server(L));
     return 0;
 }
 

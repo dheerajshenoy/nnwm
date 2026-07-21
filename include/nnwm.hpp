@@ -165,6 +165,11 @@ extern "C"
 
 #include "config.hpp"
 
+#ifdef __cplusplus
+#include <string>
+#include <unordered_map>
+#endif
+
 #define NNWM_NUM_WORKSPACES 9
 
 enum class nnwm_layout_mode
@@ -201,6 +206,17 @@ struct nnwm_decoration; /* forward declaration — defined below nnwm_toplevel *
 struct wlr_foreign_toplevel_handle_v1; /* forward declaration */
 struct wlr_foreign_toplevel_manager_v1; /* forward declaration */
 
+#ifdef __cplusplus
+struct nnwm_named_scratchpad
+{
+    std::string name;
+    struct wlr_scene_rect *dim_rect;
+    struct wlr_scene_tree *scene_tree;
+    bool visible;
+    nnwm_layout_mode layout;
+};
+#endif
+
 /* For brevity's sake, struct members are annotated where they are used. */
 enum class nnwm_cursor_mode
 {
@@ -227,9 +243,13 @@ struct nnwm_server
     struct wlr_scene_tree *scene_windows;    /* xdg toplevels live here */
     struct wlr_scene_rect *scene_scratch_dim; /* dim overlay behind scratchpad */
     struct wlr_scene_tree *scene_scratchpad;  /* scratchpad windows */
+    struct wlr_scene_tree *scene_named_scratchpads; /* container for named scratchpads */
 
     bool scratchpad_visible;
     nnwm_layout_mode scratchpad_layout;
+#ifdef __cplusplus
+    std::unordered_map<std::string, nnwm_named_scratchpad *> named_scratchpads;
+#endif
 
     struct wl_list layer_surfaces; /* nnwm_layer_surface::link */
 
@@ -459,6 +479,9 @@ struct nnwm_toplevel
     bool sticky;
     bool urgent;
     bool in_scratchpad;
+#ifdef __cplusplus
+    std::string scratchpad_name; /* empty = global scratchpad, else named scratchpad key */
+#endif
     struct wlr_xdg_toplevel *xdg_toplevel;
     bool is_xwayland;
 #ifdef HAVE_XWAYLAND

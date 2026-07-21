@@ -230,6 +230,7 @@ main(int argc, char *argv[])
     wlr_scene_node_set_enabled(&server.scene_scratchpad->node, false);
     server.scratchpad_visible = false;
     server.scratchpad_layout  = nnwm_layout_mode::HTILE;
+    server.scene_named_scratchpads = wlr_scene_tree_create(&server.scene->tree);
     server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP]
         = wlr_scene_tree_create(&server.scene->tree);
     server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY]
