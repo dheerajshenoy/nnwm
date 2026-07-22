@@ -2659,6 +2659,13 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         cfg->bar.module_spacing
             = get_int_field(L, "module_spacing", cfg->bar.module_spacing);
 
+        /* Global opacity multiplier for the whole bar (0.0-1.0). Clamped
+         * defensively; <0 falls back to 1.0. */
+        float o = get_float_field(L, "opacity", cfg->bar.opacity);
+        if (o < 0.0f) o = 1.0f;
+        if (o > 1.0f) o = 1.0f;
+        cfg->bar.opacity = o;
+
         /* Bar-level event handlers. Fired when the cursor is over the bar
          * but not over any module. */
         if (cfg->bar.lua_click_ref >= 0)
@@ -3619,6 +3626,7 @@ nnwm::config_defaults(void)
     cfg->bar.padding.bottom    = 0;
     cfg->bar.padding.left      = 0;
     cfg->bar.module_spacing    = 8;
+    cfg->bar.opacity           = 1.0f;
     cfg->bar.bg_color[0] = 0.08f; cfg->bar.bg_color[1] = 0.09f;
     cfg->bar.bg_color[2] = 0.12f; cfg->bar.bg_color[3] = 0.95f;
     cfg->bar.fg_color[0] = 0.85f; cfg->bar.fg_color[1] = 0.85f;

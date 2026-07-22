@@ -130,6 +130,11 @@ struct nnwm_bar_config
     float bg_color[4];          /* bar background */
     float fg_color[4];          /* default text color for all modules */
     char *font;           /* pango font description, e.g. "monospace 11" */
+    /* Uniform opacity multiplier for the whole bar (background, text,
+     * shadow). Multiplies into each color's alpha; text uses
+     * wlr_scene_buffer_set_opacity when built with scenefx. Range
+     * 0.0-1.0; values <0 mean "unset/1.0". */
+    float opacity;
     /* Outer margin around the bar (CSS-style). Creates a floating panel
      * when non-zero: the bar's rendered rect shrinks by left+right and its
      * vertical position is offset by top/bottom. usable_area is reduced by

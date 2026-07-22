@@ -150,6 +150,7 @@ MOD = {}
 ---@field font?            string             Pango font description, e.g. `"monospace 11"` (default: "monospace 11").
 ---@field padding?         integer|integer[]  Outer margin around the bar (CSS-style). Number applies to all sides; table shorthand: `{a}`, `{v,h}`, `{t,r,b}`, or `{t,r,b,l}`. Non-zero values shrink the bar and float it inward from the output edges. Default: 0.
 ---@field module_spacing?  integer            Space between adjacent modules in pixels (default: 8).
+---@field opacity?         number             Bar background opacity multiplier (0.0–1.0, default 1.0). Multiplies the alpha of the background rect and the drop shadow only — text stays fully opaque so labels remain crisp. Dim text via the `foreground` color alpha instead.
 ---@field colors?          nnwm.bar.colors    Color palette for the bar and its built-in modules.
 ---@field modules?         nnwm.bar.modules   Ordered modules by alignment.
 ---@field fx?              nnwm.bar.fx        scenefx effects (rounded corners, shadow, blur). Requires USE_SCENEFX build.

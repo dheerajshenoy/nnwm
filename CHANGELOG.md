@@ -82,6 +82,12 @@
   events over the bar are consumed by the compositor so windows below
   never see them.
 
+- **Bar background opacity**: `nnwm.opt.bar.opacity` (0.0–1.0, default 1.0)
+  multiplies into the alpha of the bar's background rect and drop shadow.
+  Text stays fully opaque so labels remain crisp against a translucent
+  panel. Combine with `fx.blur = true` for a frosted-glass look without
+  having to encode alpha into every color hex.
+
 - **Cursor API**: `nnwm.cursor.pos()`, `set_pos(x, y)`, `warp(x, y)`,
   `hide()`, `show()`, `visible()`. Coordinates are layout-absolute.
   `set_pos`/`warp` re-run the compositor's motion pipeline so hover and

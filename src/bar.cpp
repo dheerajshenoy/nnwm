@@ -552,7 +552,16 @@ static void bar_layout(nnwm_bar *bar) {
     wlr_scene_node_set_position(&bar->bg_rect->node, 0, 0);
     if (bar->content)
         wlr_scene_node_set_position(&bar->content->node, 0, 0);
-    wlr_scene_rect_set_color(bar->bg_rect, cfg->bar.bg_color);
+
+    /* `opacity` affects only the bar's *background* (bg_rect + shadow).
+     * Text stays fully opaque — otherwise labels turn muddy against
+     * their own background at low alpha. Users who want dim text can set
+     * the bar/module `foreground` color alpha directly. */
+    float o = cfg->bar.opacity;
+    if (o < 0.0f || o > 1.0f) o = 1.0f;
+    float bg[4] = {cfg->bar.bg_color[0], cfg->bar.bg_color[1],
+                   cfg->bar.bg_color[2], cfg->bar.bg_color[3] * o};
+    wlr_scene_rect_set_color(bar->bg_rect, bg);
 
 #ifdef HAVE_SCENEFX
     int r = cfg->bar.fx.corner_radius;
@@ -573,7 +582,11 @@ static void bar_layout(nnwm_bar *bar) {
         wlr_scene_shadow_set_corner_radius(bar->fx_shadow, r);
         wlr_scene_shadow_set_blur_sigma(bar->fx_shadow,
                                         cfg->bar.fx.shadow_blur_sigma);
-        wlr_scene_shadow_set_color(bar->fx_shadow, cfg->bar.fx.shadow_color);
+        float sc[4] = {cfg->bar.fx.shadow_color[0],
+                       cfg->bar.fx.shadow_color[1],
+                       cfg->bar.fx.shadow_color[2],
+                       cfg->bar.fx.shadow_color[3] * o};
+        wlr_scene_shadow_set_color(bar->fx_shadow, sc);
         wlr_scene_node_set_position(&bar->fx_shadow->node,
                                     -sigma + (int)cfg->bar.fx.shadow_offset_x,
                                     -sigma + (int)cfg->bar.fx.shadow_offset_y);
