@@ -138,6 +138,32 @@ to any layout regardless of what's in the cycle.
 | `nnwm.host_name()`  | Return the machine hostname as a string                            |
 | `nnwm.version()`    | Return the compositor version string (from CMake `project(VERSION)`) |
 
+### Cursor
+
+Manipulate and query the pointer position and visibility. All coordinates
+are layout-absolute (spanning all outputs).
+
+| Function                    | Description                                            |
+|-----------------------------|--------------------------------------------------------|
+| `nnwm.cursor.pos()`         | Returns `{ x, y }` (also indexed as `[1]`, `[2]`), or `nil` if not ready |
+| `nnwm.cursor.set_pos(x, y)` | Move the pointer; runs the normal motion pipeline      |
+| `nnwm.cursor.warp(x, y)`    | Alias for `set_pos` (matches `wlr_cursor_warp` naming) |
+| `nnwm.cursor.hide()`        | Hide the pointer image; auto-restores on real motion   |
+| `nnwm.cursor.show()`        | Restore the default xcursor                            |
+| `nnwm.cursor.visible()`     | `true` if the pointer image is shown                   |
+
+Example — center the cursor when a fullscreen window maps:
+
+```lua
+nnwm.on("window_open", function()
+    local w = nnwm.current_window()
+    if w and w.fullscreen then
+        local out = nnwm.current_output()
+        nnwm.cursor.warp(out.x + out.width / 2, out.y + out.height / 2)
+    end
+end)
+```
+
 ### Logging
 
 `nnwm.log.info / warn / error` write timestamped, level-tagged lines to a

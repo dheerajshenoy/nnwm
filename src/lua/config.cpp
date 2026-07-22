@@ -419,6 +419,90 @@ l_nnwm_version(lua_State *L)
     return 1;
 }
 
+/* ---- nnwm.cursor ---- */
+
+/* Warp the pointer to layout-absolute coordinates (x, y). wlr_cursor_warp
+ * takes the coords in layout space, then the compositor's own motion
+ * pipeline runs (focus follows, hover, seat notify). */
+static int
+l_nnwm_cursor_set_pos(lua_State *L)
+{
+    double x = luaL_checknumber(L, 1);
+    double y = luaL_checknumber(L, 2);
+    nnwm_server *server = get_server(L);
+    if (!server || !server->cursor) return 0;
+    wlr_cursor_warp(server->cursor, nullptr, x, y);
+    /* Trigger the normal motion pipeline so hover/focus stay consistent
+     * with the new position. Uses the current monotonic time in msec. */
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    uint32_t t = (uint32_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    process_cursor_motion(server, t, true);
+    return 0;
+}
+
+/* Return {x, y} as layout-absolute doubles. */
+static int
+l_nnwm_cursor_pos(lua_State *L)
+{
+    nnwm_server *server = get_server(L);
+    if (!server || !server->cursor) {
+        lua_pushnil(L);
+        return 1;
+    }
+    lua_newtable(L);
+    lua_pushnumber(L, server->cursor->x);
+    lua_setfield(L, -2, "x");
+    lua_pushnumber(L, server->cursor->y);
+    lua_setfield(L, -2, "y");
+    /* Also index as [1]/[2] so callers can do `local x, y = table.unpack(...)`. */
+    lua_pushnumber(L, server->cursor->x);
+    lua_rawseti(L, -2, 1);
+    lua_pushnumber(L, server->cursor->y);
+    lua_rawseti(L, -2, 2);
+    return 1;
+}
+
+/* Alias for set_pos — kept because "warp" is the conventional name in
+ * X/Wayland tooling and matches wlr_cursor_warp. */
+static int
+l_nnwm_cursor_warp(lua_State *L) { return l_nnwm_cursor_set_pos(L); }
+
+static int
+l_nnwm_cursor_hide(lua_State *L)
+{
+    nnwm_server *server = get_server(L);
+    if (!server || !server->cursor) return 0;
+    wlr_cursor_unset_image(server->cursor);
+    /* Reuse the existing "cursor hidden by typing" flag as a general
+     * "hidden by compositor" state. process_cursor_motion clears it and
+     * restores the default xcursor on real pointer motion, so hover
+     * behavior remains sane. */
+    server->cursor_hidden_by_typing = true;
+    return 0;
+}
+
+static int
+l_nnwm_cursor_show(lua_State *L)
+{
+    nnwm_server *server = get_server(L);
+    if (!server || !server->cursor) return 0;
+    if (!server->cursor_hidden_by_typing) return 0;
+    server->cursor_hidden_by_typing = false;
+    if (!server->cursor_zoom_active)
+        wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+    return 0;
+}
+
+static int
+l_nnwm_cursor_visible(lua_State *L)
+{
+    nnwm_server *server = get_server(L);
+    lua_pushboolean(L,
+        server && server->cursor && !server->cursor_hidden_by_typing);
+    return 1;
+}
+
 /* ---- nnwm.log ---- */
 
 /* Resolve the log file path. Prefers $NNWM_LOG_FILE, then
@@ -1662,6 +1746,23 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_pushcfunction(L, l_nnwm_bar_update);
     lua_setfield(L, -2, "update");
     lua_pop(L, 1); /* pop nnwm.bar */
+
+    /* nnwm.cursor = { set_pos, pos, warp, hide, show, visible } */
+    lua_getfield(L, -1, "cursor");
+    if (!lua_istable(L, -1))
+    {
+        lua_pop(L, 1);
+        lua_newtable(L);
+        lua_pushvalue(L, -1);
+        lua_setfield(L, -3, "cursor");
+    }
+    lua_pushcfunction(L, l_nnwm_cursor_set_pos); lua_setfield(L, -2, "set_pos");
+    lua_pushcfunction(L, l_nnwm_cursor_pos);     lua_setfield(L, -2, "pos");
+    lua_pushcfunction(L, l_nnwm_cursor_warp);    lua_setfield(L, -2, "warp");
+    lua_pushcfunction(L, l_nnwm_cursor_hide);    lua_setfield(L, -2, "hide");
+    lua_pushcfunction(L, l_nnwm_cursor_show);    lua_setfield(L, -2, "show");
+    lua_pushcfunction(L, l_nnwm_cursor_visible); lua_setfield(L, -2, "visible");
+    lua_pop(L, 1); /* pop nnwm.cursor */
 
     /* nnwm.log = { info, warn, error, path } — file-based logger.
      * Path defaults to $XDG_STATE_HOME/nnwm/nnwm.log (or

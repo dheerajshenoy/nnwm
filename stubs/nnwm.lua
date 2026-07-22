@@ -739,6 +739,45 @@ function nnwm.layout.set(name) end
 --- ```
 function nnwm.layout.toggle_float() end
 
+-- ── nnwm.cursor ─────────────────────────────────────────────────────────────
+
+nnwm.cursor = {}
+
+--- Move the pointer to layout-absolute coordinates. Triggers the usual
+--- motion pipeline (hover, focus-follows-mouse, seat pointer notify) so
+--- the state stays consistent with the new position.
+---@param x number  Layout X in pixels.
+---@param y number  Layout Y in pixels.
+function nnwm.cursor.set_pos(x, y) end
+
+--- Alias for `nnwm.cursor.set_pos`. Matches wlroots naming (`wlr_cursor_warp`)
+--- and is more familiar to users coming from X11 tooling.
+---@param x number
+---@param y number
+function nnwm.cursor.warp(x, y) end
+
+--- Return the current pointer position as a table with both named and
+--- indexed fields: `{ x = <x>, y = <y>, [1] = <x>, [2] = <y> }`.
+--- The indexed form lets you write `local x, y = table.unpack(nnwm.cursor.pos())`.
+---
+--- Returns `nil` if the cursor isn't initialized yet (compositor still
+--- starting up).
+---@return {x: number, y: number, [1]: number, [2]: number}?
+function nnwm.cursor.pos() end
+
+--- Hide the pointer image. Any subsequent real pointer motion (mouse,
+--- touchpad) automatically restores the default cursor — this matches
+--- how `mouse.hide_cursor_when_typing` behaves.
+function nnwm.cursor.hide() end
+
+--- Show the pointer image (restore the default xcursor). No-op if the
+--- pointer is already visible.
+function nnwm.cursor.show() end
+
+--- Return `true` if the pointer image is currently shown.
+---@return boolean
+function nnwm.cursor.visible() end
+
 -- ── nnwm.version / nnwm.log ─────────────────────────────────────────────────
 
 --- Return the compositor version string set at build time

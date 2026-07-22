@@ -82,6 +82,13 @@
   events over the bar are consumed by the compositor so windows below
   never see them.
 
+- **Cursor API**: `nnwm.cursor.pos()`, `set_pos(x, y)`, `warp(x, y)`,
+  `hide()`, `show()`, `visible()`. Coordinates are layout-absolute.
+  `set_pos`/`warp` re-run the compositor's motion pipeline so hover and
+  focus-follows-mouse stay consistent. Hidden cursor auto-restores on
+  the next real pointer motion (same behavior as
+  `mouse.hide_cursor_when_typing`).
+
 - **Version + logging API**:
   - `nnwm.version()` returns the compositor version string (baked in from
     CMake's `project(nnwm VERSION ...)`).
