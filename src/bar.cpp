@@ -531,14 +531,23 @@ static void bar_layout(nnwm_bar *bar) {
     if (bar->content)
         wlr_scene_buffer_set_corner_radius(bar->content, r);
     if (bar->fx_shadow) {
-        wlr_scene_shadow_set_size(bar->fx_shadow, bar->width, bar->height);
+        /* scenefx's shadow shader treats the shadow rect as the outer
+         * bounding box: the "solid" shape inside is (size - 2*sigma) and
+         * the Gaussian falls off between that inner shape and the outer
+         * rect. So to get a drop shadow that matches the bar and blooms
+         * outward, we expand by 2*sigma on each dimension and shift the
+         * node by -sigma so the inner shape aligns with the bar. */
+        int sigma = (int)cfg->bar.fx.shadow_blur_sigma;
+        int sw = bar->width  + 2 * sigma;
+        int sh = bar->height + 2 * sigma;
+        wlr_scene_shadow_set_size(bar->fx_shadow, sw, sh);
         wlr_scene_shadow_set_corner_radius(bar->fx_shadow, r);
         wlr_scene_shadow_set_blur_sigma(bar->fx_shadow,
                                         cfg->bar.fx.shadow_blur_sigma);
         wlr_scene_shadow_set_color(bar->fx_shadow, cfg->bar.fx.shadow_color);
         wlr_scene_node_set_position(&bar->fx_shadow->node,
-                                    (int)cfg->bar.fx.shadow_offset_x,
-                                    (int)cfg->bar.fx.shadow_offset_y);
+                                    -sigma + (int)cfg->bar.fx.shadow_offset_x,
+                                    -sigma + (int)cfg->bar.fx.shadow_offset_y);
     }
     if (bar->fx_blur) {
         wlr_scene_blur_set_size(bar->fx_blur, bar->width, bar->height);
