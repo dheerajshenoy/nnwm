@@ -184,6 +184,18 @@
 - [x] XDG activation — apps requesting focus (xdg-activation-v1) currently probably steal focus unconditionally or silently fail; proper handling lets you choose to honour or ignore the request
 - [x] Named scratchpads — a single global scratchpad is limiting; per-name scratchpads (each with their own toggle) are a common pattern
 - [x] Discord XWayland crash
+- Panel/Bar
+    - [x] Workspaces
+    - [x] Occupied state for workspace module
+    - [x] Custom modules
+    - [x] Window title module
+    - [x] Clock
+    - [x] Padding to get floating panel
+    - [x] Color per module
+    - [x] Custom interval per module
+    - [x] signal module to update modules on demand
+    - [x] Slow layout module update when switching layout
+- [x] Switching layout bug
 
 ## TODO
 
@@ -232,17 +244,6 @@
 - [ ] tile drag window, add sway like center and directional blocks on the dropping window
 
 - Panel/Bar
-    - [x] Workspaces
-    - [x] Occupied state for workspace module
-    - [x] Custom modules
-    - [x] Window title module
-    - [x] Clock
-    - [x] Padding to get floating panel
-    - [x] Color per module
-    - [x] Custom interval per module
-    - [x] signal module to update modules on demand
     - [ ] Custom font per modules
     - [ ] Clickable modules
     - [ ] Hover signal for modules
-    - [ ] Slow layout module update when switching layout
-- [ ] Switching layout bug
