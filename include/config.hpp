@@ -111,6 +111,16 @@ struct nnwm_bar_module
     int lua_click_ref;    /* on_click = fn(button:string, lx:int, ly:int) */
     int lua_hover_ref;    /* on_hover = fn(entered:bool) */
 
+    /* Per-module font overrides. Any field left null/0 inherits from the
+     * bar-level font. If `font` is set, it fully replaces the bar font
+     * description (parsed via pango_font_description_from_string); the
+     * three atomic fields (style/weight/size) are then applied on top of
+     * whichever base was chosen. */
+    char *font;    /* full Pango font description, e.g. "Berkeley Mono Bold 12" */
+    char *style;   /* "normal" | "italic" | "oblique" */
+    char *weight;  /* "normal" | "bold" | "light" | numeric string 100-1000 */
+    int   size;    /* point size; <=0 = inherit */
+
     /* Runtime cache — not part of config semantics, updated during render. */
     char *cached_text;    /* last text; owned */
     double cached_ts;     /* CLOCK: last strftime time; CUSTOM: last poll time */

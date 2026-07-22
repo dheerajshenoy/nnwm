@@ -368,9 +368,19 @@ static void bar_redraw(nnwm_bar *bar) {
         PangoLayout *layout; /* null for WORKSPACES */
         bool is_ws;
     };
+    /* Helper: which font description a module should use. */
+    auto module_font = [&](int i) -> PangoFontDescription * {
+        if (i < bar->module_font_descs_count
+            && bar->module_font_descs[i])
+            return reinterpret_cast<PangoFontDescription *>(
+                bar->module_font_descs[i]);
+        return fd;
+    };
+
     seg *segs = static_cast<seg *>(calloc(cfg->bar.module_count, sizeof(seg)));
     for (int i = 0; i < cfg->bar.module_count; i++) {
         nnwm_bar_module &m = cfg->bar.modules[i];
+        PangoFontDescription *mfd = module_font(i);
         segs[i].m = &m;
         if (m.type == nnwm_bar_module_type::WORKSPACES) {
             segs[i].is_ws = true;
@@ -388,7 +398,7 @@ static void bar_redraw(nnwm_bar *bar) {
                 char buf[16];
                 if (!label) { snprintf(buf, sizeof(buf), "%d", j + 1); label = buf; }
                 PangoLayout *L = pango_cairo_create_layout(cr);
-                pango_layout_set_font_description(L, fd);
+                pango_layout_set_font_description(L, mfd);
                 pango_layout_set_text(L, label, -1);
                 int tw, th; pango_layout_get_pixel_size(L, &tw, &th);
                 g_object_unref(L);
@@ -399,7 +409,7 @@ static void bar_redraw(nnwm_bar *bar) {
             const char *text = m.cached_text;
             if (!text || !text[0]) { segs[i].w = 0; continue; }
             segs[i].layout = pango_cairo_create_layout(cr);
-            pango_layout_set_font_description(segs[i].layout, fd);
+            pango_layout_set_font_description(segs[i].layout, mfd);
             pango_layout_set_text(segs[i].layout, text, -1);
             pango_layout_get_pixel_size(segs[i].layout,
                                         &segs[i].text_w, &segs[i].text_h);
@@ -453,7 +463,7 @@ static void bar_redraw(nnwm_bar *bar) {
         int drawn = 0;
 
         if (s.is_ws) {
-            drawn = draw_workspaces_module(cr, fd, bar, *s.m,
+            drawn = draw_workspaces_module(cr, module_font(i), bar, *s.m,
                                            x, bar->height,
                                            occ_bits, active_ws);
         } else if (s.m->type == nnwm_bar_module_type::WINDOW_TITLE
@@ -657,6 +667,70 @@ static nnwm_bar *bar_create(nnwm_server *server, nnwm_output *out) {
     for (int i = 0; i < cfg->bar.module_count; i++)
         bar->module_type_mask |= 1u << (unsigned)cfg->bar.modules[i].type;
 
+    /* Build per-module font-description overrides. Entry stays null when
+     * a module doesn't set any font field. */
+    if (cfg->bar.module_count > 0) {
+        bar->module_font_descs = static_cast<struct _PangoFontDescription **>(
+            calloc(cfg->bar.module_count,
+                   sizeof(struct _PangoFontDescription *)));
+        bar->module_font_descs_count = cfg->bar.module_count;
+        PangoFontDescription *base =
+            reinterpret_cast<PangoFontDescription *>(bar->font_desc);
+        for (int i = 0; i < cfg->bar.module_count; i++) {
+            nnwm_bar_module &m = cfg->bar.modules[i];
+            bool overrides = m.font || m.style || m.weight || m.size > 0;
+            if (!overrides) continue;
+
+            /* Start from either the module's own font (if provided) or a
+             * clone of the bar's cached font. Then apply the atomic
+             * overrides on top. */
+            PangoFontDescription *fd;
+            if (m.font && m.font[0]) {
+                fd = pango_font_description_from_string(m.font);
+                const char *fam = pango_font_description_get_family(fd);
+                if (!fam || !fam[0]) {
+                    /* User gave e.g. "Bold 12" without a family — inherit
+                     * the family from the bar font. */
+                    pango_font_description_set_family(fd,
+                        pango_font_description_get_family(base));
+                }
+            } else {
+                fd = pango_font_description_copy(base);
+            }
+            if (m.style && m.style[0]) {
+                PangoStyle s = PANGO_STYLE_NORMAL;
+                if (!strcmp(m.style, "italic"))  s = PANGO_STYLE_ITALIC;
+                else if (!strcmp(m.style, "oblique")) s = PANGO_STYLE_OBLIQUE;
+                pango_font_description_set_style(fd, s);
+            }
+            if (m.weight && m.weight[0]) {
+                PangoWeight w = PANGO_WEIGHT_NORMAL;
+                if      (!strcmp(m.weight, "thin"))       w = PANGO_WEIGHT_THIN;
+                else if (!strcmp(m.weight, "ultralight")) w = PANGO_WEIGHT_ULTRALIGHT;
+                else if (!strcmp(m.weight, "light"))      w = PANGO_WEIGHT_LIGHT;
+                else if (!strcmp(m.weight, "normal"))     w = PANGO_WEIGHT_NORMAL;
+                else if (!strcmp(m.weight, "medium"))     w = PANGO_WEIGHT_MEDIUM;
+                else if (!strcmp(m.weight, "semibold"))   w = PANGO_WEIGHT_SEMIBOLD;
+                else if (!strcmp(m.weight, "bold"))       w = PANGO_WEIGHT_BOLD;
+                else if (!strcmp(m.weight, "ultrabold"))  w = PANGO_WEIGHT_ULTRABOLD;
+                else if (!strcmp(m.weight, "heavy"))      w = PANGO_WEIGHT_HEAVY;
+                else {
+                    /* Try numeric */
+                    char *end = nullptr;
+                    long v = strtol(m.weight, &end, 10);
+                    if (end != m.weight && v > 0)
+                        w = (PangoWeight)v;
+                }
+                pango_font_description_set_weight(fd, w);
+            }
+            if (m.size > 0) {
+                pango_font_description_set_size(fd, m.size * PANGO_SCALE);
+            }
+            bar->module_font_descs[i] =
+                reinterpret_cast<struct _PangoFontDescription *>(fd);
+        }
+    }
+
     /* Place in the TOP layer tree so it renders above tiled/floating windows
      * but below OVERLAY (which hosts DnD icons and unmanaged xwayland). */
     bar->tree = wlr_scene_tree_create(
@@ -702,6 +776,12 @@ static void bar_destroy(nnwm_bar *bar) {
     if (bar->font_desc)
         pango_font_description_free(
             reinterpret_cast<PangoFontDescription *>(bar->font_desc));
+    for (int i = 0; i < bar->module_font_descs_count; i++) {
+        if (bar->module_font_descs[i])
+            pango_font_description_free(
+                reinterpret_cast<PangoFontDescription *>(bar->module_font_descs[i]));
+    }
+    free(bar->module_font_descs);
     delete bar;
 }
 

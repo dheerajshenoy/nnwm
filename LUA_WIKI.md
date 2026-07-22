@@ -618,6 +618,10 @@ signature invalidated and re-rendered.
 | `padding`   | integer           | all            | Horizontal padding in pixels; <0 = inherit bar default |
 | `fg`        | color             | all            | Text color; alpha<0 = inherit bar foreground |
 | `bg`        | color             | all            | Segment background; alpha=0 = transparent |
+| `font`      | string            | all            | Full Pango font description overriding the bar's font (e.g. `"Berkeley Mono Bold 12"`). Family is inherited from the bar if omitted. |
+| `style`     | string            | all            | `"normal"`, `"italic"`, or `"oblique"`. Layered on top of `font`/bar font. |
+| `weight`    | string            | all            | `"thin"`, `"ultralight"`, `"light"`, `"normal"`, `"medium"`, `"semibold"`, `"bold"`, `"ultrabold"`, `"heavy"`, or a numeric string 100–1000. |
+| `size`      | integer           | all            | Font size in points; 0 = inherit. |
 | `colors`    | table             | all            | Per-module color palette (see below). Overrides bar-level colors. |
 | `on_click`  | function          | all            | `fn(button:string, x:int, y:int)` — called when the module is clicked. Consumes the click (windows below never see it). |
 | `on_hover`  | function          | all            | `fn(entered:bool)` — called when the cursor enters (`true`) or leaves (`false`) the module's rect. |
@@ -653,6 +657,32 @@ nnwm.bar.module("loadavg", {
         unoccupied_fg = "#555555",
     },
 }
+```
+
+Per-module font styling combines four fields — use whichever subset you need,
+all optional. `font` replaces the bar font wholesale; `style`, `weight` and
+`size` are applied on top of whichever base was chosen (inherited bar font
+if `font` isn't set, otherwise the module's `font`):
+
+```lua
+nnwm.bar.module("title", {
+    type = "window_title",
+    style = "italic",         -- italicize just this one module
+})
+
+nnwm.bar.module("datetime", {
+    type = "clock",
+    font = "Berkeley Mono Bold 13",  -- different family + weight + size
+    format = "%H:%M",
+})
+
+nnwm.bar.module("loadavg", {
+    type = "custom",
+    interval = 5000,
+    update = function() return get_loadavg() end,
+    weight = "bold",          -- bold on the same family/size as the bar
+    size = 10,                -- slightly smaller than the bar font
+})
 ```
 
 ---

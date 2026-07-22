@@ -107,6 +107,10 @@ MOD = {}
 ---@field interval? integer  For `custom`: poll interval in milliseconds (default: 1000). Ignored by other types.
 ---@field update?   fun():string  For `custom`: function called every `interval` ms; must return a string to display.
 ---@field padding?  integer  Horizontal padding inside this module in pixels; <0 = inherit bar default.
+---@field font?     string   Full Pango font description overriding the bar's font, e.g. `"Berkeley Mono Bold 12"`. If the family is omitted the bar's family is kept.
+---@field style?    "normal"|"italic"|"oblique"  Font style override (applied on top of `font` or the bar font).
+---@field weight?   "thin"|"ultralight"|"light"|"normal"|"medium"|"semibold"|"bold"|"ultrabold"|"heavy"|string  Font weight override; also accepts a numeric string ("100"–"1000").
+---@field size?     integer  Font size in points overriding the bar font size; 0 = inherit.
 ---@field fg?       nnwm.color  Shorthand for `colors.fg` (module foreground).
 ---@field bg?       nnwm.color  Shorthand for `colors.bg` (module background).
 ---@field colors?   nnwm.bar.module.colors  Full per-module color palette; overrides bar-level colors.

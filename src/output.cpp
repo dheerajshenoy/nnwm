@@ -510,9 +510,14 @@ server_apply_config(nnwm_server *server)
     nnwm_toplevel *tl;
     wl_list_for_each(tl, &server->toplevels, link)
     {
-        float *color = (tl->xdg_toplevel->base->surface == focused_surface)
+        /* tl_wlr_surface() works for both xdg and xwayland toplevels;
+         * `tl->xdg_toplevel` is null for xwayland and dereferencing it
+         * would crash hot-reload as soon as any xwayland window is open. */
+        wlr_surface *tls = tl_wlr_surface(tl);
+        float *color = (tls && tls == focused_surface)
                            ? server->config->border.focused_color
                            : server->config->border.unfocused_color;
+        if (!tl->border[0]) continue; /* not yet mapped */
         for (int i = 0; i < 4; i++)
             wlr_scene_rect_set_color(tl->border[i], color);
     }

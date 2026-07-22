@@ -2705,6 +2705,9 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
             free(cfg->bar.modules[i].name);
             free(cfg->bar.modules[i].format);
             free(cfg->bar.modules[i].cached_text);
+            free(cfg->bar.modules[i].font);
+            free(cfg->bar.modules[i].style);
+            free(cfg->bar.modules[i].weight);
             if (cfg->bar.modules[i].lua_update_ref >= 0)
                 luaL_unref(L, LUA_REGISTRYINDEX,
                            cfg->bar.modules[i].lua_update_ref);
@@ -2755,6 +2758,10 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                         m.lua_click_ref  = -1;
                         m.lua_hover_ref  = -1;
                         m.interval_ms = 1000;
+                        m.font = nullptr;
+                        m.style = nullptr;
+                        m.weight = nullptr;
+                        m.size = 0;
 
                         /* If the entry is a string that isn't a built-in name,
                          * look it up in nnwm.bar._registered[name] and treat
@@ -2841,6 +2848,14 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                             m.padding = get_int_field(L, "padding", -1);
                             m.interval_ms
                                 = get_int_field(L, "interval", 1000);
+
+                            /* Font overrides. Any subset can be provided;
+                             * unset fields inherit from cfg->bar.font.
+                             * `font` is a full Pango description string. */
+                            m.font   = get_string_field(L, "font", nullptr);
+                            m.style  = get_string_field(L, "style", nullptr);
+                            m.weight = get_string_field(L, "weight", nullptr);
+                            m.size   = get_int_field(L, "size", 0);
                             /* Colors: module-level `colors = { fg, bg,
                              * active_bg, active_fg, occupied_fg,
                              * unoccupied_fg }`. All optional; anything
@@ -3684,6 +3699,9 @@ nnwm::config_free(struct nnwm_config *cfg)
         free(cfg->bar.modules[i].name);
         free(cfg->bar.modules[i].format);
         free(cfg->bar.modules[i].cached_text);
+        free(cfg->bar.modules[i].font);
+        free(cfg->bar.modules[i].style);
+        free(cfg->bar.modules[i].weight);
         /* Lua registry ref is released when the Lua state is closed. */
     }
     free(cfg->bar.modules);

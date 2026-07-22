@@ -456,6 +456,12 @@ struct nnwm_bar
      * we don't need explicit invalidation). Owned. */
     struct _PangoFontDescription *font_desc;
 
+    /* Per-module font override cache. Entry is null when the module
+     * doesn't override any font field (renderer falls back to font_desc).
+     * Length matches cfg->bar.module_count at bar_create time. */
+    struct _PangoFontDescription **module_font_descs;
+    int module_font_descs_count;
+
     /* Bitmask (1 << nnwm_bar_module_type) of the module types this bar
      * actually hosts. Computed once at bar_create, consulted by the
      * bar_notify_* fast-paths to skip work the bar doesn't care about. */

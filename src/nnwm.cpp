@@ -899,12 +899,15 @@ apply_fx_decorations(nnwm_toplevel *toplevel)
     float eff_opacity = (toplevel->rule_opacity >= 0.0f)
                             ? toplevel->rule_opacity
                             : cfg->fx.opacity;
-    /* Apply focused / unfocused override if set */
+    /* Apply focused / unfocused override if set. Compare via the
+     * toplevel's own root surface — works for both xdg and xwayland
+     * toplevels (xdg_toplevel is null for xwayland windows, so the
+     * previous xdg-only check misidentified every xwayland window as
+     * focused whenever another xwayland window held focus). */
     wlr_surface *focused_surface
         = toplevel->server->seat->keyboard_state.focused_surface;
-    bool focused = focused_surface
-                   && wlr_xdg_toplevel_try_from_wlr_surface(focused_surface)
-                       == toplevel->xdg_toplevel;
+    wlr_surface *tls = tl_wlr_surface(toplevel);
+    bool focused = focused_surface && tls && focused_surface == tls;
     if (focused && cfg->fx.focused_opacity >= 0.0f)
         eff_opacity = cfg->fx.focused_opacity;
     else if (!focused && cfg->fx.unfocused_opacity >= 0.0f)

@@ -82,6 +82,19 @@
   events over the bar are consumed by the compositor so windows below
   never see them.
 
+- **Per-module font styling**: every bar module accepts `font`, `style`,
+  `weight`, `size` overrides.
+  - `font` replaces the bar's Pango font description wholesale (family
+    inherited if not specified).
+  - `style` = `"normal"|"italic"|"oblique"`.
+  - `weight` = a named value (`"thin"`…`"heavy"`) or numeric string
+    (`"100"`–`"1000"`).
+  - `size` = point size (0 = inherit).
+  All four are optional and compose: e.g. just `style = "italic"` on the
+  window_title module italicizes it without touching family/weight/size.
+  Per-module font descriptions are built once per bar and reused (no
+  per-frame parse cost).
+
 - **Bar background opacity**: `nnwm.opt.bar.opacity` (0.0–1.0, default 1.0)
   multiplies into the alpha of the bar's background rect and drop shadow.
   Text stays fully opaque so labels remain crisp against a translucent
@@ -132,6 +145,17 @@
     `process_cursor_resize` writes the new size to `cur_x/y/w/h` so
     subsequent stale requests are held to the compositor's authoritative
     size.
+
+- **Hot-reload crashed with any xwayland window open**:
+  `server_apply_config` dereferenced `tl->xdg_toplevel->base->surface` for
+  every toplevel while re-applying focus colors, but `xdg_toplevel` is
+  null for xwayland toplevels. Now compares via `tl_wlr_surface(tl)` which
+  works for both. Also fixed a related silent bug in
+  `apply_fx_decorations`: the focused-window check used
+  `wlr_xdg_toplevel_try_from_wlr_surface(...) == tl->xdg_toplevel`, which
+  evaluated `null == null == true` for every xwayland toplevel whenever
+  any xwayland window had focus, so `fx.focused_opacity` was applied to
+  all of them at once.
 
 - **Windows disappeared after a VT switch**: after switching back from a VT,
   toplevels whose `tl->output` pointed to an output that got destroyed
