@@ -322,15 +322,19 @@ nnwm.opt = {
         font     = "monospace 11",
         padding  = 8,                    -- edge padding
         module_spacing = 8,              -- gap between modules
-        background = "#141620F0",
-        foreground = "#D9D9D9",
-        active_workspace_bg  = "#4C7FBF",
-        active_workspace_fg  = "#FFFFFF",
-        occupied_workspace_fg = "#A6B2D9",
+        colors = {
+            background            = "#141620F0",
+            foreground            = "#D9D9D9",
+            active_workspace_bg   = "#4C7FBF",
+            active_workspace_fg   = "#FFFFFF",
+            occupied_workspace_fg = "#A6B2D9",
+        },
         modules = {
+            -- Each entry is either a built-in name (string), a name of a
+            -- module registered via nnwm.bar.module(), or an inline table.
             left   = { "workspaces", "layout" },
             center = { "window_title" },
-            right  = { "clock" },
+            right  = { "loadavg", "clock" },
         },
     },
 
@@ -370,6 +374,81 @@ Colors accept `{r, g, b, a}` float tables or hex strings: `"RRGGBB"`,
 | `smart_gaps`         | bool    | `false` | Collapse gaps when only one window is visible |
 | `smart_borders`      | bool    | `false` | Collapse borders when only one window is visible |
 | `workspace_layouts`  | string[] | `{}`   | Default layout per workspace. Array of layout name strings; length need not match workspace count. Unspecified workspaces use `"htile"`. |
+
+---
+
+## Status Bar Modules
+
+### Built-in module names
+
+| Name           | Description                                                     |
+|----------------|-----------------------------------------------------------------|
+| `workspaces`   | Workspace pills; highlights active, dims unoccupied             |
+| `window_title` | Title of the focused window on the bar's target output          |
+| `clock`        | strftime-formatted time; `format` field defaults to `"%H:%M"`   |
+| `layout`       | One-letter layout indicator: H / V / T / SH / SV / F            |
+| `custom`       | Lua-provided text (requires `update` function)                  |
+
+Use built-ins either as bare strings (`"clock"`) or as tables when you need to
+override fields (`{ type = "clock", format = "%a %H:%M" }`).
+
+### `nnwm.bar.module(name, def)`
+
+Register a named module. Once registered, its `name` can be used as a string in
+`nnwm.opt.bar.modules.{left,center,right}` in place of an inline table. This is
+the recommended way to keep the module list readable when using several custom
+widgets. Registrations survive config reloads.
+
+```lua
+nnwm.bar.module("loadavg", {
+    type = "custom",
+    interval = 5000,
+    update = function()
+        local f = io.popen("cat /proc/loadavg | cut -d' ' -f1")
+        local s = f:read("*l"); f:close()
+        return "load " .. (s or "?")
+    end,
+})
+
+nnwm.bar.module("battery", {
+    type = "custom",
+    interval = 30000,
+    update = function()
+        local f = io.open("/sys/class/power_supply/BAT0/capacity", "r")
+        if not f then return "" end
+        local pct = f:read("*l"); f:close()
+        return " " .. pct .. "%"
+    end,
+    fg = "#A6B2D9",
+})
+
+nnwm.opt.bar = {
+    enabled = true,
+    modules = {
+        left   = { "workspaces" },
+        center = { "window_title" },
+        right  = { "loadavg", "battery", "clock" },
+    },
+}
+```
+
+Resolution order for a string entry in `modules`:
+1. Built-in module names (above table).
+2. Names registered via `nnwm.bar.module()`.
+
+If neither matches, the entry is skipped and an error is logged.
+
+### Module definition fields
+
+| Field       | Type              | Applies to     | Description |
+|-------------|-------------------|----------------|-------------|
+| `type`      | string            | all            | `"workspaces"`, `"window_title"`, `"clock"`, `"layout"`, `"custom"` |
+| `format`    | string            | clock          | strftime format (default `"%H:%M"`) |
+| `update`    | fun():string      | custom         | Called every `interval` ms; must return a string |
+| `interval`  | integer           | custom         | Poll interval in milliseconds (default 1000) |
+| `padding`   | integer           | all            | Horizontal padding in pixels; <0 = inherit bar default |
+| `fg`        | color             | all            | Text color; alpha<0 = inherit bar foreground |
+| `bg`        | color             | all            | Segment background; alpha=0 = transparent |
 
 ---
 

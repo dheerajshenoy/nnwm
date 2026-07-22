@@ -238,6 +238,29 @@ server_session_active(wl_listener *listener, void * /*data*/)
      * The DRM backend may have applied a new mode or transform while the
      * session was inactive, so we must re-query the layout box. */
     nnwm_output *out;
+
+    /* Re-adopt orphaned toplevels onto the first live output. Toplevels
+     * migrated in output_destroy may still point to an output that itself
+     * was destroyed before a live replacement existed. */
+    if (!wl_list_empty(&server->outputs)) {
+        nnwm_output *first = wl_container_of(server->outputs.next, first, link);
+        nnwm_toplevel *tl;
+        wl_list_for_each(tl, &server->toplevels, link) {
+            bool alive = false;
+            if (tl->output) {
+                nnwm_output *o;
+                wl_list_for_each(o, &server->outputs, link)
+                    if (o == tl->output) { alive = true; break; }
+            }
+            if (!alive) {
+                tl->output = first;
+                if (tl->workspace < 0
+                    || tl->workspace >= NNWM_NUM_WORKSPACES)
+                    tl->workspace = first->active_workspace;
+            }
+        }
+    }
+
     wl_list_for_each(out, &server->outputs, link)
         arrange_layers(server, out->wlr_output);
     /* Re-upload the cursor image to the DRM cursor plane, which is lost
@@ -692,6 +715,33 @@ server_new_output(wl_listener *listener, void *data)
     /* Give this new output a bar if per_output mode is configured, or refresh
      * the global bar so it can pick this output as target. */
     bar_apply_config(server);
+
+    /* Adopt any orphaned toplevels (their previous output was destroyed on
+     * VT-away and never re-hosted). Without this, all windows stay invisible
+     * after switching back from a VT. */
+    {
+        nnwm_toplevel *tl;
+        bool have_orphans = false;
+        wl_list_for_each(tl, &server->toplevels, link)
+        {
+            bool alive = false;
+            if (tl->output) {
+                nnwm_output *o;
+                wl_list_for_each(o, &server->outputs, link)
+                    if (o == tl->output) { alive = true; break; }
+            }
+            if (!alive) {
+                tl->output = output;
+                if (tl->workspace < 0
+                    || tl->workspace >= NNWM_NUM_WORKSPACES)
+                    tl->workspace = output->active_workspace;
+                have_orphans = true;
+            }
+        }
+        if (have_orphans)
+            arrange_windows(server, output);
+    }
+
     fire_hook_output(server, "output_connect", output);
 }
 

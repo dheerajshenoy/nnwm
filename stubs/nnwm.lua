@@ -99,9 +99,21 @@ MOD = {}
 ---@field bg?       nnwm.color  Module background color; alpha=0 = transparent.
 
 ---@class nnwm.bar.modules
+--- Ordered module lists. Each entry is either:
+---   * a string — matched first against built-in module names
+---     (`"workspaces"`, `"window_title"`, `"clock"`, `"layout"`), then
+---     against modules registered with `nnwm.bar.module(name, def)`.
+---   * an inline `nnwm.bar.module` table definition.
 ---@field left?   (string|nnwm.bar.module)[]  Left-aligned modules.
 ---@field center? (string|nnwm.bar.module)[]  Center-aligned modules.
 ---@field right?  (string|nnwm.bar.module)[]  Right-aligned modules.
+
+---@class nnwm.bar.colors
+---@field background?            nnwm.color  Bar background color (default: {0.08, 0.09, 0.12, 0.95}).
+---@field foreground?            nnwm.color  Default text color (default: {0.85, 0.85, 0.85, 1.0}).
+---@field active_workspace_bg?   nnwm.color  Background of the active workspace pill (default: {0.30, 0.50, 0.80, 1.0}).
+---@field active_workspace_fg?   nnwm.color  Foreground of the active workspace label (default: {1.0, 1.0, 1.0, 1.0}).
+---@field occupied_workspace_fg? nnwm.color  Foreground of non-active but occupied workspace labels (default: {0.65, 0.70, 0.85, 1.0}).
 
 ---@class nnwm.bar
 --- Compositor-drawn status bar. Ships built-in modules and supports Lua custom text widgets.
@@ -115,20 +127,16 @@ MOD = {}
 ---   * `"layout"`       — one-letter layout indicator (H/V/T/SH/SV/F)
 ---   * `"custom"`       — Lua-provided string (requires `update` callback)
 ---
----@field enabled?              boolean          Enable the compositor status bar (default: false).
----@field position?             "top"|"bottom"   Bar position on each output (default: "top").
----@field height?               integer          Bar height in pixels (default: 28).
----@field per_output?           boolean          When true, one bar per monitor. When false, a single bar attached to `output` (or the focused output). Default: true.
----@field output?               string           When `per_output = false`, name of the output to attach the bar to (e.g. `"HDMI-A-1"`). Nil = focused output.
----@field font?                 string           Pango font description, e.g. `"monospace 11"` (default: "monospace 11").
----@field padding?              integer          Horizontal padding at the bar's outer edges in pixels (default: 8).
----@field module_spacing?       integer          Space between adjacent modules in pixels (default: 8).
----@field background?           nnwm.color       Bar background color (default: {0.08, 0.09, 0.12, 0.95}).
----@field foreground?           nnwm.color       Default text color (default: {0.85, 0.85, 0.85, 1.0}).
----@field active_workspace_bg?  nnwm.color       Background of the active workspace pill (default: {0.30, 0.50, 0.80, 1.0}).
----@field active_workspace_fg?  nnwm.color       Foreground of the active workspace label (default: {1.0, 1.0, 1.0, 1.0}).
----@field occupied_workspace_fg? nnwm.color      Foreground of non-active but occupied workspace labels (default: {0.65, 0.70, 0.85, 1.0}).
----@field modules?              nnwm.bar.modules  Ordered modules by alignment.
+---@field enabled?         boolean            Enable the compositor status bar (default: false).
+---@field position?        "top"|"bottom"     Bar position on each output (default: "top").
+---@field height?          integer            Bar height in pixels (default: 28).
+---@field per_output?      boolean            When true, one bar per monitor. When false, a single bar attached to `output` (or the focused output). Default: true.
+---@field output?          string             When `per_output = false`, name of the output to attach the bar to (e.g. `"HDMI-A-1"`). Nil = focused output.
+---@field font?            string             Pango font description, e.g. `"monospace 11"` (default: "monospace 11").
+---@field padding?         integer            Horizontal padding at the bar's outer edges in pixels (default: 8).
+---@field module_spacing?  integer            Space between adjacent modules in pixels (default: 8).
+---@field colors?          nnwm.bar.colors    Color palette for the bar and its built-in modules.
+---@field modules?         nnwm.bar.modules   Ordered modules by alignment.
 
 ---@class nnwm.fx.shadow
 ---@field enabled?    boolean     Enable drop shadows (default: false)
@@ -264,6 +272,31 @@ MOD = {}
 ---@field struts    { top?: integer, bottom?: integer, left?: integer, right?: integer }?  Reserved pixels on each edge, applied after layer-shell exclusive zones
 nnwm = {}
 nnwm.opt = {} ---@type nnwm_opts
+nnwm.bar = {}
+
+--- Register a named bar module. The `name` can then be used as a string in
+--- `nnwm.opt.bar.modules.{left,center,right}` in place of an inline table.
+--- Registered modules survive config reloads.
+---
+--- ```lua
+--- nnwm.bar.module("loadavg", {
+---     type = "custom",
+---     interval = 5000,
+---     update = function()
+---         local f = io.popen("cat /proc/loadavg | cut -d' ' -f1")
+---         local s = f:read("*l"); f:close()
+---         return "load " .. (s or "?")
+---     end,
+--- })
+---
+--- nnwm.opt.bar = {
+---     enabled = true,
+---     modules = { right = { "loadavg", "clock" } },
+--- }
+--- ```
+---@param name string   Module name (used to reference from modules lists).
+---@param def  nnwm.bar.module  Module definition.
+function nnwm.bar.module(name, def) end
 
 ---Register a keybinding. `combo` is an array of modifier and key name strings;
 ---`callback` is called when the combo is pressed. The optional `description`

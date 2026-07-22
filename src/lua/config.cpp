@@ -1423,6 +1423,38 @@ l_nnwm_monitor(lua_State *L)
     return 0;
 }
 
+/* nnwm.bar.module(name, def) — register a named module. Later, using the
+ * name as a string in nnwm.opt.bar.modules[...] expands to this definition. */
+static int
+l_nnwm_bar_module(lua_State *L)
+{
+    if (!lua_isstring(L, 1) || !lua_istable(L, 2))
+        return luaL_error(L,
+            "nnwm.bar.module(name, def) expects (string, table)");
+
+    /* nnwm.bar._registered[name] = def */
+    lua_getglobal(L, "nnwm");
+    lua_getfield(L, -1, "bar");
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        lua_newtable(L);
+        lua_pushvalue(L, -1);
+        lua_setfield(L, -3, "bar");
+    }
+    lua_getfield(L, -1, "_registered");
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        lua_newtable(L);
+        lua_pushvalue(L, -1);
+        lua_setfield(L, -3, "_registered");
+    }
+    lua_pushvalue(L, 1); /* name */
+    lua_pushvalue(L, 2); /* def */
+    lua_settable(L, -3); /* _registered[name] = def */
+    lua_pop(L, 3);       /* _registered, bar, nnwm */
+    return 0;
+}
+
 static const struct luaL_Reg nnwm_funcs[] = {
     {"key", l_nnwm_key},
     {"gesture", l_nnwm_gesture},
@@ -1487,6 +1519,21 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         lua_pushvalue(L, -1);
         lua_setglobal(L, "nnwm");
     }
+
+    /* get or create nnwm.bar namespace (holds .module registrar; distinct
+     * from nnwm.opt.bar which is the config table). Preserved across
+     * reloads so user-registered modules survive. */
+    lua_getfield(L, -1, "bar");
+    if (!lua_istable(L, -1))
+    {
+        lua_pop(L, 1);
+        lua_newtable(L);
+        lua_pushvalue(L, -1);
+        lua_setfield(L, -3, "bar");
+    }
+    lua_pushcfunction(L, l_nnwm_bar_module);
+    lua_setfield(L, -2, "module");
+    lua_pop(L, 1); /* pop nnwm.bar */
 
     /* get or create nnwm.opt */
     lua_getfield(L, -1, "opt");
@@ -2281,21 +2328,27 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         cfg->bar.module_spacing
             = get_int_field(L, "module_spacing", cfg->bar.module_spacing);
 
-        float dbg[4] = {cfg->bar.bg_color[0], cfg->bar.bg_color[1],
-                        cfg->bar.bg_color[2], cfg->bar.bg_color[3]};
-        get_color_field(L, "background", cfg->bar.bg_color, dbg);
-        float dfg[4] = {cfg->bar.fg_color[0], cfg->bar.fg_color[1],
-                        cfg->bar.fg_color[2], cfg->bar.fg_color[3]};
-        get_color_field(L, "foreground", cfg->bar.fg_color, dfg);
-        float dawb[4] = {cfg->bar.active_ws_bg[0], cfg->bar.active_ws_bg[1],
-                         cfg->bar.active_ws_bg[2], cfg->bar.active_ws_bg[3]};
-        get_color_field(L, "active_workspace_bg", cfg->bar.active_ws_bg, dawb);
-        float dawf[4] = {cfg->bar.active_ws_fg[0], cfg->bar.active_ws_fg[1],
-                         cfg->bar.active_ws_fg[2], cfg->bar.active_ws_fg[3]};
-        get_color_field(L, "active_workspace_fg", cfg->bar.active_ws_fg, dawf);
-        float dowf[4] = {cfg->bar.occupied_ws_fg[0], cfg->bar.occupied_ws_fg[1],
-                         cfg->bar.occupied_ws_fg[2], cfg->bar.occupied_ws_fg[3]};
-        get_color_field(L, "occupied_workspace_fg", cfg->bar.occupied_ws_fg, dowf);
+        /* Colors live under nnwm.opt.bar.colors = { ... } */
+        lua_getfield(L, -1, "colors");
+        if (lua_istable(L, -1))
+        {
+            float dbg[4] = {cfg->bar.bg_color[0], cfg->bar.bg_color[1],
+                            cfg->bar.bg_color[2], cfg->bar.bg_color[3]};
+            get_color_field(L, "background", cfg->bar.bg_color, dbg);
+            float dfg[4] = {cfg->bar.fg_color[0], cfg->bar.fg_color[1],
+                            cfg->bar.fg_color[2], cfg->bar.fg_color[3]};
+            get_color_field(L, "foreground", cfg->bar.fg_color, dfg);
+            float dawb[4] = {cfg->bar.active_ws_bg[0], cfg->bar.active_ws_bg[1],
+                             cfg->bar.active_ws_bg[2], cfg->bar.active_ws_bg[3]};
+            get_color_field(L, "active_workspace_bg", cfg->bar.active_ws_bg, dawb);
+            float dawf[4] = {cfg->bar.active_ws_fg[0], cfg->bar.active_ws_fg[1],
+                             cfg->bar.active_ws_fg[2], cfg->bar.active_ws_fg[3]};
+            get_color_field(L, "active_workspace_fg", cfg->bar.active_ws_fg, dawf);
+            float dowf[4] = {cfg->bar.occupied_ws_fg[0], cfg->bar.occupied_ws_fg[1],
+                             cfg->bar.occupied_ws_fg[2], cfg->bar.occupied_ws_fg[3]};
+            get_color_field(L, "occupied_workspace_fg", cfg->bar.occupied_ws_fg, dowf);
+        }
+        lua_pop(L, 1); /* pop 'colors' */
 
         /* Modules: { left = {...}, center = {...}, right = {...} } */
         /* Free any modules from a previous parse. */
@@ -2345,8 +2398,42 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                         m.lua_update_ref = -1;
                         m.interval_ms = 1000;
 
+                        /* If the entry is a string that isn't a built-in name,
+                         * look it up in nnwm.bar._registered[name] and treat
+                         * the stored value as the module definition table. */
+                        bool needs_pop_registered = false;
                         if (lua_isstring(L, -1)) {
-                            /* Simple form: "workspaces", "clock", ... */
+                            const char *name = lua_tostring(L, -1);
+                            bool is_builtin =
+                                !strcmp(name, "workspaces") ||
+                                !strcmp(name, "window_title") ||
+                                !strcmp(name, "clock") ||
+                                !strcmp(name, "layout");
+                            if (!is_builtin) {
+                                lua_getglobal(L, "nnwm");
+                                lua_getfield(L, -1, "bar");
+                                lua_getfield(L, -1, "_registered");
+                                lua_getfield(L, -1, name);
+                                if (lua_istable(L, -1)) {
+                                    /* Replace the string entry with the
+                                     * registered table so the shared
+                                     * table-parsing path below sees it. */
+                                    lua_replace(L, -5); /* into the module slot */
+                                    lua_pop(L, 3);      /* _registered, bar, nnwm */
+                                    needs_pop_registered = false;
+                                } else {
+                                    lua_pop(L, 4); /* def(nil), _registered, bar, nnwm */
+                                    wlr_log(WLR_ERROR,
+                                        "bar: unknown module '%s' (not built-in and not registered via nnwm.bar.module)",
+                                        name);
+                                    lua_pop(L, 1); continue;
+                                }
+                            }
+                        }
+                        (void)needs_pop_registered;
+
+                        if (lua_isstring(L, -1)) {
+                            /* Built-in shorthand: "workspaces", "clock", ... */
                             const char *name = lua_tostring(L, -1);
                             if (!strcmp(name, "workspaces"))
                                 m.type = nnwm_bar_module_type::WORKSPACES;
@@ -2356,11 +2443,6 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                 m.type = nnwm_bar_module_type::CLOCK;
                             else if (!strcmp(name, "layout"))
                                 m.type = nnwm_bar_module_type::LAYOUT;
-                            else {
-                                wlr_log(WLR_ERROR,
-                                    "bar: unknown module '%s'", name);
-                                lua_pop(L, 1); continue;
-                            }
                         } else if (lua_istable(L, -1)) {
                             char *type = get_string_field(L, "type", nullptr);
                             if (!type) {
