@@ -30,6 +30,7 @@ MOD = {}
 ---@field scroll_column_width? number             Fraction of output width per column in hscroll layout: 0.0–1.0 (default: 0.5)
 ---@field scroll_row_height?   number             Fraction of output height per row in vscroll layout: 0.0–1.0 (default: 0.5)
 ---@field tabbed?              nnwm.layout.tabbed
+---@field enabled_layouts?     ("htile"|"vtile"|"tabbed"|"hscroll"|"vscroll"|"float")[]  Order (and subset) of layouts that `nnwm.layout.next()`/`.prev()` cycles through. Unknown names are skipped with a warning. `nnwm.set_layout(name)` still works for any layout regardless. Nil/empty = all six in enum order.
 
 ---@class nnwm.gaps
 ---@field inner?  integer  Gap in pixels between adjacent windows (default: 0)
@@ -149,6 +150,21 @@ MOD = {}
 ---@field module_spacing?  integer            Space between adjacent modules in pixels (default: 8).
 ---@field colors?          nnwm.bar.colors    Color palette for the bar and its built-in modules.
 ---@field modules?         nnwm.bar.modules   Ordered modules by alignment.
+---@field fx?              nnwm.bar.fx        scenefx effects (rounded corners, shadow, blur). Requires USE_SCENEFX build.
+
+---@class nnwm.bar.fx.shadow
+---@field enabled?     boolean     Enable drop shadow behind the bar (default: false).
+---@field blur_sigma?  number      Gaussian blur sigma controlling shadow softness (default: 10.0).
+---@field offset_x?    number      Horizontal shadow offset in pixels (default: 0).
+---@field offset_y?    number      Vertical shadow offset in pixels (default: 4).
+---@field color?       nnwm.color  Shadow color (default: {0, 0, 0, 0.5}).
+
+---@class nnwm.bar.fx
+---scenefx effects applied to the bar. All fields optional; anything omitted defaults to off.
+---Requires `USE_SCENEFX=ON` at build time; ignored silently otherwise.
+---@field corner_radius? integer            Bar corner radius in pixels (default: 0 = square corners).
+---@field blur?          boolean            Enable backdrop blur behind the bar (default: false). Combines with a semi-transparent `background` to produce a frosted-glass look.
+---@field shadow?        nnwm.bar.fx.shadow Drop shadow options.
 
 ---@class nnwm.fx.shadow
 ---@field enabled?    boolean     Enable drop shadows (default: false)
@@ -681,7 +697,11 @@ function nnwm.layout.hscroll.toggle() end
 function nnwm.layout.vscroll.toggle() end
 
 --- Advance to the next layout for the active workspace, wrapping around.
---- Order: htile → vtile → tabbed → hscroll → vscroll → htile → …
+--- Walks `nnwm.opt.layout.enabled_layouts` in order; if that field is
+--- unset, cycles through all six layouts in enum order
+--- (htile → vtile → tabbed → hscroll → vscroll → float → htile → …).
+--- If the current layout isn't in the configured cycle, jumps to the first
+--- entry.
 ---
 --- ```lua
 --- nnwm.key({"Super", "bracketright"}, function() nnwm.layout.next() end)
@@ -689,9 +709,28 @@ function nnwm.layout.vscroll.toggle() end
 function nnwm.layout.next() end
 
 --- Go back to the previous layout for the active workspace, wrapping around.
---- Order: htile → vscroll → hscroll → tabbed → vtile → htile → … (reversed)
+--- Reverses `nnwm.opt.layout.enabled_layouts` order (or the full enum when
+--- unset). If the current layout isn't in the configured cycle, jumps to
+--- the last entry.
 ---
 --- ```lua
 --- nnwm.key({"Super", "bracketleft"}, function() nnwm.layout.prev() end)
 --- ```
 function nnwm.layout.prev() end
+
+--- Set the active workspace's layout by name. Works for any of the six
+--- built-in layouts regardless of what's in `enabled_layouts`.
+--- Valid names: `"htile"`, `"vtile"`, `"tabbed"`, `"hscroll"`, `"vscroll"`, `"float"`.
+---
+--- ```lua
+--- nnwm.key({"Super", "t"}, function() nnwm.layout.set("tabbed") end)
+--- ```
+---@param name "htile"|"vtile"|"tabbed"|"hscroll"|"vscroll"|"float"
+function nnwm.layout.set(name) end
+
+--- Toggle between the `float` layout and `htile` on the active workspace.
+---
+--- ```lua
+--- nnwm.key({"Super", "f"}, function() nnwm.layout.toggle_float() end)
+--- ```
+function nnwm.layout.toggle_float() end

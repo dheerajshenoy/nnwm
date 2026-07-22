@@ -131,6 +131,19 @@ struct nnwm_bar_config
 
     nnwm_bar_module *modules;
     int module_count;
+
+    /* scenefx effects for the bar. Only take effect when built with
+     * USE_SCENEFX=ON. Everything defaults to off/0 so behavior is
+     * unchanged unless the user opts in. */
+    struct {
+        int corner_radius;        /* pixels; 0 = square corners */
+        bool shadow_enabled;
+        float shadow_blur_sigma;
+        float shadow_offset_x;
+        float shadow_offset_y;
+        float shadow_color[4];
+        bool blur_enabled;        /* backdrop blur behind the bar */
+    } fx;
 };
 
 struct nnwm_window_rule
@@ -202,6 +215,13 @@ struct nnwm_config
         nnwm_tab_position tab_position; /* tabbed layout: tab bar placement */
         int tab_bar_height;             /* tabbed layout: bar thickness in pixels */
         bool tab_smart;                 /* tabbed layout: hide tab bar when only one window */
+
+        /* Layouts included in the layout::next/prev cycle, in order. Values
+         * are nnwm_layout_mode ints (cast to int for storage). NULL/0 = use
+         * the built-in default (all six layouts in enum order). set_layout()
+         * ignores this and can jump to any layout regardless. */
+        int *enabled_layouts;
+        int enabled_layouts_count;
     } layout;
 
     /* Gaps */

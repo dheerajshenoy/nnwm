@@ -1623,8 +1623,12 @@ nnwm::layout::set_layout(nnwm_server *server, nnwm_layout_mode mode)
     bar_notify_workspace_change(server, out);
 }
 
-void
-nnwm::layout::next(nnwm_server *server)
+/* Advance through the layout cycle by `dir` (+1 = next, -1 = prev). Honors
+ * cfg->layout.enabled_layouts if set; otherwise falls back to walking every
+ * value in the enum in declaration order. If the current layout isn't in
+ * the configured cycle, jumps to the first entry (dir>=0) or last (dir<0). */
+static void
+cycle_layout(nnwm_server *server, int dir)
 {
     if (server->scratchpad_visible)
     {
@@ -1636,37 +1640,48 @@ nnwm::layout::next(nnwm_server *server)
         return;
     }
     nnwm_output *out = server->focused_output;
-    if (!out)
-        return;
-    int ws               = out->active_workspace;
-    out->layout_mode[ws] = static_cast<nnwm_layout_mode>(
-        ((int)(out->layout_mode[ws]) + 1) % (int)(nnwm_layout_mode::COUNT));
+    if (!out) return;
+    int ws = out->active_workspace;
+    int cur = (int)out->layout_mode[ws];
+
+    nnwm_config *cfg = server->config;
+    int *list = cfg->layout.enabled_layouts;
+    int n     = cfg->layout.enabled_layouts_count;
+
+    /* Build a temporary "all enum values" list when no user-configured
+     * cycle exists. Small and stack-allocated. */
+    int fallback[(int)nnwm_layout_mode::COUNT];
+    if (!list || n <= 0) {
+        for (int i = 0; i < (int)nnwm_layout_mode::COUNT; i++)
+            fallback[i] = i;
+        list = fallback;
+        n = (int)nnwm_layout_mode::COUNT;
+    }
+
+    /* Find the current layout in the list. */
+    int idx = -1;
+    for (int i = 0; i < n; i++)
+        if (list[i] == cur) { idx = i; break; }
+
+    int next;
+    if (idx < 0) {
+        /* Current layout isn't in the cycle — jump to an edge. */
+        next = list[dir >= 0 ? 0 : n - 1];
+    } else {
+        int step = dir >= 0 ? 1 : -1;
+        next = list[((idx + step) % n + n) % n];
+    }
+
+    out->layout_mode[ws] = static_cast<nnwm_layout_mode>(next);
     arrange_windows(server, out);
     bar_notify_workspace_change(server, out);
 }
 
 void
-nnwm::layout::prev(nnwm_server *server)
-{
-    if (server->scratchpad_visible)
-    {
-        server->scratchpad_layout
-            = (server->scratchpad_layout == nnwm_layout_mode::HTILE)
-                  ? nnwm_layout_mode::VTILE
-                  : nnwm_layout_mode::HTILE;
-        arrange_scratchpad(server);
-        return;
-    }
-    nnwm_output *out = server->focused_output;
-    if (!out)
-        return;
-    int ws               = out->active_workspace;
-    out->layout_mode[ws] = static_cast<nnwm_layout_mode>(
-        ((int)(out->layout_mode[ws]) + int(nnwm_layout_mode::COUNT) - 1)
-        % (int)(nnwm_layout_mode::COUNT));
-    arrange_windows(server, out);
-    bar_notify_workspace_change(server, out);
-}
+nnwm::layout::next(nnwm_server *server) { cycle_layout(server, +1); }
+
+void
+nnwm::layout::prev(nnwm_server *server) { cycle_layout(server, -1); }
 
 void
 nnwm::workspace::move_to(nnwm_server *server, int ws)

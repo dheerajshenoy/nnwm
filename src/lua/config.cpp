@@ -2081,6 +2081,45 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 = get_bool_field(L, "smart", cfg->layout.tab_smart);
         }
         lua_pop(L, 1);
+
+        /* enabled_layouts: cycle order for nnwm.layout.next/prev. Accepts
+         * an array of layout-name strings. Unrecognized entries are
+         * skipped with a warning. Empty/missing = fall back to all six. */
+        lua_getfield(L, -1, "enabled_layouts");
+        if (lua_istable(L, -1))
+        {
+            free(cfg->layout.enabled_layouts);
+            cfg->layout.enabled_layouts = nullptr;
+            cfg->layout.enabled_layouts_count = 0;
+
+            int n = (int)lua_rawlen(L, -1);
+            if (n > 0) {
+                cfg->layout.enabled_layouts = static_cast<int *>(
+                    calloc(n, sizeof(int)));
+                int k = 0;
+                for (int i = 1; i <= n; i++) {
+                    lua_rawgeti(L, -1, i);
+                    if (lua_isstring(L, -1)) {
+                        const char *s = lua_tostring(L, -1);
+                        nnwm_layout_mode m = parse_layout_mode(
+                            s, nnwm_layout_mode::COUNT);
+                        if (m == nnwm_layout_mode::COUNT) {
+                            wlr_log(WLR_ERROR,
+                                "layout.enabled_layouts: unknown layout '%s'", s);
+                        } else {
+                            cfg->layout.enabled_layouts[k++] = (int)m;
+                        }
+                    }
+                    lua_pop(L, 1);
+                }
+                cfg->layout.enabled_layouts_count = k;
+                if (k == 0) {
+                    free(cfg->layout.enabled_layouts);
+                    cfg->layout.enabled_layouts = nullptr;
+                }
+            }
+        }
+        lua_pop(L, 1);
     }
     lua_pop(L, 1);
 
@@ -2594,6 +2633,36 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
             }
         }
         lua_pop(L, 1); /* pop 'modules' */
+
+        /* ---- scenefx effects: nnwm.opt.bar.fx = { ... } ---- */
+        lua_getfield(L, -1, "fx");
+        if (lua_istable(L, -1))
+        {
+            cfg->bar.fx.corner_radius = get_int_field(
+                L, "corner_radius", cfg->bar.fx.corner_radius);
+            cfg->bar.fx.blur_enabled = get_bool_field(
+                L, "blur", cfg->bar.fx.blur_enabled);
+
+            lua_getfield(L, -1, "shadow");
+            if (lua_istable(L, -1))
+            {
+                cfg->bar.fx.shadow_enabled = get_bool_field(
+                    L, "enabled", cfg->bar.fx.shadow_enabled);
+                cfg->bar.fx.shadow_blur_sigma = get_float_field(
+                    L, "blur_sigma", cfg->bar.fx.shadow_blur_sigma);
+                cfg->bar.fx.shadow_offset_x = get_float_field(
+                    L, "offset_x", cfg->bar.fx.shadow_offset_x);
+                cfg->bar.fx.shadow_offset_y = get_float_field(
+                    L, "offset_y", cfg->bar.fx.shadow_offset_y);
+                float dsc[4] = {cfg->bar.fx.shadow_color[0],
+                                cfg->bar.fx.shadow_color[1],
+                                cfg->bar.fx.shadow_color[2],
+                                cfg->bar.fx.shadow_color[3]};
+                get_color_field(L, "color", cfg->bar.fx.shadow_color, dsc);
+            }
+            lua_pop(L, 1); /* pop 'shadow' */
+        }
+        lua_pop(L, 1); /* pop 'fx' */
     }
     lua_pop(L, 1); /* pop 'bar' */
 
@@ -3233,6 +3302,8 @@ nnwm::config_defaults(void)
     cfg->layout.tab_position          = nnwm_tab_position::TOP;
     cfg->layout.tab_bar_height        = 24;
     cfg->layout.tab_smart             = false;
+    cfg->layout.enabled_layouts       = nullptr;
+    cfg->layout.enabled_layouts_count = 0;
 
 #ifdef HAVE_SCENEFX
     cfg->fx.animation.enabled            = true;
@@ -3288,6 +3359,17 @@ nnwm::config_defaults(void)
     cfg->bar.modules      = nullptr;
     cfg->bar.module_count = 0;
 
+    cfg->bar.fx.corner_radius     = 0;
+    cfg->bar.fx.shadow_enabled    = false;
+    cfg->bar.fx.shadow_blur_sigma = 10.0f;
+    cfg->bar.fx.shadow_offset_x   = 0.0f;
+    cfg->bar.fx.shadow_offset_y   = 4.0f;
+    cfg->bar.fx.shadow_color[0]   = 0.0f;
+    cfg->bar.fx.shadow_color[1]   = 0.0f;
+    cfg->bar.fx.shadow_color[2]   = 0.0f;
+    cfg->bar.fx.shadow_color[3]   = 0.5f;
+    cfg->bar.fx.blur_enabled      = false;
+
     return cfg;
 }
 
@@ -3317,6 +3399,7 @@ nnwm::config_free(struct nnwm_config *cfg)
     for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
         free(cfg->workspace_names[i]);
     free(cfg->find_cursor_style);
+    free(cfg->layout.enabled_layouts);
 
     free(cfg->bar.font);
     free(cfg->bar.output_name);

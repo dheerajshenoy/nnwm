@@ -124,7 +124,12 @@ nnwm.key({"Super", "Shift", "F2"}, function() nnwm.move_to_scratchpad("music") e
 | `nnwm.layout.toggle_float()`  | Toggle between float layout and htile                        |
 | `nnwm.layout.tabbed.toggle()` | Toggle tabbed mode for the active workspace                  |
 
-Available layouts (in cycle order): `"htile"` → `"vtile"` → `"tabbed"` → `"hscroll"` → `"vscroll"` → `"float"` → *(wraps)*
+Available layouts: `"htile"`, `"vtile"`, `"tabbed"`, `"hscroll"`, `"vscroll"`, `"float"`.
+
+The `next` / `prev` cycle order is customizable via
+[`nnwm.opt.layout.enabled_layouts`](#layout-fields-top-level); by default all
+six are cycled in the order listed above. `nnwm.layout.set(name)` can jump
+to any layout regardless of what's in the cycle.
 
 ### Utility
 
@@ -340,6 +345,19 @@ nnwm.opt = {
             center = { "window_title" },
             right  = { "loadavg", "clock" },
         },
+
+        -- scenefx effects (requires USE_SCENEFX build). All optional.
+        fx = {
+            corner_radius = 12,
+            blur = true,         -- backdrop blur (combine with translucent bg)
+            shadow = {
+                enabled    = true,
+                blur_sigma = 18,
+                offset_x   = 0,
+                offset_y   = 4,
+                color      = "#00000088",
+            },
+        },
     },
 
     client_decorations = false,          -- request client-side decorations
@@ -378,6 +396,15 @@ Colors accept `{r, g, b, a}` float tables or hex strings: `"RRGGBB"`,
 | `smart_gaps`         | bool    | `false` | Collapse gaps when only one window is visible |
 | `smart_borders`      | bool    | `false` | Collapse borders when only one window is visible |
 | `workspace_layouts`  | string[] | `{}`   | Default layout per workspace. Array of layout name strings; length need not match workspace count. Unspecified workspaces use `"htile"`. |
+| `enabled_layouts`    | string[] | all six | Cycle order for `nnwm.layout.next()` / `.prev()`. Restrict to the layouts you actually use. `nnwm.set_layout(name)` still works for any layout even if it's not in this list. Nil/empty = full built-in cycle (`htile → vtile → tabbed → hscroll → vscroll → float`). |
+
+Example: bind `Super+Space` to toggle between just tiled and tabbed:
+
+```lua
+nnwm.opt.layout = {
+    enabled_layouts = { "htile", "tabbed" },
+}
+```
 
 ---
 

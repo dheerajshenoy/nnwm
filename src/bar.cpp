@@ -524,6 +524,27 @@ static void bar_layout(nnwm_bar *bar) {
     if (bar->content)
         wlr_scene_node_set_position(&bar->content->node, 0, 0);
     wlr_scene_rect_set_color(bar->bg_rect, cfg->bar.bg_color);
+
+#ifdef HAVE_SCENEFX
+    int r = cfg->bar.fx.corner_radius;
+    wlr_scene_rect_set_corner_radius(bar->bg_rect, r);
+    if (bar->content)
+        wlr_scene_buffer_set_corner_radius(bar->content, r);
+    if (bar->fx_shadow) {
+        wlr_scene_shadow_set_size(bar->fx_shadow, bar->width, bar->height);
+        wlr_scene_shadow_set_corner_radius(bar->fx_shadow, r);
+        wlr_scene_shadow_set_blur_sigma(bar->fx_shadow,
+                                        cfg->bar.fx.shadow_blur_sigma);
+        wlr_scene_shadow_set_color(bar->fx_shadow, cfg->bar.fx.shadow_color);
+        wlr_scene_node_set_position(&bar->fx_shadow->node,
+                                    (int)cfg->bar.fx.shadow_offset_x,
+                                    (int)cfg->bar.fx.shadow_offset_y);
+    }
+    if (bar->fx_blur) {
+        wlr_scene_blur_set_size(bar->fx_blur, bar->width, bar->height);
+        wlr_scene_blur_set_corner_radius(bar->fx_blur, r);
+    }
+#endif
 }
 
 /* Compute the tick cadence for time-based modules. Returns 0 if none exist,
@@ -567,6 +588,21 @@ static nnwm_bar *bar_create(nnwm_server *server, nnwm_output *out) {
      * but below OVERLAY (which hosts DnD icons and unmanaged xwayland). */
     bar->tree = wlr_scene_tree_create(
         server->scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP]);
+
+#ifdef HAVE_SCENEFX
+    /* Order in the tree (back-to-front): shadow, blur, bg_rect, content.
+     * scene children render in insertion order, so create them in that
+     * sequence. */
+    if (cfg->bar.fx.shadow_enabled) {
+        bar->fx_shadow = wlr_scene_shadow_create(
+            bar->tree, 1, 1, cfg->bar.fx.corner_radius,
+            cfg->bar.fx.shadow_blur_sigma, cfg->bar.fx.shadow_color);
+    }
+    if (cfg->bar.fx.blur_enabled) {
+        bar->fx_blur = wlr_scene_blur_create(bar->tree, 1, 1);
+    }
+#endif
+
     bar->bg_rect = wlr_scene_rect_create(bar->tree, 1, 1, cfg->bar.bg_color);
     bar->content = wlr_scene_buffer_create(bar->tree, nullptr);
 

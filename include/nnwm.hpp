@@ -436,6 +436,10 @@ struct nnwm_bar
     struct wlr_scene_tree *tree;        /* parent for background + content */
     struct wlr_scene_rect *bg_rect;
     struct wlr_scene_buffer *content;   /* cairo-drawn text pixels */
+#ifdef HAVE_SCENEFX
+    struct wlr_scene_shadow *fx_shadow; /* drop shadow behind the bar */
+    struct wlr_scene_blur   *fx_blur;   /* backdrop blur behind the bar */
+#endif
     struct wl_event_source *tick_timer; /* periodic redraw for clock/custom */
     int width, height;                  /* current logical size */
     int x, y;                           /* current position in layout coords */
