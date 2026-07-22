@@ -416,6 +416,29 @@ tl_set_geometry(nnwm_toplevel *tl, int x, int y, int w, int h, int bw)
     tl->geo_to_h = h;
     tl->geo_bw   = bw;
 
+#ifdef HAVE_XWAYLAND
+    /* Xwayland clients aren't reached by tl_xdg_set_size in the arrange
+     * loops, and the animation path below only interpolates position/borders.
+     * Send the target inner geometry to the client once so its buffer arrives
+     * at the target size by the time the layout animation ends. */
+    if (tl->is_xwayland && tl->xwayland_surface && changed)
+    {
+        bool tabbed3 = !tl->floating && tl->output
+            && tl->output->layout_mode[tl->workspace] == nnwm_layout_mode::TABBED;
+        bool no_tb3 = tabbed3 || tl->fullscreen || tl->fake_fullscreen;
+        int eff_th = (no_tb3 || cfg->titlebar.height <= 0) ? 0 : cfg->titlebar.height;
+        int cx = x + bw;
+        int cy = y + bw + eff_th;
+        int cw = w - 2 * bw;
+        int ch = h - 2 * bw - eff_th;
+        if (cw < 1) cw = 1;
+        if (ch < 1) ch = 1;
+        nnwm_xw_configure(tl->xwayland_surface,
+                          (int16_t)cx, (int16_t)cy,
+                          (uint16_t)cw, (uint16_t)ch);
+    }
+#endif
+
     if (do_anim && changed)
     {
         if (first)

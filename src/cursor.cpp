@@ -310,6 +310,12 @@ process_cursor_resize(nnwm_server *server)
                           (int16_t)(new_top + bw + th),
                           (uint16_t)(new_width > 2*bw ? new_width - 2*bw : 1),
                           (uint16_t)(new_height > 2*bw+th ? new_height - 2*bw - th : 1));
+        /* Track compositor-authoritative geometry so subsequent stale
+         * request_configure events from the client don't undo the resize. */
+        toplevel->cur_x = new_left;
+        toplevel->cur_y = new_top;
+        toplevel->cur_w = new_width;
+        toplevel->cur_h = new_height;
     }
     else
 #endif

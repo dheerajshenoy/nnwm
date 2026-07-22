@@ -329,6 +329,15 @@ xwayland_request_configure(wl_listener *listener, void *data)
 {
     nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, commit);
     struct wlr_xwayland_surface *xw = toplevel->xwayland_surface;
+    nnwm_server *server = toplevel->server;
+
+    /* While the compositor is actively moving/resizing this window, ignore
+     * client-initiated configure requests — otherwise the client's stale
+     * geometry undoes the interactive resize on every frame. */
+    if (server->grabbed_toplevel == toplevel
+        && (server->cursor_mode == nnwm_cursor_mode::RESIZE
+            || server->cursor_mode == nnwm_cursor_mode::MOVE))
+        return;
 
     int16_t ex = nnwm_xw_configure_ev_x(data);
     int16_t ey = nnwm_xw_configure_ev_y(data);
@@ -337,9 +346,29 @@ xwayland_request_configure(wl_listener *listener, void *data)
 
     if (toplevel->floating || !toplevel->scene_tree)
     {
-        nnwm_xw_configure(xw, ex, ey, ew, eh);
+        /* If the compositor has an authoritative size (from an interactive
+         * resize or programmatic placement), hold it against stale client
+         * requests. Only accept the client's size before we've tracked one. */
+        int bw = server->config->border.width;
+        int th = server->config->titlebar.height;
+        uint16_t use_w = ew, use_h = eh;
+        int16_t use_x = ex, use_y = ey;
+        if (toplevel->cur_w > 0 && toplevel->cur_h > 0)
+        {
+            use_w = (uint16_t)(toplevel->cur_w > 2*bw ? toplevel->cur_w - 2*bw : 1);
+            use_h = (uint16_t)(toplevel->cur_h > 2*bw+th ? toplevel->cur_h - 2*bw - th : 1);
+            use_x = (int16_t)(toplevel->cur_x + bw);
+            use_y = (int16_t)(toplevel->cur_y + bw + th);
+        }
+        nnwm_xw_configure(xw, use_x, use_y, use_w, use_h);
         if (toplevel->scene_tree)
-            wlr_scene_node_set_position(&toplevel->scene_tree->node, ex, ey);
+        {
+            if (toplevel->cur_w > 0 && toplevel->cur_h > 0)
+                wlr_scene_node_set_position(&toplevel->scene_tree->node,
+                                            toplevel->cur_x, toplevel->cur_y);
+            else
+                wlr_scene_node_set_position(&toplevel->scene_tree->node, ex, ey);
+        }
     }
     else
     {
