@@ -159,6 +159,7 @@ xdg_toplevel_map(wl_listener *listener, void * /*data*/)
         arrange_windows(server, out);
     }
     ftl_map(toplevel);
+    bar_notify_windows_changed(server);
     fire_hook_window(server, "window_open", toplevel);
 }
 
@@ -169,6 +170,7 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
 
     nnwm_server *server = toplevel->server;
     fire_hook_window(server, "window_close", toplevel);
+    bar_notify_windows_changed(server);
     ftl_unmap(toplevel);
 
     /* Start close animation before removing from active list */
@@ -634,6 +636,7 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
         {
             rerender_tab_bar(server, tl->output);
         }
+        bar_notify_focus_change(server);
         ftl_set_title(tl);
     };
     wl_signal_add(&xdg_toplevel->events.set_title, &toplevel->set_title);

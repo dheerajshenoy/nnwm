@@ -2261,6 +2261,165 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     }
     lua_pop(L, 1);
 
+    /* ---- Status bar ---- */
+    lua_getfield(L, -1, "bar");
+    if (lua_istable(L, -1))
+    {
+        cfg->bar.enabled = get_bool_field(L, "enabled", cfg->bar.enabled);
+        cfg->bar.height = get_int_field(L, "height", cfg->bar.height);
+        char *pos = get_string_field(L, "position", "top");
+        cfg->bar.position_top = (pos && strcmp(pos, "bottom") != 0);
+        free(pos);
+        cfg->bar.per_output = get_bool_field(L, "per_output", cfg->bar.per_output);
+        char *outn = get_string_field(L, "output", nullptr);
+        free(cfg->bar.output_name);
+        cfg->bar.output_name = outn;
+        char *font = get_string_field(L, "font", cfg->bar.font);
+        free(cfg->bar.font);
+        cfg->bar.font = font;
+        cfg->bar.padding = get_int_field(L, "padding", cfg->bar.padding);
+        cfg->bar.module_spacing
+            = get_int_field(L, "module_spacing", cfg->bar.module_spacing);
+
+        float dbg[4] = {cfg->bar.bg_color[0], cfg->bar.bg_color[1],
+                        cfg->bar.bg_color[2], cfg->bar.bg_color[3]};
+        get_color_field(L, "background", cfg->bar.bg_color, dbg);
+        float dfg[4] = {cfg->bar.fg_color[0], cfg->bar.fg_color[1],
+                        cfg->bar.fg_color[2], cfg->bar.fg_color[3]};
+        get_color_field(L, "foreground", cfg->bar.fg_color, dfg);
+        float dawb[4] = {cfg->bar.active_ws_bg[0], cfg->bar.active_ws_bg[1],
+                         cfg->bar.active_ws_bg[2], cfg->bar.active_ws_bg[3]};
+        get_color_field(L, "active_workspace_bg", cfg->bar.active_ws_bg, dawb);
+        float dawf[4] = {cfg->bar.active_ws_fg[0], cfg->bar.active_ws_fg[1],
+                         cfg->bar.active_ws_fg[2], cfg->bar.active_ws_fg[3]};
+        get_color_field(L, "active_workspace_fg", cfg->bar.active_ws_fg, dawf);
+        float dowf[4] = {cfg->bar.occupied_ws_fg[0], cfg->bar.occupied_ws_fg[1],
+                         cfg->bar.occupied_ws_fg[2], cfg->bar.occupied_ws_fg[3]};
+        get_color_field(L, "occupied_workspace_fg", cfg->bar.occupied_ws_fg, dowf);
+
+        /* Modules: { left = {...}, center = {...}, right = {...} } */
+        /* Free any modules from a previous parse. */
+        for (int i = 0; i < cfg->bar.module_count; i++) {
+            free(cfg->bar.modules[i].format);
+            free(cfg->bar.modules[i].cached_text);
+            if (cfg->bar.modules[i].lua_update_ref >= 0)
+                luaL_unref(L, LUA_REGISTRYINDEX,
+                           cfg->bar.modules[i].lua_update_ref);
+        }
+        free(cfg->bar.modules);
+        cfg->bar.modules = nullptr;
+        cfg->bar.module_count = 0;
+
+        lua_getfield(L, -1, "modules");
+        if (lua_istable(L, -1)) {
+            const char *keys[3] = {"left", "center", "right"};
+            nnwm_bar_align aligns[3] = {nnwm_bar_align::LEFT,
+                                        nnwm_bar_align::CENTER,
+                                        nnwm_bar_align::RIGHT};
+
+            /* First pass: count. */
+            int total = 0;
+            for (int g = 0; g < 3; g++) {
+                lua_getfield(L, -1, keys[g]);
+                if (lua_istable(L, -1))
+                    total += (int)lua_rawlen(L, -1);
+                lua_pop(L, 1);
+            }
+
+            if (total > 0) {
+                cfg->bar.modules = static_cast<nnwm_bar_module *>(
+                    calloc(total, sizeof(nnwm_bar_module)));
+                int idx = 0;
+
+                for (int g = 0; g < 3; g++) {
+                    lua_getfield(L, -1, keys[g]);
+                    if (!lua_istable(L, -1)) { lua_pop(L, 1); continue; }
+                    int n = (int)lua_rawlen(L, -1);
+                    for (int i = 1; i <= n; i++) {
+                        lua_rawgeti(L, -1, i);
+                        nnwm_bar_module &m = cfg->bar.modules[idx];
+                        m.align = aligns[g];
+                        m.padding = -1;
+                        m.fg[0] = m.fg[1] = m.fg[2] = 0.0f; m.fg[3] = -1.0f;
+                        m.bg[0] = m.bg[1] = m.bg[2] = 0.0f; m.bg[3] = 0.0f;
+                        m.lua_update_ref = -1;
+                        m.interval_ms = 1000;
+
+                        if (lua_isstring(L, -1)) {
+                            /* Simple form: "workspaces", "clock", ... */
+                            const char *name = lua_tostring(L, -1);
+                            if (!strcmp(name, "workspaces"))
+                                m.type = nnwm_bar_module_type::WORKSPACES;
+                            else if (!strcmp(name, "window_title"))
+                                m.type = nnwm_bar_module_type::WINDOW_TITLE;
+                            else if (!strcmp(name, "clock"))
+                                m.type = nnwm_bar_module_type::CLOCK;
+                            else if (!strcmp(name, "layout"))
+                                m.type = nnwm_bar_module_type::LAYOUT;
+                            else {
+                                wlr_log(WLR_ERROR,
+                                    "bar: unknown module '%s'", name);
+                                lua_pop(L, 1); continue;
+                            }
+                        } else if (lua_istable(L, -1)) {
+                            char *type = get_string_field(L, "type", nullptr);
+                            if (!type) {
+                                wlr_log(WLR_ERROR,
+                                    "bar: module table missing 'type'");
+                                lua_pop(L, 1); continue;
+                            }
+                            if (!strcmp(type, "workspaces"))
+                                m.type = nnwm_bar_module_type::WORKSPACES;
+                            else if (!strcmp(type, "window_title"))
+                                m.type = nnwm_bar_module_type::WINDOW_TITLE;
+                            else if (!strcmp(type, "clock"))
+                                m.type = nnwm_bar_module_type::CLOCK;
+                            else if (!strcmp(type, "layout"))
+                                m.type = nnwm_bar_module_type::LAYOUT;
+                            else if (!strcmp(type, "custom"))
+                                m.type = nnwm_bar_module_type::CUSTOM;
+                            else {
+                                wlr_log(WLR_ERROR,
+                                    "bar: unknown module type '%s'", type);
+                                free(type); lua_pop(L, 1); continue;
+                            }
+                            free(type);
+
+                            char *fmt = get_string_field(L, "format", nullptr);
+                            m.format = fmt;
+                            m.padding = get_int_field(L, "padding", -1);
+                            m.interval_ms
+                                = get_int_field(L, "interval", 1000);
+                            float dfg2[4] = {0,0,0,-1};
+                            get_color_field(L, "fg", m.fg, dfg2);
+                            float dbg2[4] = {0,0,0,0};
+                            get_color_field(L, "bg", m.bg, dbg2);
+
+                            if (m.type == nnwm_bar_module_type::CUSTOM) {
+                                lua_getfield(L, -1, "update");
+                                if (lua_isfunction(L, -1)) {
+                                    m.lua_update_ref
+                                        = luaL_ref(L, LUA_REGISTRYINDEX);
+                                } else {
+                                    wlr_log(WLR_ERROR,
+                                        "bar: custom module missing 'update' function");
+                                    lua_pop(L, 1);
+                                }
+                            }
+                        }
+
+                        idx++;
+                        lua_pop(L, 1); /* pop module value */
+                    }
+                    lua_pop(L, 1); /* pop group table */
+                }
+                cfg->bar.module_count = idx;
+            }
+        }
+        lua_pop(L, 1); /* pop 'modules' */
+    }
+    lua_pop(L, 1); /* pop 'bar' */
+
     char *s = get_string_field(L, "seat_name", cfg->seat_name);
     free(cfg->seat_name);
     cfg->seat_name = s;
@@ -2933,6 +3092,28 @@ nnwm::config_defaults(void)
 
     cfg->find_cursor_style = strdup("rings");
 
+    /* Status bar defaults — disabled unless the user opts in. */
+    cfg->bar.enabled        = false;
+    cfg->bar.position_top   = true;
+    cfg->bar.height         = 28;
+    cfg->bar.per_output     = true;
+    cfg->bar.output_name    = nullptr;
+    cfg->bar.font           = strdup("monospace 11");
+    cfg->bar.padding        = 8;
+    cfg->bar.module_spacing = 8;
+    cfg->bar.bg_color[0] = 0.08f; cfg->bar.bg_color[1] = 0.09f;
+    cfg->bar.bg_color[2] = 0.12f; cfg->bar.bg_color[3] = 0.95f;
+    cfg->bar.fg_color[0] = 0.85f; cfg->bar.fg_color[1] = 0.85f;
+    cfg->bar.fg_color[2] = 0.85f; cfg->bar.fg_color[3] = 1.0f;
+    cfg->bar.active_ws_bg[0] = 0.3f;  cfg->bar.active_ws_bg[1] = 0.5f;
+    cfg->bar.active_ws_bg[2] = 0.8f;  cfg->bar.active_ws_bg[3] = 1.0f;
+    cfg->bar.active_ws_fg[0] = 1.0f;  cfg->bar.active_ws_fg[1] = 1.0f;
+    cfg->bar.active_ws_fg[2] = 1.0f;  cfg->bar.active_ws_fg[3] = 1.0f;
+    cfg->bar.occupied_ws_fg[0] = 0.65f; cfg->bar.occupied_ws_fg[1] = 0.7f;
+    cfg->bar.occupied_ws_fg[2] = 0.85f; cfg->bar.occupied_ws_fg[3] = 1.0f;
+    cfg->bar.modules      = nullptr;
+    cfg->bar.module_count = 0;
+
     return cfg;
 }
 
@@ -2962,5 +3143,15 @@ nnwm::config_free(struct nnwm_config *cfg)
     for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
         free(cfg->workspace_names[i]);
     free(cfg->find_cursor_style);
+
+    free(cfg->bar.font);
+    free(cfg->bar.output_name);
+    for (int i = 0; i < cfg->bar.module_count; i++) {
+        free(cfg->bar.modules[i].format);
+        free(cfg->bar.modules[i].cached_text);
+        /* Lua registry ref is released when the Lua state is closed. */
+    }
+    free(cfg->bar.modules);
+
     delete cfg;
 }

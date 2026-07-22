@@ -69,6 +69,58 @@ enum class nnwm_focus_style
 };
 #endif /* HAVE_SCENEFX */
 
+enum class nnwm_bar_module_type
+{
+    WORKSPACES = 0,
+    WINDOW_TITLE,
+    CLOCK,
+    LAYOUT,
+    CUSTOM,
+};
+
+enum class nnwm_bar_align
+{
+    LEFT = 0,
+    CENTER,
+    RIGHT,
+};
+
+struct nnwm_bar_module
+{
+    nnwm_bar_module_type type;
+    nnwm_bar_align align;
+    char *format;         /* CLOCK: strftime; CUSTOM: unused */
+    int lua_update_ref;   /* CUSTOM: Lua function returning string; -1 = unset */
+    int interval_ms;      /* CUSTOM: poll interval; <=0 = event-only */
+    float fg[4];          /* module-level foreground; a<0 = inherit bar fg */
+    float bg[4];          /* module-level background; a<0 = transparent */
+    int padding;          /* horizontal padding inside module; <0 = inherit */
+
+    /* Runtime cache — not part of config semantics, updated during render. */
+    char *cached_text;    /* last text; owned */
+    double cached_ts;     /* CLOCK: last strftime time; CUSTOM: last poll time */
+};
+
+struct nnwm_bar_config
+{
+    bool enabled;
+    bool position_top;    /* true = top, false = bottom */
+    int height;           /* pixels */
+    bool per_output;      /* true = one bar per output; false = single bar */
+    char *output_name;    /* per_output=false: which output; NULL = focused */
+    float bg_color[4];
+    float fg_color[4];
+    float active_ws_bg[4];   /* workspaces module: active workspace bg */
+    float active_ws_fg[4];   /* workspaces module: active workspace fg */
+    float occupied_ws_fg[4]; /* workspaces module: occupied (non-active) fg */
+    char *font;           /* pango font description, e.g. "monospace 11" */
+    int padding;          /* horizontal padding at bar edges */
+    int module_spacing;   /* pixels between adjacent modules */
+
+    nnwm_bar_module *modules;
+    int module_count;
+};
+
 struct nnwm_window_rule
 {
     /* Match fields — NULL = not used for matching */
@@ -312,6 +364,9 @@ struct nnwm_config
     /* Window rules */
     nnwm_window_rule *window_rules;
     int window_rule_count;
+
+    /* Compositor-drawn status bar */
+    nnwm_bar_config bar;
 };
 
 #ifdef __cplusplus

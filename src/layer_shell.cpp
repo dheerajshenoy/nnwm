@@ -66,6 +66,9 @@ arrange_layers(nnwm_server *server, wlr_output *output)
         }
     }
 
+    /* Reserve space for the compositor status bar (after layer struts). */
+    bar_shrink_usable_area(server, out, &usable);
+
     out->usable_area = usable;
     arrange_windows(server, out);
 }

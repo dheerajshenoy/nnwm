@@ -2987,6 +2987,7 @@ focus_toplevel(nnwm_toplevel *toplevel, bool warp)
             }
         }
     }
+    bar_notify_focus_change(server);
     fire_hook_window(server, "window_focus", toplevel);
 }
 

@@ -178,6 +178,7 @@ xwayland_surface_map(wl_listener *listener, void * /*data*/)
         arrange_windows(server, out);
     }
     ftl_map(toplevel);
+    bar_notify_windows_changed(server);
     fire_hook_window(server, "window_open", toplevel);
 }
 
@@ -188,6 +189,7 @@ xwayland_surface_unmap(wl_listener *listener, void * /*data*/)
     nnwm_server *server     = toplevel->server;
 
     fire_hook_window(server, "window_close", toplevel);
+    bar_notify_windows_changed(server);
     ftl_unmap(toplevel);
 
 #ifdef HAVE_SCENEFX
@@ -494,6 +496,7 @@ server_new_xwayland_surface(wl_listener *listener, void *data)
         {
             rerender_tab_bar(server, tl->output);
         }
+        bar_notify_focus_change(server);
         ftl_set_title(tl);
     };
     wl_signal_add(nnwm_xw_events_set_title(xw), &toplevel->set_title);

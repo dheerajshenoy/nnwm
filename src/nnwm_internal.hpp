@@ -6,6 +6,18 @@
 
 /* ---- Rendering ---- */
 void render_titlebar(struct nnwm_toplevel *tl, int inner_width, bool focused);
+
+/* ---- Compositor status bar ---- */
+void bar_apply_config(struct nnwm_server *server);
+void bar_shrink_usable_area(struct nnwm_server *server, struct nnwm_output *out,
+                            struct wlr_box *usable);
+void bar_notify_workspace_change(struct nnwm_server *server,
+                                 struct nnwm_output *out);
+void bar_notify_focus_change(struct nnwm_server *server);
+void bar_notify_windows_changed(struct nnwm_server *server);
+void bar_destroy_all(struct nnwm_server *server);
+void bar_destroy_for_output(struct nnwm_output *out);
+
 void render_tab_bar(struct nnwm_server *server, struct nnwm_output *out,
                     int width, int height);
 void rerender_tab_bar(struct nnwm_server *server, struct nnwm_output *out);

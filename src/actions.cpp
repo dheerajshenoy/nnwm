@@ -663,6 +663,7 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
 #endif /* HAVE_SCENEFX */
 
     nnwm::ext_workspace_notify(server);
+    bar_notify_workspace_change(server, out);
     fire_hook_workspace(server, "workspace_switch", out);
 }
 

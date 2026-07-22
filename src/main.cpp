@@ -698,6 +698,8 @@ main(int argc, char *argv[])
     nnwm_xwayland_fini(&server);
 #endif
 
+    bar_destroy_all(&server);
+
     wl_list_remove(&server.cursor_motion.link);
     wl_list_remove(&server.cursor_motion_absolute.link);
     wl_list_remove(&server.cursor_button.link);

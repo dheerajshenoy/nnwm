@@ -176,6 +176,7 @@ add_executable(nnwm
     src/main.cpp
     src/nnwm.cpp
     src/actions.cpp
+    src/bar.cpp
     src/cursor.cpp
     src/xdg_shell.cpp
     src/layer_shell.cpp

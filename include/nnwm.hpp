@@ -399,6 +399,10 @@ struct nnwm_server
     struct wl_list hooks;  /* nnwm_hook::link  — event → lua callback */
     struct wl_list timers; /* nnwm_timer::link — wl_event_source timers */
 
+    /* Compositor status bar in single-bar mode (per_output=false).
+     * Per-output bars live on nnwm_output::bar. */
+    struct nnwm_bar *global_bar;
+
     /* Overview drag state */
     struct nnwm_toplevel *overview_drag_toplevel; /* non-null while dragging in overview */
 
@@ -423,6 +427,20 @@ struct nnwm_hook
     struct wl_list link;
     char *event;   /* owned copy of event name */
     int func_ref;  /* luaL_ref reference */
+};
+
+struct nnwm_bar
+{
+    struct nnwm_server *server;
+    struct nnwm_output *output;         /* NULL for global (single) bar */
+    struct wlr_scene_tree *tree;        /* parent for background + content */
+    struct wlr_scene_rect *bg_rect;
+    struct wlr_scene_buffer *content;   /* cairo-drawn text pixels */
+    struct wl_event_source *tick_timer; /* periodic redraw for clock/custom */
+    int width, height;                  /* current logical size */
+    int x, y;                           /* current position in layout coords */
+    bool position_top;
+    bool dirty;                         /* redraw scheduled */
 };
 
 struct nnwm_timer
@@ -463,6 +481,8 @@ struct nnwm_output
     struct wl_listener frame;
     struct wl_listener request_state;
     struct wl_listener destroy;
+
+    struct nnwm_bar *bar; /* per-output status bar, nullptr if disabled */
 };
 
 struct nnwm_toplevel

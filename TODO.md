@@ -230,4 +230,4 @@
 - [ ] nnwm.timer cancel/pause/resume handle (if not already returned).
 - [ ] Focus stack / recent-windows list for alt-tab UIs in Lua.
 - [ ] DBus / MPRIS surface for media keys and status.
-
+- [ ] tile drag window, add sway like center and directional blocks on the dropping window

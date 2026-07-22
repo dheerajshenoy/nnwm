@@ -186,6 +186,13 @@ output_destroy(wl_listener *listener, void * /*data*/)
     wl_list_remove(&output->request_state.link);
     wl_list_remove(&output->destroy.link);
     wl_list_remove(&output->link);
+    /* Drop this output's per-output bar, and re-target the global bar if it
+     * was anchored here. bar_apply_config re-builds anything needed. */
+    bar_destroy_for_output(output);
+    if (server->global_bar && server->global_bar->output == output) {
+        server->global_bar->output = nullptr; /* prevent dangling deref */
+        bar_apply_config(server);
+    }
     if (output->tab_bar)
         wlr_scene_node_destroy(&output->tab_bar->node);
     if (output->error_bar)
@@ -496,6 +503,9 @@ server_apply_config(nnwm_server *server)
         wl_list_for_each(tl, &server->toplevels, link) apply_fx_decorations(tl);
     }
 
+    /* Rebuild status bars from current config */
+    bar_apply_config(server);
+
     /* Re-arrange to apply border_width / master_ratio changes */
     arrange_all_outputs(server);
 
@@ -679,6 +689,9 @@ server_new_output(wl_listener *listener, void *data)
                                        scene_output);
 
     output_manager_build_config(server);
+    /* Give this new output a bar if per_output mode is configured, or refresh
+     * the global bar so it can pick this output as target. */
+    bar_apply_config(server);
     fire_hook_output(server, "output_connect", output);
 }
 
