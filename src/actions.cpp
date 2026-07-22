@@ -1544,6 +1544,7 @@ nnwm::layout::toggle_vertical_tile(nnwm_server *server)
                                ? nnwm_layout_mode::HTILE
                                : nnwm_layout_mode::VTILE;
     arrange_windows(server, out);
+    bar_notify_workspace_change(server, out);
 }
 
 void
@@ -1559,6 +1560,7 @@ nnwm::layout::toggle_tabbed(nnwm_server *server)
                                ? out->layout_mode[ws]
                                : nnwm_layout_mode::TABBED;
     arrange_windows(server, out);
+    bar_notify_workspace_change(server, out);
 }
 
 void
@@ -1574,6 +1576,7 @@ nnwm::layout::toggle_horizontal_scroll(nnwm_server *server)
                                ? out->layout_mode[ws]
                                : nnwm_layout_mode::HSCROLL;
     arrange_windows(server, out);
+    bar_notify_workspace_change(server, out);
 }
 
 void
@@ -1589,6 +1592,7 @@ nnwm::layout::toggle_vertical_scroll(nnwm_server *server)
                                ? out->layout_mode[ws]
                                : nnwm_layout_mode::VSCROLL;
     arrange_windows(server, out);
+    bar_notify_workspace_change(server, out);
 }
 
 void
@@ -1604,6 +1608,7 @@ nnwm::layout::toggle_float_layout(nnwm_server *server)
                                ? nnwm_layout_mode::HTILE
                                : nnwm_layout_mode::FLOAT;
     arrange_windows(server, out);
+    bar_notify_workspace_change(server, out);
 }
 
 void
@@ -1615,6 +1620,7 @@ nnwm::layout::set_layout(nnwm_server *server, nnwm_layout_mode mode)
     int ws = out->active_workspace;
     out->layout_mode[ws] = mode;
     arrange_windows(server, out);
+    bar_notify_workspace_change(server, out);
 }
 
 void
@@ -1636,6 +1642,7 @@ nnwm::layout::next(nnwm_server *server)
     out->layout_mode[ws] = static_cast<nnwm_layout_mode>(
         ((int)(out->layout_mode[ws]) + 1) % (int)(nnwm_layout_mode::COUNT));
     arrange_windows(server, out);
+    bar_notify_workspace_change(server, out);
 }
 
 void
@@ -1658,6 +1665,7 @@ nnwm::layout::prev(nnwm_server *server)
         ((int)(out->layout_mode[ws]) + int(nnwm_layout_mode::COUNT) - 1)
         % (int)(nnwm_layout_mode::COUNT));
     arrange_windows(server, out);
+    bar_notify_workspace_change(server, out);
 }
 
 void
