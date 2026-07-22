@@ -86,6 +86,50 @@ MOD = {}
 ---@field focused_text_color?  nnwm.color  Title text color for the focused window (default: {1.0, 1.0, 1.0, 1.0})
 ---@field urgent_text_color?   nnwm.color  Title text color for urgent windows (default: {1.0, 1.0, 1.0, 1.0})
 
+---@class nnwm.bar.module_simple
+--- Simple module referenced by name (see `nnwm.bar.modules` for available names).
+
+---@class nnwm.bar.module
+---@field type      "workspaces"|"window_title"|"clock"|"layout"|"custom"  Module type.
+---@field format?   string   For `clock`: strftime format (default: `"%H:%M"`). Unused for others.
+---@field interval? integer  For `custom`: poll interval in milliseconds (default: 1000). Ignored by other types.
+---@field update?   fun():string  For `custom`: function called every `interval` ms; must return a string to display.
+---@field padding?  integer  Horizontal padding inside this module in pixels; <0 = inherit bar default.
+---@field fg?       nnwm.color  Module foreground color; alpha<0 = inherit bar foreground.
+---@field bg?       nnwm.color  Module background color; alpha=0 = transparent.
+
+---@class nnwm.bar.modules
+---@field left?   (string|nnwm.bar.module)[]  Left-aligned modules.
+---@field center? (string|nnwm.bar.module)[]  Center-aligned modules.
+---@field right?  (string|nnwm.bar.module)[]  Right-aligned modules.
+
+---@class nnwm.bar
+--- Compositor-drawn status bar. Ships built-in modules and supports Lua custom text widgets.
+--- The bar is drawn natively by nnwm (Cairo + Pango); it is *not* a layer-shell client and
+--- does not require an external process. Enable with `enabled = true`.
+---
+--- Built-in module names (use directly as strings or as `{ type = "..." }`):
+---   * `"workspaces"`   — clickable-style workspace indicator; highlights active/occupied
+---   * `"window_title"` — focused window title on the target output (ellipsized in center)
+---   * `"clock"`        — strftime-formatted date/time
+---   * `"layout"`       — one-letter layout indicator (H/V/T/SH/SV/F)
+---   * `"custom"`       — Lua-provided string (requires `update` callback)
+---
+---@field enabled?              boolean          Enable the compositor status bar (default: false).
+---@field position?             "top"|"bottom"   Bar position on each output (default: "top").
+---@field height?               integer          Bar height in pixels (default: 28).
+---@field per_output?           boolean          When true, one bar per monitor. When false, a single bar attached to `output` (or the focused output). Default: true.
+---@field output?               string           When `per_output = false`, name of the output to attach the bar to (e.g. `"HDMI-A-1"`). Nil = focused output.
+---@field font?                 string           Pango font description, e.g. `"monospace 11"` (default: "monospace 11").
+---@field padding?              integer          Horizontal padding at the bar's outer edges in pixels (default: 8).
+---@field module_spacing?       integer          Space between adjacent modules in pixels (default: 8).
+---@field background?           nnwm.color       Bar background color (default: {0.08, 0.09, 0.12, 0.95}).
+---@field foreground?           nnwm.color       Default text color (default: {0.85, 0.85, 0.85, 1.0}).
+---@field active_workspace_bg?  nnwm.color       Background of the active workspace pill (default: {0.30, 0.50, 0.80, 1.0}).
+---@field active_workspace_fg?  nnwm.color       Foreground of the active workspace label (default: {1.0, 1.0, 1.0, 1.0}).
+---@field occupied_workspace_fg? nnwm.color      Foreground of non-active but occupied workspace labels (default: {0.65, 0.70, 0.85, 1.0}).
+---@field modules?              nnwm.bar.modules  Ordered modules by alignment.
+
 ---@class nnwm.fx.shadow
 ---@field enabled?    boolean     Enable drop shadows (default: false)
 ---@field blur_sigma? number      Gaussian blur sigma controlling shadow softness (default: 10.0)
@@ -139,6 +183,7 @@ MOD = {}
 ---@field touchpad?                  nnwm.touchpad
 ---@field mouse?                     nnwm.mouse
 ---@field titlebar?                  nnwm.titlebar
+---@field bar?                       nnwm.bar
 ---@field fx?                        nnwm.fx
 ---@field clipboard?                 boolean  Enable clipboard (wl_data_device selection); set false to block all clipboard writes (default: true)
 ---@field client_decorations?        boolean

@@ -313,6 +313,27 @@ nnwm.opt = {
         focused_text_color = "#FFFFFF",
     },
 
+    bar = {
+        enabled  = true,                 -- compositor-drawn status bar
+        position = "top",                -- "top" | "bottom"
+        height   = 28,
+        per_output = true,               -- false = single bar on `output` (or focused)
+        -- output = "HDMI-A-1",          -- only used when per_output = false
+        font     = "monospace 11",
+        padding  = 8,                    -- edge padding
+        module_spacing = 8,              -- gap between modules
+        background = "#141620F0",
+        foreground = "#D9D9D9",
+        active_workspace_bg  = "#4C7FBF",
+        active_workspace_fg  = "#FFFFFF",
+        occupied_workspace_fg = "#A6B2D9",
+        modules = {
+            left   = { "workspaces", "layout" },
+            center = { "window_title" },
+            right  = { "clock" },
+        },
+    },
+
     client_decorations = false,          -- request client-side decorations
 
     cursor = {
