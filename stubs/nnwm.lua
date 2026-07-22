@@ -734,3 +734,47 @@ function nnwm.layout.set(name) end
 --- nnwm.key({"Super", "f"}, function() nnwm.layout.toggle_float() end)
 --- ```
 function nnwm.layout.toggle_float() end
+
+-- ── nnwm.version / nnwm.log ─────────────────────────────────────────────────
+
+--- Return the compositor version string set at build time
+--- (`project(nnwm VERSION ...)` in CMakeLists.txt), e.g. `"0.1.3"`.
+---
+--- ```lua
+--- nnwm.log.info("nnwm " .. nnwm.version() .. " starting")
+--- ```
+---@return string
+function nnwm.version() end
+
+nnwm.log = {}
+
+--- File-based logger. All three levels write a timestamped, level-tagged
+--- line to a known log file. Arguments are stringified (via Lua's
+--- `tostring`) and space-joined like `print()`.
+---
+--- Log file location, in order:
+---   1. `$NNWM_LOG_FILE` if set.
+---   2. `$XDG_STATE_HOME/nnwm/nnwm.log` if `$XDG_STATE_HOME` is set.
+---   3. `$HOME/.local/state/nnwm/nnwm.log`.
+--- Parent directories are created on demand. The file is opened lazily on
+--- the first log call and kept open for the life of the compositor
+--- (line-buffered so `tail -f` works).
+---
+--- ```lua
+--- nnwm.on("window_focus", function()
+---     local w = nnwm.current_window()
+---     nnwm.log.info("focus", w and w.app_id or "<nil>")
+--- end)
+---
+--- nnwm.on("startup", function()
+---     nnwm.log.info("nnwm", nnwm.version(), "at", nnwm.log.path())
+--- end)
+--- ```
+function nnwm.log.info(...) end
+function nnwm.log.warn(...) end
+function nnwm.log.error(...) end
+
+--- Return the absolute path to the log file (see `nnwm.log.info` for the
+--- resolution rules), or `nil` if `$HOME` is unset and no override is given.
+---@return string?
+function nnwm.log.path() end

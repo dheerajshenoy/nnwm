@@ -133,9 +133,43 @@ to any layout regardless of what's in the cycle.
 
 ### Utility
 
-| Function            | Description                              |
-|---------------------|------------------------------------------|
-| `nnwm.host_name()` | Return the machine hostname as a string  |
+| Function            | Description                                                        |
+|---------------------|--------------------------------------------------------------------|
+| `nnwm.host_name()`  | Return the machine hostname as a string                            |
+| `nnwm.version()`    | Return the compositor version string (from CMake `project(VERSION)`) |
+
+### Logging
+
+`nnwm.log.info / warn / error` write timestamped, level-tagged lines to a
+known log file. Arguments are stringified and space-joined like `print()`.
+
+| Function            | Description                                    |
+|---------------------|------------------------------------------------|
+| `nnwm.log.info(...)`  | `[YYYY-MM-DD HH:MM:SS] [INFO] ...`           |
+| `nnwm.log.warn(...)`  | `[YYYY-MM-DD HH:MM:SS] [WARN] ...`           |
+| `nnwm.log.error(...)` | `[YYYY-MM-DD HH:MM:SS] [ERROR] ...`          |
+| `nnwm.log.path()`   | Absolute log file path (string), or `nil`      |
+
+Log file resolution order:
+
+1. `$NNWM_LOG_FILE` (explicit override).
+2. `$XDG_STATE_HOME/nnwm/nnwm.log`.
+3. `$HOME/.local/state/nnwm/nnwm.log`.
+
+Parent directories are created on demand. The file is opened lazily on the
+first log call and kept open for the life of the compositor (line-buffered
+so `tail -f` works). Tail it in another terminal to debug event handlers:
+
+```lua
+nnwm.on("window_focus", function()
+    local w = nnwm.current_window()
+    nnwm.log.info("focus:", w and w.app_id or "<nil>")
+end)
+
+nnwm.on("startup", function()
+    nnwm.log.info("nnwm", nnwm.version(), "log:", nnwm.log.path())
+end)
+```
 
 ---
 

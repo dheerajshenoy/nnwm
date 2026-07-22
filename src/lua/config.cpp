@@ -16,7 +16,9 @@ extern "C"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <fnmatch.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 /* ---- helpers ---- */
@@ -408,6 +410,113 @@ l_nnwm_find_cursor(lua_State *L)
 {
     cursor_ring_start(get_server(L));
     return 0;
+}
+
+static int
+l_nnwm_version(lua_State *L)
+{
+    lua_pushstring(L, NNWM_VERSION);
+    return 1;
+}
+
+/* ---- nnwm.log ---- */
+
+/* Resolve the log file path. Prefers $NNWM_LOG_FILE, then
+ * $XDG_STATE_HOME/nnwm/nnwm.log, else $HOME/.local/state/nnwm/nnwm.log.
+ * Returns a heap-allocated string the caller must free, or nullptr if
+ * $HOME isn't set and no override is given. */
+static char *nnwm_log_path(void)
+{
+    const char *override_ = getenv("NNWM_LOG_FILE");
+    if (override_ && override_[0]) return strdup(override_);
+    const char *xdg = getenv("XDG_STATE_HOME");
+    char *path = nullptr;
+    if (xdg && xdg[0]) {
+        size_t n = strlen(xdg) + strlen("/nnwm/nnwm.log") + 1;
+        path = static_cast<char *>(malloc(n));
+        snprintf(path, n, "%s/nnwm/nnwm.log", xdg);
+    } else {
+        const char *home = getenv("HOME");
+        if (!home || !home[0]) return nullptr;
+        size_t n = strlen(home) + strlen("/.local/state/nnwm/nnwm.log") + 1;
+        path = static_cast<char *>(malloc(n));
+        snprintf(path, n, "%s/.local/state/nnwm/nnwm.log", home);
+    }
+    return path;
+}
+
+/* Ensure the parent directory of `path` exists (recursive mkdir). */
+static void ensure_parent_dir(const char *path)
+{
+    char *dup = strdup(path);
+    for (char *p = dup + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            mkdir(dup, 0755);
+            *p = '/';
+        }
+    }
+    free(dup);
+}
+
+/* Shared, lazily-opened, line-buffered log file. Kept open for the life
+ * of the server (closed implicitly at exit via the OS). */
+static FILE *nnwm_log_fp = nullptr;
+
+static FILE *nnwm_log_get(void)
+{
+    if (nnwm_log_fp) return nnwm_log_fp;
+    char *path = nnwm_log_path();
+    if (!path) return nullptr;
+    ensure_parent_dir(path);
+    nnwm_log_fp = fopen(path, "a");
+    free(path);
+    if (nnwm_log_fp)
+        setvbuf(nnwm_log_fp, nullptr, _IOLBF, 0);
+    return nnwm_log_fp;
+}
+
+static int nnwm_log_write(lua_State *L, const char *level)
+{
+    /* Concatenate all arguments with a space separator, like Lua's print(). */
+    int n = lua_gettop(L);
+    luaL_Buffer b;
+    luaL_buffinit(L, &b);
+    for (int i = 1; i <= n; i++) {
+        if (i > 1) luaL_addchar(&b, ' ');
+        size_t len;
+        const char *s = luaL_tolstring(L, i, &len); /* stringifies any type */
+        luaL_addlstring(&b, s, len);
+        lua_pop(L, 1);
+    }
+    luaL_pushresult(&b);
+    size_t msg_len;
+    const char *msg = lua_tolstring(L, -1, &msg_len);
+
+    FILE *fp = nnwm_log_get();
+    if (fp) {
+        time_t t = time(nullptr);
+        struct tm tmv;
+        localtime_r(&t, &tmv);
+        char ts[32];
+        strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &tmv);
+        fprintf(fp, "[%s] [%s] %.*s\n", ts, level, (int)msg_len, msg);
+    }
+    lua_pop(L, 1);
+    return 0;
+}
+
+static int l_nnwm_log_info(lua_State *L)  { return nnwm_log_write(L, "INFO"); }
+static int l_nnwm_log_warn(lua_State *L)  { return nnwm_log_write(L, "WARN"); }
+static int l_nnwm_log_error(lua_State *L) { return nnwm_log_write(L, "ERROR"); }
+
+/* Return the log file path so users can share it in bug reports. */
+static int l_nnwm_log_path(lua_State *L)
+{
+    char *p = nnwm_log_path();
+    if (p) { lua_pushstring(L, p); free(p); }
+    else lua_pushnil(L);
+    return 1;
 }
 
 static int
@@ -1512,6 +1621,7 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"move_to_monitor_next", l_nnwm_move_to_monitor_next},
     {"move_to_monitor_prev", l_nnwm_move_to_monitor_prev},
     {"host_name", l_nnwm_host_name},
+    {"version", l_nnwm_version},
     {"rule", l_nnwm_rule},
     {"current_window",    l_nnwm_current_window},
     {"current_workspace", l_nnwm_current_workspace},
@@ -1552,6 +1662,23 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_pushcfunction(L, l_nnwm_bar_update);
     lua_setfield(L, -2, "update");
     lua_pop(L, 1); /* pop nnwm.bar */
+
+    /* nnwm.log = { info, warn, error, path } — file-based logger.
+     * Path defaults to $XDG_STATE_HOME/nnwm/nnwm.log (or
+     * $HOME/.local/state/nnwm/nnwm.log). Override with $NNWM_LOG_FILE. */
+    lua_getfield(L, -1, "log");
+    if (!lua_istable(L, -1))
+    {
+        lua_pop(L, 1);
+        lua_newtable(L);
+        lua_pushvalue(L, -1);
+        lua_setfield(L, -3, "log");
+    }
+    lua_pushcfunction(L, l_nnwm_log_info);  lua_setfield(L, -2, "info");
+    lua_pushcfunction(L, l_nnwm_log_warn);  lua_setfield(L, -2, "warn");
+    lua_pushcfunction(L, l_nnwm_log_error); lua_setfield(L, -2, "error");
+    lua_pushcfunction(L, l_nnwm_log_path);  lua_setfield(L, -2, "path");
+    lua_pop(L, 1); /* pop nnwm.log */
 
     /* get or create nnwm.opt */
     lua_getfield(L, -1, "opt");

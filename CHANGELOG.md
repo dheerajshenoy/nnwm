@@ -45,6 +45,17 @@
     redraw. Handlers no-op if the bar has no module that would care about
     the trigger, saving cairo work.
 
+- **Version + logging API**:
+  - `nnwm.version()` returns the compositor version string (baked in from
+    CMake's `project(nnwm VERSION ...)`).
+  - `nnwm.log.info(...)` / `warn(...)` / `error(...)` write timestamped,
+    level-tagged lines to a shared log file. Path resolves via
+    `$NNWM_LOG_FILE` → `$XDG_STATE_HOME/nnwm/nnwm.log` →
+    `$HOME/.local/state/nnwm/nnwm.log`; parent directories are created on
+    demand. File is opened lazily on first log call and kept
+    line-buffered so `tail -f` works. `nnwm.log.path()` returns the
+    resolved path for use in bug reports.
+
 - **Configurable layout cycle**: `nnwm.opt.layout.enabled_layouts` lists
   which layouts (and in what order) `nnwm.layout.next()`/`.prev()` walk
   through. `nnwm.set_layout(name)` can still jump to any layout regardless.

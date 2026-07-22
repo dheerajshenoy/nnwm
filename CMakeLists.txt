@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(nnwm VERSION 0.1.2 LANGUAGES C CXX)
+project(nnwm VERSION 0.1.3 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -200,7 +200,11 @@ target_include_directories(nnwm PRIVATE
     ${PIXMAN_INCLUDE_DIRS}
 )
 
-target_compile_definitions(nnwm PRIVATE WLR_USE_UNSTABLE _DEFAULT_SOURCE)
+target_compile_definitions(nnwm PRIVATE
+    WLR_USE_UNSTABLE
+    _DEFAULT_SOURCE
+    "NNWM_VERSION=\"${PROJECT_VERSION}\""
+)
 
 if(USE_SCENEFX)
     target_compile_definitions(nnwm PRIVATE HAVE_SCENEFX)
