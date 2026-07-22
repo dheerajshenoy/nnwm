@@ -10,6 +10,7 @@
 
 extern "C" {
 #include <lauxlib.h>
+#include <linux/input-event-codes.h>
 #include <lua.h>
 #include <wlr/interfaces/wlr_buffer.h>
 #include <wlr/util/log.h>
@@ -425,6 +426,15 @@ static void bar_redraw(nnwm_bar *bar) {
     int center_x = (bar->width - center_total) / 2;
     int cursor[3] = { left_x, center_x, right_x };
 
+    /* Reset every module's rect; only re-populate the ones we actually
+     * draw. Modules with rect_w<=0 are excluded from hit-testing. */
+    for (int i = 0; i < cfg->bar.module_count; i++) {
+        cfg->bar.modules[i].rect_x = 0;
+        cfg->bar.modules[i].rect_y = 0;
+        cfg->bar.modules[i].rect_w = 0;
+        cfg->bar.modules[i].rect_h = bar->height;
+    }
+
     /* Second pass: draw. For window_title in the center, clip to available
      * space between left cursor and right region. */
     int left_cursor = left_x;
@@ -475,6 +485,14 @@ static void bar_redraw(nnwm_bar *bar) {
         } else {
             drawn = draw_text_segment(cr, fd, s.text, x, bar->height, fg, bg, pad);
             free(s.text);
+        }
+
+        /* Record hit-test rect (bar-local coordinates). */
+        if (drawn > 0) {
+            s.m->rect_x = x;
+            s.m->rect_y = 0;
+            s.m->rect_w = drawn;
+            s.m->rect_h = bar->height;
         }
 
         cursor[idx] += drawn + spacing;
@@ -592,6 +610,7 @@ static nnwm_bar *bar_create(nnwm_server *server, nnwm_output *out) {
     auto *bar = new nnwm_bar{};
     bar->server = server;
     bar->output = out;
+    bar->hover_module_idx = -2;
 
     /* Place in the TOP layer tree so it renders above tiled/floating windows
      * but below OVERLAY (which hosts DnD icons and unmanaged xwayland). */
@@ -765,6 +784,141 @@ void bar_destroy_for_output(nnwm_output *out) {
     if (!out) return;
     bar_destroy(out->bar);
     out->bar = nullptr;
+}
+
+/* ---- Cursor event dispatch ---- */
+
+/* Locate a bar the cursor is currently over. Returns the bar and the
+ * cursor's bar-local coordinates, or nullptr if none. */
+static nnwm_bar *bar_at(nnwm_server *server, double lx, double ly,
+                        double *local_x, double *local_y) {
+    auto hit = [&](nnwm_bar *bar) -> bool {
+        if (!bar || !bar->tree || !bar->tree->node.enabled) return false;
+        if (lx < bar->x || lx >= bar->x + bar->width) return false;
+        if (ly < bar->y || ly >= bar->y + bar->height) return false;
+        *local_x = lx - bar->x;
+        *local_y = ly - bar->y;
+        return true;
+    };
+    if (hit(server->global_bar)) return server->global_bar;
+    nnwm_output *out;
+    wl_list_for_each(out, &server->outputs, link)
+        if (hit(out->bar)) return out->bar;
+    return nullptr;
+}
+
+/* Find the module rect containing (bx, by) in bar-local coords. Returns
+ * the module index, or -1 if none (i.e. cursor is over the bar background). */
+static int bar_module_at(nnwm_bar *bar, double bx, double by) {
+    nnwm_config *cfg = bar->server->config;
+    for (int i = 0; i < cfg->bar.module_count; i++) {
+        nnwm_bar_module &m = cfg->bar.modules[i];
+        if (m.rect_w <= 0) continue;
+        if (bx >= m.rect_x && bx < m.rect_x + m.rect_w
+            && by >= m.rect_y && by < m.rect_y + m.rect_h)
+            return i;
+    }
+    return -1;
+}
+
+/* Translate a linux input button code into a short Lua-friendly string. */
+static const char *button_name(uint32_t button) {
+    switch (button) {
+        case BTN_LEFT:    return "left";
+        case BTN_RIGHT:   return "right";
+        case BTN_MIDDLE:  return "middle";
+        case BTN_SIDE:    return "side";
+        case BTN_EXTRA:   return "extra";
+        case BTN_FORWARD: return "forward";
+        case BTN_BACK:    return "back";
+        default:          return "other";
+    }
+}
+
+static void fire_hover(nnwm_server *server, int ref, bool entered) {
+    if (ref < 0 || !server->lua) return;
+    lua_State *L = server->lua;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+    lua_pushboolean(L, entered);
+    if (lua_pcall(L, 1, 0, 0) != 0) {
+        wlr_log(WLR_ERROR, "bar on_hover: %s", lua_tostring(L, -1));
+        lua_pop(L, 1);
+    }
+}
+
+bool bar_handle_motion(nnwm_server *server, double lx, double ly) {
+    double bx, by;
+    nnwm_bar *bar = bar_at(server, lx, ly, &bx, &by);
+    nnwm_config *cfg = server->config;
+
+    /* Not on any bar — clear hover state on all bars. */
+    if (!bar) {
+        auto leave = [&](nnwm_bar *b) {
+            if (!b) return;
+            if (b->hover_module_idx == -2) return;
+            if (b->hover_module_idx >= 0
+                && b->hover_module_idx < cfg->bar.module_count) {
+                fire_hover(server,
+                    cfg->bar.modules[b->hover_module_idx].lua_hover_ref, false);
+            } else if (b->hover_module_idx == -1) {
+                fire_hover(server, cfg->bar.lua_hover_ref, false);
+            }
+            b->hover_module_idx = -2;
+        };
+        leave(server->global_bar);
+        nnwm_output *out;
+        wl_list_for_each(out, &server->outputs, link) leave(out->bar);
+        return false;
+    }
+
+    int idx = bar_module_at(bar, bx, by);
+    if (idx == bar->hover_module_idx) return true; /* still consuming events */
+
+    /* Leave old */
+    if (bar->hover_module_idx >= 0
+        && bar->hover_module_idx < cfg->bar.module_count) {
+        fire_hover(server,
+            cfg->bar.modules[bar->hover_module_idx].lua_hover_ref, false);
+    } else if (bar->hover_module_idx == -1) {
+        fire_hover(server, cfg->bar.lua_hover_ref, false);
+    }
+    /* Enter new */
+    if (idx >= 0) {
+        fire_hover(server, cfg->bar.modules[idx].lua_hover_ref, true);
+    } else {
+        fire_hover(server, cfg->bar.lua_hover_ref, true);
+    }
+    bar->hover_module_idx = idx;
+    return true;
+}
+
+bool bar_handle_button(nnwm_server *server, double lx, double ly,
+                       uint32_t button, bool pressed) {
+    double bx, by;
+    nnwm_bar *bar = bar_at(server, lx, ly, &bx, &by);
+    if (!bar) return false;
+
+    /* Only PRESS triggers on_click (release is swallowed too so the client
+     * below never sees a stray release without a matching press). */
+    if (!pressed) return true;
+
+    nnwm_config *cfg = server->config;
+    int idx = bar_module_at(bar, bx, by);
+    int click_ref = (idx >= 0)
+        ? cfg->bar.modules[idx].lua_click_ref
+        : cfg->bar.lua_click_ref;
+    if (click_ref < 0 || !server->lua) return true; /* still consume */
+
+    lua_State *L = server->lua;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, click_ref);
+    lua_pushstring(L, button_name(button));
+    lua_pushinteger(L, (lua_Integer)bx);
+    lua_pushinteger(L, (lua_Integer)by);
+    if (lua_pcall(L, 3, 0, 0) != 0) {
+        wlr_log(WLR_ERROR, "bar on_click: %s", lua_tostring(L, -1));
+        lua_pop(L, 1);
+    }
+    return true;
 }
 
 void bar_update_module(nnwm_server *server, const char *name) {

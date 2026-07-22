@@ -107,9 +107,17 @@ struct nnwm_bar_module
     float ws_occupied_fg[4];
     float ws_unoccupied_fg[4];
 
+    /* Lua handlers (LUA_REGISTRYINDEX refs; -1 = unset). */
+    int lua_click_ref;    /* on_click = fn(button:string, lx:int, ly:int) */
+    int lua_hover_ref;    /* on_hover = fn(entered:bool) */
+
     /* Runtime cache — not part of config semantics, updated during render. */
     char *cached_text;    /* last text; owned */
     double cached_ts;     /* CLOCK: last strftime time; CUSTOM: last poll time */
+
+    /* Last rendered bounding box in bar-local coords. w<=0 means the
+     * module rendered nothing this frame. Refreshed in bar_redraw. */
+    int rect_x, rect_y, rect_w, rect_h;
 };
 
 struct nnwm_bar_config
@@ -131,6 +139,11 @@ struct nnwm_bar_config
 
     nnwm_bar_module *modules;
     int module_count;
+
+    /* Bar-level Lua handlers (fired when the cursor is over the bar but
+     * not over any module). LUA_REGISTRYINDEX refs; -1 = unset. */
+    int lua_click_ref;
+    int lua_hover_ref;
 
     /* scenefx effects for the bar. Only take effect when built with
      * USE_SCENEFX=ON. Everything defaults to off/0 so behavior is

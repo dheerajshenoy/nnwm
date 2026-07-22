@@ -45,6 +45,17 @@
     redraw. Handlers no-op if the bar has no module that would care about
     the trigger, saving cairo work.
 
+- **Bar pointer events**: modules (and the bar itself) accept `on_click`
+  and `on_hover` Lua handlers. `on_click(button, x, y)` fires on PRESS
+  with the button as a string (`"left"`, `"right"`, `"middle"`, ...) and
+  cursor coords in bar-local pixels. `on_hover(entered)` fires on enter
+  and leave only — not on every motion event — and ordering is guaranteed
+  when moving between modules (previous module's `false` fires before the
+  next module's `true`). Bar-level handlers on `nnwm.opt.bar` fire when
+  the cursor is over the bar background (between modules). All pointer
+  events over the bar are consumed by the compositor so windows below
+  never see them.
+
 - **Version + logging API**:
   - `nnwm.version()` returns the compositor version string (baked in from
     CMake's `project(nnwm VERSION ...)`).

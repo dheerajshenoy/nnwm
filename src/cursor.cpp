@@ -399,6 +399,18 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
         }
     }
 
+    /* Bar hit-test — fires on_hover for any module the cursor enters/leaves
+     * and clears wl_seat's pointer focus so surfaces below don't see a
+     * synthetic enter/motion. Only consumes when actually over a bar. */
+    bool over_bar = bar_handle_motion(
+        server, server->cursor->x, server->cursor->y);
+    if (over_bar) {
+        wlr_seat_pointer_clear_focus(server->seat);
+        if (!server->cursor_zoom_active)
+            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+        return;
+    }
+
     double sx, sy;
     wlr_seat *seat          = server->seat;
     wlr_surface *surface    = nullptr;
@@ -947,6 +959,16 @@ server_cursor_button(wl_listener *listener, void *data)
                                            event->button, event->state);
         }
         return;
+    }
+
+    /* Status bar click: dispatch to the module or bar-level handler. */
+    if (!server->session_lock
+        && bar_handle_button(server,
+                             server->cursor->x, server->cursor->y,
+                             event->button,
+                             event->state == WL_POINTER_BUTTON_STATE_PRESSED))
+    {
+        return; /* consumed */
     }
 
     /* Tab bar click: focus the clicked window */

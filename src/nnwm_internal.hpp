@@ -23,6 +23,13 @@ void bar_destroy_for_output(struct nnwm_output *out);
  * or doesn't match any module. */
 void bar_update_module(struct nnwm_server *server, const char *name);
 
+/* Cursor hit-testing / event dispatch for bars. Returns true if the event
+ * was consumed by a bar handler (caller should not forward it to the
+ * client below the cursor). */
+bool bar_handle_motion(struct nnwm_server *server, double lx, double ly);
+bool bar_handle_button(struct nnwm_server *server, double lx, double ly,
+                       uint32_t button, bool pressed);
+
 void render_tab_bar(struct nnwm_server *server, struct nnwm_output *out,
                     int width, int height);
 void rerender_tab_bar(struct nnwm_server *server, struct nnwm_output *out);

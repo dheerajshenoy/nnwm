@@ -110,6 +110,8 @@ MOD = {}
 ---@field fg?       nnwm.color  Shorthand for `colors.fg` (module foreground).
 ---@field bg?       nnwm.color  Shorthand for `colors.bg` (module background).
 ---@field colors?   nnwm.bar.module.colors  Full per-module color palette; overrides bar-level colors.
+---@field on_click? fun(button:"left"|"right"|"middle"|"side"|"extra"|"forward"|"back"|"other", x:integer, y:integer)  Called when the module is clicked. `x`/`y` are cursor coordinates in bar-local pixels. Consuming the event blocks the click from reaching windows below.
+---@field on_hover? fun(entered:boolean)  Called with `true` when the cursor enters the module's rect and `false` when it leaves.
 
 ---@class nnwm.bar.modules
 --- Ordered module lists. Each entry is either:
@@ -151,6 +153,8 @@ MOD = {}
 ---@field colors?          nnwm.bar.colors    Color palette for the bar and its built-in modules.
 ---@field modules?         nnwm.bar.modules   Ordered modules by alignment.
 ---@field fx?              nnwm.bar.fx        scenefx effects (rounded corners, shadow, blur). Requires USE_SCENEFX build.
+---@field on_click?        fun(button:string, x:integer, y:integer)  Fires when the cursor clicks the bar background (not over any module). See per-module `on_click` for parameter details.
+---@field on_hover?        fun(entered:boolean)  Fires when the cursor enters/leaves the bar background (not over any module).
 
 ---@class nnwm.bar.fx.shadow
 ---@field enabled?     boolean     Enable drop shadow behind the bar (default: false).

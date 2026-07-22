@@ -2558,6 +2558,25 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         cfg->bar.module_spacing
             = get_int_field(L, "module_spacing", cfg->bar.module_spacing);
 
+        /* Bar-level event handlers. Fired when the cursor is over the bar
+         * but not over any module. */
+        if (cfg->bar.lua_click_ref >= 0)
+            luaL_unref(L, LUA_REGISTRYINDEX, cfg->bar.lua_click_ref);
+        cfg->bar.lua_click_ref = -1;
+        if (cfg->bar.lua_hover_ref >= 0)
+            luaL_unref(L, LUA_REGISTRYINDEX, cfg->bar.lua_hover_ref);
+        cfg->bar.lua_hover_ref = -1;
+        lua_getfield(L, -1, "on_click");
+        if (lua_isfunction(L, -1))
+            cfg->bar.lua_click_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+        else
+            lua_pop(L, 1);
+        lua_getfield(L, -1, "on_hover");
+        if (lua_isfunction(L, -1))
+            cfg->bar.lua_hover_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+        else
+            lua_pop(L, 1);
+
         /* Bar-level colors: only background + foreground. Module-specific
          * palettes live on individual modules under `colors = { ... }`. */
         lua_getfield(L, -1, "colors");
@@ -2581,6 +2600,12 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
             if (cfg->bar.modules[i].lua_update_ref >= 0)
                 luaL_unref(L, LUA_REGISTRYINDEX,
                            cfg->bar.modules[i].lua_update_ref);
+            if (cfg->bar.modules[i].lua_click_ref >= 0)
+                luaL_unref(L, LUA_REGISTRYINDEX,
+                           cfg->bar.modules[i].lua_click_ref);
+            if (cfg->bar.modules[i].lua_hover_ref >= 0)
+                luaL_unref(L, LUA_REGISTRYINDEX,
+                           cfg->bar.modules[i].lua_hover_ref);
         }
         free(cfg->bar.modules);
         cfg->bar.modules = nullptr;
@@ -2619,6 +2644,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                         m.fg[0] = m.fg[1] = m.fg[2] = 0.0f; m.fg[3] = -1.0f;
                         m.bg[0] = m.bg[1] = m.bg[2] = 0.0f; m.bg[3] = 0.0f;
                         m.lua_update_ref = -1;
+                        m.lua_click_ref  = -1;
+                        m.lua_hover_ref  = -1;
                         m.interval_ms = 1000;
 
                         /* If the entry is a string that isn't a built-in name,
@@ -2749,6 +2776,18 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                     lua_pop(L, 1);
                                 }
                             }
+
+                            /* Event handlers (available on any module type). */
+                            lua_getfield(L, -1, "on_click");
+                            if (lua_isfunction(L, -1))
+                                m.lua_click_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+                            else
+                                lua_pop(L, 1);
+                            lua_getfield(L, -1, "on_hover");
+                            if (lua_isfunction(L, -1))
+                                m.lua_hover_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+                            else
+                                lua_pop(L, 1);
                         }
 
                         idx++;
@@ -3485,6 +3524,8 @@ nnwm::config_defaults(void)
     cfg->bar.fg_color[2] = 0.85f; cfg->bar.fg_color[3] = 1.0f;
     cfg->bar.modules      = nullptr;
     cfg->bar.module_count = 0;
+    cfg->bar.lua_click_ref = -1;
+    cfg->bar.lua_hover_ref = -1;
 
     cfg->bar.fx.corner_radius     = 0;
     cfg->bar.fx.shadow_enabled    = false;

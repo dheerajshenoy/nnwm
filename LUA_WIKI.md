@@ -503,6 +503,49 @@ Resolution order for a string entry in `modules`:
 
 If neither matches, the entry is skipped and an error is logged.
 
+### Pointer events
+
+Every module accepts `on_click` and `on_hover` handlers. The bar itself can
+also carry the same fields on `nnwm.opt.bar` — those fire when the cursor
+is over the bar background (i.e. between modules).
+
+```lua
+nnwm.bar.module("volume", {
+    type = "custom",
+    interval = 30000,
+    update = function() return " ??%" end,
+    on_click = function(button)
+        if     button == "left"  then nnwm.spawn("pavucontrol")
+        elseif button == "right" then nnwm.spawn("pactl set-sink-mute @DEFAULT_SINK@ toggle")
+        end
+        nnwm.bar.update("volume")
+    end,
+    on_hover = function(entered)
+        if entered then nnwm.log.info("volume: hovered") end
+    end,
+})
+```
+
+Button names passed to `on_click`: `"left"`, `"right"`, `"middle"`, `"side"`,
+`"extra"`, `"forward"`, `"back"`, or `"other"` for anything else.
+
+Coordinates are cursor position in bar-local pixels (0,0 = top-left of the
+bar's own rect, *not* the output). Useful for popup positioning.
+
+Semantics:
+
+- **All pointer events over the bar are consumed by the compositor** —
+  windows below never see cursor motion, clicks, or focus changes while
+  the pointer is over the bar. This is intentional (the bar sits at the
+  layer-shell TOP layer, above tiled/floating windows).
+- **Only PRESS triggers `on_click`.** The matching RELEASE is swallowed so
+  no client receives a half-event.
+- **Hover fires on enter/leave only** — not on every motion event. Ordering
+  is guaranteed: when moving between modules you get the previous module's
+  `on_hover(false)` before the new module's `on_hover(true)`.
+- Handlers are optional. A module without `on_click`/`on_hover` still
+  captures pointer events (they're just silently absorbed).
+
 ### `nnwm.bar.update(name)`
 
 Force any module named `name` to re-poll its data source and redraw
@@ -550,6 +593,8 @@ signature invalidated and re-rendered.
 | `fg`        | color             | all            | Text color; alpha<0 = inherit bar foreground |
 | `bg`        | color             | all            | Segment background; alpha=0 = transparent |
 | `colors`    | table             | all            | Per-module color palette (see below). Overrides bar-level colors. |
+| `on_click`  | function          | all            | `fn(button:string, x:int, y:int)` — called when the module is clicked. Consumes the click (windows below never see it). |
+| `on_hover`  | function          | all            | `fn(entered:bool)` — called when the cursor enters (`true`) or leaves (`false`) the module's rect. |
 
 All module-specific colors live on the module itself, not on the bar.
 `nnwm.opt.bar.colors` only accepts `background` and `foreground` (the latter

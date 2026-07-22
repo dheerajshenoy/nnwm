@@ -450,6 +450,10 @@ struct nnwm_bar
      * work when the composition hasn't changed since the previous frame. */
     char *last_signature;
     int last_signature_len;
+
+    /* Hover tracking. hover_module_idx = -1 means "over the bar background",
+     * -2 means "not over the bar at all". */
+    int hover_module_idx;
 };
 
 struct nnwm_timer
