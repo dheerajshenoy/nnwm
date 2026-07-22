@@ -16,8 +16,28 @@ extern "C" {
 #include <wlr/util/log.h>
 }
 
-/* ---- CPU-side wlr_buffer for cairo pixels (mirrors nnwm.cpp::nnwm_tbuf) ---- */
+/* ---- FNV-1a 64-bit — allocation-free content hashing for the signature. */
 namespace {
+
+static inline uint64_t fnv1a_start(void) { return 0xcbf29ce484222325ULL; }
+
+static inline uint64_t fnv1a_bytes(uint64_t h, const void *data, size_t n) {
+    const uint8_t *p = static_cast<const uint8_t *>(data);
+    for (size_t i = 0; i < n; i++) {
+        h ^= p[i];
+        h *= 0x100000001b3ULL;
+    }
+    return h;
+}
+static inline uint64_t fnv1a_str(uint64_t h, const char *s) {
+    return s ? fnv1a_bytes(h, s, strlen(s)) : h;
+}
+static inline uint64_t fnv1a_u32(uint64_t h, uint32_t v) {
+    return fnv1a_bytes(h, &v, sizeof(v));
+}
+
+/* ---- CPU-side wlr_buffer for cairo pixels (mirrors nnwm.cpp::nnwm_tbuf) ---- */
+
 
 struct bar_tbuf {
     struct wlr_buffer base;
@@ -118,33 +138,39 @@ static int draw_text_segment(cairo_t *cr, PangoFontDescription *fd,
     return w;
 }
 
-/* Build the text to display for a single module. Returns a heap-allocated
- * string the caller must free. NULL if the module renders nothing. For
- * modules with sub-segments (workspaces), returns NULL and caller uses
- * draw_workspaces_module directly. */
-static char *module_render_text(nnwm_bar *bar, nnwm_bar_module &m,
-                                double now) {
-    nnwm_server *server = bar->server;
-    nnwm_config *cfg = server->config;
+/* Assign `s` (may be null/short-lived) into m.cached_text without a spurious
+ * realloc when the value hasn't changed. Returns true if the cached value
+ * was modified. */
+static bool cache_set(nnwm_bar_module &m, const char *s) {
+    const char *cur = m.cached_text ? m.cached_text : "";
+    const char *nw  = s ? s : "";
+    if (strcmp(cur, nw) == 0) return false;
+    free(m.cached_text);
+    m.cached_text = strdup(nw);
+    return true;
+}
 
+/* Refresh `m.cached_text` for the current frame. Called at most once per
+ * redraw per module. WORKSPACES doesn't use cached_text. */
+static void module_refresh(nnwm_bar *bar, nnwm_bar_module &m, double now) {
+    nnwm_server *server = bar->server;
     switch (m.type) {
         case nnwm_bar_module_type::WORKSPACES:
-            return nullptr; /* rendered specially */
+            return;
 
         case nnwm_bar_module_type::WINDOW_TITLE: {
             nnwm_toplevel *tl = bar_focused_toplevel(bar);
-            if (!tl) return strdup("");
-            const char *t = tl_title(tl);
-            return strdup(t ? t : "");
+            const char *t = tl ? tl_title(tl) : nullptr;
+            cache_set(m, t);
+            return;
         }
-
         case nnwm_bar_module_type::LAYOUT: {
             nnwm_output *out = bar_target_output(bar);
-            if (!out) return strdup("");
-            const char *n = layout_mode_name(out->layout_mode[out->active_workspace]);
-            return strdup(n);
+            if (!out) { cache_set(m, ""); return; }
+            cache_set(m,
+                layout_mode_name(out->layout_mode[out->active_workspace]));
+            return;
         }
-
         case nnwm_bar_module_type::CLOCK: {
             const char *fmt = m.format ? m.format : "%H:%M";
             time_t t = time(nullptr);
@@ -152,18 +178,19 @@ static char *module_render_text(nnwm_bar *bar, nnwm_bar_module &m,
             localtime_r(&t, &tmv);
             char buf[128];
             if (strftime(buf, sizeof(buf), fmt, &tmv) == 0) buf[0] = 0;
-            return strdup(buf);
+            cache_set(m, buf);
+            return;
         }
-
         case nnwm_bar_module_type::CUSTOM: {
-            /* Poll only when interval elapsed (or first render). */
+            /* Poll only when interval elapsed (or never polled). */
             bool need = !m.cached_text
                         || (m.interval_ms > 0
                             && (now - m.cached_ts) * 1000.0 >= m.interval_ms);
-            if (!need) return m.cached_text ? strdup(m.cached_text) : strdup("");
-            if (m.lua_update_ref < 0 || !server->lua)
-                return strdup(m.cached_text ? m.cached_text : "");
-
+            if (!need) return;
+            if (m.lua_update_ref < 0 || !server->lua) {
+                if (!m.cached_text) m.cached_text = strdup("");
+                return;
+            }
             lua_State *L = server->lua;
             lua_rawgeti(L, LUA_REGISTRYINDEX, m.lua_update_ref);
             const char *result = "";
@@ -173,15 +200,12 @@ static char *module_render_text(nnwm_bar *bar, nnwm_bar_module &m,
                 wlr_log(WLR_ERROR, "bar custom widget error: %s",
                         lua_tostring(L, -1));
             }
-            free(m.cached_text);
-            m.cached_text = strdup(result);
+            cache_set(m, result);
             m.cached_ts = now;
             lua_pop(L, 1);
-            (void)cfg;
-            return strdup(m.cached_text);
+            return;
         }
     }
-    return nullptr;
 }
 
 /* Pick module-level color if set (alpha >= 0), else the fallback. */
@@ -196,27 +220,30 @@ static const float k_ws_active_fg[4]   = {1.0f,  1.0f,  1.0f,  1.0f};
 static const float k_ws_occupied_fg[4] = {0.65f, 0.70f, 0.85f, 1.0f};
 static const float k_ws_unocc_fg[4]    = {0.45f, 0.45f, 0.50f, 1.0f};
 
+/* Compute a bitmap of which workspaces on `out` have at least one window.
+ * Single O(N) walk over toplevels; callers that need it cache the result
+ * for the duration of the redraw. */
+static uint16_t workspace_occupancy_bits(nnwm_server *server, nnwm_output *out) {
+    if (!out) return 0;
+    uint16_t bits = 0;
+    nnwm_toplevel *tl;
+    wl_list_for_each(tl, &server->toplevels, link) {
+        if (tl->output != out) continue;
+        if (tl->workspace < 0 || tl->workspace >= NNWM_NUM_WORKSPACES) continue;
+        bits |= (uint16_t)(1u << tl->workspace);
+    }
+    return bits;
+}
+
 /* Draw the workspaces module. Returns width consumed. */
 static int draw_workspaces_module(cairo_t *cr, PangoFontDescription *fd,
                                   nnwm_bar *bar, nnwm_bar_module &m,
-                                  int x, int bar_h) {
-    nnwm_server *server = bar->server;
-    nnwm_config *cfg = server->config;
+                                  int x, int bar_h,
+                                  uint16_t occ_bits, int active_ws) {
+    nnwm_config *cfg = bar->server->config;
     nnwm_output *out = bar_target_output(bar);
-    int active_ws = out ? out->active_workspace : 0;
     int count = cfg->workspace_count > 0 ? cfg->workspace_count : 9;
     if (count > NNWM_NUM_WORKSPACES) count = NNWM_NUM_WORKSPACES;
-
-    /* Determine which workspaces are occupied on this output. */
-    bool occupied[NNWM_NUM_WORKSPACES] = {false};
-    if (out) {
-        nnwm_toplevel *tl;
-        wl_list_for_each(tl, &server->toplevels, link) {
-            if (tl->output != out) continue;
-            if (tl->workspace < 0 || tl->workspace >= NNWM_NUM_WORKSPACES) continue;
-            occupied[tl->workspace] = true;
-        }
-    }
 
     const float *c_active_bg   = pick(m.ws_active_bg,     k_ws_active_bg);
     const float *c_active_fg   = pick(m.ws_active_fg,     k_ws_active_fg);
@@ -237,10 +264,11 @@ static int draw_workspaces_module(cairo_t *cr, PangoFontDescription *fd,
 
         const float *fg;
         const float *bg = nullptr;
+        bool is_occupied = (occ_bits & (uint16_t)(1u << i)) != 0;
         if (i == active_ws) {
             fg = c_active_fg;
             bg = c_active_bg;
-        } else if (occupied[i]) {
+        } else if (is_occupied) {
             fg = c_occupied_fg;
         } else {
             fg = c_unocc_fg;
@@ -252,102 +280,62 @@ static int draw_workspaces_module(cairo_t *cr, PangoFontDescription *fd,
 
 /* ---- Bar rendering ---- */
 
-/* Build a compact string describing everything visible on the bar for the
- * current state. Used to skip cairo work when the composition is unchanged.
- * Also captures state that WORKSPACES/LAYOUT/WINDOW_TITLE would render, since
- * those don't populate cached_text via module_render_text. */
-static char *bar_compute_signature(nnwm_bar *bar, double now) {
-    nnwm_server *server = bar->server;
-    nnwm_config *cfg = server->config;
-    nnwm_output *out = bar_target_output(bar);
+/* Refresh every module's cached_text (populate it if needed based on
+ * interval / triggers). Called at top of bar_redraw before hashing. */
+static void bar_refresh_modules(nnwm_bar *bar, double now) {
+    nnwm_config *cfg = bar->server->config;
+    for (int i = 0; i < cfg->bar.module_count; i++)
+        module_refresh(bar, cfg->bar.modules[i], now);
+}
 
-    /* Rough upper bound; grows as needed via realloc. */
-    size_t cap = 256;
-    size_t len = 0;
-    char *buf = static_cast<char *>(malloc(cap));
-    auto append = [&](const char *s) {
-        size_t n = strlen(s);
-        if (len + n + 1 > cap) {
-            while (len + n + 1 > cap) cap *= 2;
-            buf = static_cast<char *>(realloc(buf, cap));
-        }
-        memcpy(buf + len, s, n);
-        len += n;
-        buf[len] = '\0';
-    };
-    char tmp[128];
+/* Alloc-free 64-bit hash of everything visible on the bar. Assumes
+ * bar_refresh_modules already ran. */
+static uint64_t bar_hash(nnwm_bar *bar, uint16_t occ_bits, int active_ws) {
+    nnwm_config *cfg = bar->server->config;
 
-    /* Bar geometry — different size means different layout. */
-    snprintf(tmp, sizeof(tmp), "W%dH%d|", bar->width, bar->height);
-    append(tmp);
-
-    /* Workspace state (active + occupancy bitmap) — shared across all
-     * WORKSPACES modules. */
-    if (out) {
-        snprintf(tmp, sizeof(tmp), "A%d/", out->active_workspace);
-        append(tmp);
-        for (int i = 0; i < NNWM_NUM_WORKSPACES; i++) {
-            int cnt = 0;
-            nnwm_toplevel *tl;
-            wl_list_for_each(tl, &server->toplevels, link) {
-                if (tl->output == out && tl->workspace == i) cnt++;
-            }
-            snprintf(tmp, sizeof(tmp), "%d,", cnt);
-            append(tmp);
-        }
-        append("|");
-    }
+    uint64_t h = fnv1a_start();
+    h = fnv1a_u32(h, (uint32_t)bar->width);
+    h = fnv1a_u32(h, (uint32_t)bar->height);
+    h = fnv1a_u32(h, ((uint32_t)active_ws << 16) | occ_bits);
 
     for (int i = 0; i < cfg->bar.module_count; i++) {
         nnwm_bar_module &m = cfg->bar.modules[i];
-        append("[");
-        switch (m.type) {
-            case nnwm_bar_module_type::WORKSPACES:
-                append("ws"); /* covered by shared block above */
-                break;
-            case nnwm_bar_module_type::LAYOUT:
-                if (out) append(layout_mode_name(
-                    out->layout_mode[out->active_workspace]));
-                break;
-            case nnwm_bar_module_type::WINDOW_TITLE: {
-                nnwm_toplevel *tl = bar_focused_toplevel(bar);
-                const char *t = tl ? tl_title(tl) : nullptr;
-                append(t ? t : "");
-                break;
-            }
-            case nnwm_bar_module_type::CLOCK:
-            case nnwm_bar_module_type::CUSTOM:
-                /* module_render_text handles caching; call it just to
-                 * populate cached_text, then read it. */
-                {
-                    char *t = module_render_text(bar, m, now);
-                    if (t) append(t);
-                    free(t);
-                }
-                break;
+        /* Salt each entry with its type so identical text in adjacent
+         * modules doesn't collide. */
+        h = fnv1a_u32(h, (uint32_t)m.type);
+        if (m.type == nnwm_bar_module_type::WORKSPACES) {
+            /* Colors that affect workspace pill rendering. */
+            h = fnv1a_bytes(h, m.ws_active_bg,   sizeof(m.ws_active_bg));
+            h = fnv1a_bytes(h, m.ws_active_fg,   sizeof(m.ws_active_fg));
+            h = fnv1a_bytes(h, m.ws_occupied_fg, sizeof(m.ws_occupied_fg));
+            h = fnv1a_bytes(h, m.ws_unoccupied_fg, sizeof(m.ws_unoccupied_fg));
+        } else {
+            h = fnv1a_str(h, m.cached_text);
         }
-        append("]");
     }
-    return buf;
+    return h;
 }
 
 static void bar_redraw(nnwm_bar *bar) {
     if (!bar || !bar->content) return;
+    bar->dirty = false; /* clear ahead of the hash check — even a skipped
+                           redraw satisfies the "please refresh" request */
     nnwm_server *server = bar->server;
     nnwm_config *cfg = server->config;
     nnwm_output *out = bar_target_output(bar);
     if (!out || !out->wlr_output) return;
 
-    /* Skip rendering when nothing user-visible changed since last frame. */
+    /* Populate module text caches, then hash. */
     double now = now_seconds();
-    char *sig = bar_compute_signature(bar, now);
-    if (bar->last_signature && strcmp(bar->last_signature, sig) == 0) {
-        free(sig);
-        return;
-    }
-    free(bar->last_signature);
-    bar->last_signature = sig;
-    bar->last_signature_len = (int)strlen(sig);
+    bar_refresh_modules(bar, now);
+    uint16_t occ_bits = 0;
+    int      active_ws = out ? out->active_workspace : 0;
+    if (bar->module_type_mask & (1u << (unsigned)nnwm_bar_module_type::WORKSPACES))
+        occ_bits = workspace_occupancy_bits(server, out);
+    uint64_t hash = bar_hash(bar, occ_bits, active_ws);
+    if (bar->has_last_hash && bar->last_hash == hash) return;
+    bar->last_hash = hash;
+    bar->has_last_hash = true;
 
     float scale = out->wlr_output->scale;
     int pw = (int)(bar->width * scale);
@@ -363,45 +351,60 @@ static void bar_redraw(nnwm_bar *bar) {
     /* Transparent — background rect is a scene_rect drawn separately so
      * scenefx blur can attach to it. Cairo layer only carries text. */
 
-    PangoFontDescription *fd = pango_font_description_from_string(
-        cfg->bar.font ? cfg->bar.font : "monospace 11");
-    const char *fam = pango_font_description_get_family(fd);
-    char family[256];
-    snprintf(family, sizeof(family), "%s,DejaVu Sans,Noto Sans,Liberation Sans,Sans",
-             fam ? fam : "Sans");
-    pango_font_description_set_family(fd, family);
+    PangoFontDescription *fd
+        = reinterpret_cast<PangoFontDescription *>(bar->font_desc);
 
     /* Bar edges are at x=0..bar->width; padding is applied as outer margin
      * in bar_layout, so modules can flush against the bar's own edges. */
     int spacing = cfg->bar.module_spacing;
 
-    /* Two-pass layout: measure left/right widths, then draw. Center is
-     * anchored to bar center. */
-    struct seg { char *text; int w; nnwm_bar_module *m; bool is_ws; };
+    /* Two-pass layout: measure widths, then draw. Center is anchored to
+     * bar center. For text modules we build a PangoLayout up-front and
+     * REUSE it in the draw pass, so text is shaped exactly once. */
+    struct seg {
+        int w;
+        int text_w, text_h; /* pango pixel size, for drawing */
+        nnwm_bar_module *m;
+        PangoLayout *layout; /* null for WORKSPACES */
+        bool is_ws;
+    };
     seg *segs = static_cast<seg *>(calloc(cfg->bar.module_count, sizeof(seg)));
-    /* First pass: pre-render text and measure. */
     for (int i = 0; i < cfg->bar.module_count; i++) {
         nnwm_bar_module &m = cfg->bar.modules[i];
         segs[i].m = &m;
         if (m.type == nnwm_bar_module_type::WORKSPACES) {
             segs[i].is_ws = true;
-            /* Measure by drawing to a scratch cr. Cheap enough. */
-            cairo_surface_t *ss = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
-            cairo_t *sc = cairo_create(ss);
-            segs[i].w = draw_workspaces_module(sc, fd, bar, m, 0, bar->height);
-            cairo_destroy(sc);
-            cairo_surface_destroy(ss);
+            /* Measure workspace pill row. This has to lay out each label,
+             * but each is only a few glyphs so still cheap. */
+            int count = cfg->workspace_count > 0 ? cfg->workspace_count : 9;
+            if (count > NNWM_NUM_WORKSPACES) count = NNWM_NUM_WORKSPACES;
+            int pad = m.padding >= 0 ? m.padding : 8;
+            int w = 0;
+            nnwm_output *tout = bar_target_output(bar);
+            for (int j = 0; j < count; j++) {
+                const char *label = nullptr;
+                if (tout && tout->workspace_names[j]) label = tout->workspace_names[j];
+                else if (cfg->workspace_names[j])     label = cfg->workspace_names[j];
+                char buf[16];
+                if (!label) { snprintf(buf, sizeof(buf), "%d", j + 1); label = buf; }
+                PangoLayout *L = pango_cairo_create_layout(cr);
+                pango_layout_set_font_description(L, fd);
+                pango_layout_set_text(L, label, -1);
+                int tw, th; pango_layout_get_pixel_size(L, &tw, &th);
+                g_object_unref(L);
+                w += tw + 2 * pad;
+            }
+            segs[i].w = w;
         } else {
-            segs[i].text = module_render_text(bar, m, now);
-            if (!segs[i].text || !segs[i].text[0]) { segs[i].w = 0; continue; }
-            PangoLayout *layout = pango_cairo_create_layout(cr);
-            pango_layout_set_font_description(layout, fd);
-            pango_layout_set_text(layout, segs[i].text, -1);
-            int tw, th;
-            pango_layout_get_pixel_size(layout, &tw, &th);
-            g_object_unref(layout);
+            const char *text = m.cached_text;
+            if (!text || !text[0]) { segs[i].w = 0; continue; }
+            segs[i].layout = pango_cairo_create_layout(cr);
+            pango_layout_set_font_description(segs[i].layout, fd);
+            pango_layout_set_text(segs[i].layout, text, -1);
+            pango_layout_get_pixel_size(segs[i].layout,
+                                        &segs[i].text_w, &segs[i].text_h);
             int pad = m.padding >= 0 ? m.padding : 6;
-            segs[i].w = tw + 2 * pad;
+            segs[i].w = segs[i].text_w + 2 * pad;
         }
     }
 
@@ -450,41 +453,50 @@ static void bar_redraw(nnwm_bar *bar) {
         int drawn = 0;
 
         if (s.is_ws) {
-            drawn = draw_workspaces_module(cr, fd, bar, *s.m, x, bar->height);
+            drawn = draw_workspaces_module(cr, fd, bar, *s.m,
+                                           x, bar->height,
+                                           occ_bits, active_ws);
         } else if (s.m->type == nnwm_bar_module_type::WINDOW_TITLE
                    && s.m->align == nnwm_bar_align::CENTER) {
             /* Ellipsize to available space between left and right groups. */
             int avail_left = left_cursor + spacing;
             int avail_right = right_x - spacing;
-            if (avail_right <= avail_left) { free(s.text); continue; }
+            if (avail_right <= avail_left) { g_object_unref(s.layout); continue; }
             int max_w = avail_right - avail_left;
+            int tw = s.text_w, th = s.text_h;
+            int rx;
             if (s.w > max_w) {
-                PangoLayout *layout = pango_cairo_create_layout(cr);
-                pango_layout_set_font_description(layout, fd);
-                pango_layout_set_text(layout, s.text, -1);
-                pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
-                pango_layout_set_width(layout, (max_w - 2 * pad) * PANGO_SCALE);
-                int tw, th;
-                pango_layout_get_pixel_size(layout, &tw, &th);
-                int rx = avail_left + (max_w - (tw + 2 * pad)) / 2;
-                if (bg) {
-                    cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
-                    cairo_rectangle(cr, rx, 0, tw + 2 * pad, bar->height);
-                    cairo_fill(cr);
-                }
-                cairo_set_source_rgba(cr, fg[0], fg[1], fg[2], fg[3]);
-                cairo_move_to(cr, rx + pad, (bar->height - th) / 2.0);
-                pango_cairo_show_layout(cr, layout);
-                g_object_unref(layout);
-                drawn = tw + 2 * pad;
-                x = rx;
+                pango_layout_set_ellipsize(s.layout, PANGO_ELLIPSIZE_END);
+                pango_layout_set_width(s.layout, (max_w - 2 * pad) * PANGO_SCALE);
+                pango_layout_get_pixel_size(s.layout, &tw, &th);
+                rx = avail_left + (max_w - (tw + 2 * pad)) / 2;
             } else {
-                drawn = draw_text_segment(cr, fd, s.text, x, bar->height, fg, bg, pad);
+                rx = x;
             }
-            free(s.text);
+            if (bg) {
+                cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
+                cairo_rectangle(cr, rx, 0, tw + 2 * pad, bar->height);
+                cairo_fill(cr);
+            }
+            cairo_set_source_rgba(cr, fg[0], fg[1], fg[2], fg[3]);
+            cairo_move_to(cr, rx + pad, (bar->height - th) / 2.0);
+            pango_cairo_show_layout(cr, s.layout);
+            g_object_unref(s.layout);
+            drawn = tw + 2 * pad;
+            x = rx;
         } else {
-            drawn = draw_text_segment(cr, fd, s.text, x, bar->height, fg, bg, pad);
-            free(s.text);
+            /* Plain text draw using the cached PangoLayout. */
+            int w = s.text_w + 2 * pad;
+            if (bg) {
+                cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
+                cairo_rectangle(cr, x, 0, w, bar->height);
+                cairo_fill(cr);
+            }
+            cairo_set_source_rgba(cr, fg[0], fg[1], fg[2], fg[3]);
+            cairo_move_to(cr, x + pad, (bar->height - s.text_h) / 2.0);
+            pango_cairo_show_layout(cr, s.layout);
+            g_object_unref(s.layout);
+            drawn = w;
         }
 
         /* Record hit-test rect (bar-local coordinates). */
@@ -500,7 +512,6 @@ static void bar_redraw(nnwm_bar *bar) {
     }
     free(segs);
 
-    pango_font_description_free(fd);
     cairo_destroy(cr);
     cairo_surface_destroy(surf);
 
@@ -612,6 +623,27 @@ static nnwm_bar *bar_create(nnwm_server *server, nnwm_output *out) {
     bar->output = out;
     bar->hover_module_idx = -2;
 
+    /* Cache PangoFontDescription — building this is not cheap and it
+     * doesn't depend on rendered content. Bar is torn down on config
+     * reload, so no invalidation needed. */
+    {
+        PangoFontDescription *fd = pango_font_description_from_string(
+            cfg->bar.font ? cfg->bar.font : "monospace 11");
+        const char *fam = pango_font_description_get_family(fd);
+        char family[256];
+        snprintf(family, sizeof(family),
+                 "%s,DejaVu Sans,Noto Sans,Liberation Sans,Sans",
+                 fam ? fam : "Sans");
+        pango_font_description_set_family(fd, family);
+        bar->font_desc = reinterpret_cast<struct _PangoFontDescription *>(fd);
+    }
+
+    /* Bitmask of module types present — lets bar_notify_* skip work when
+     * the bar has no module the trigger would affect. */
+    bar->module_type_mask = 0;
+    for (int i = 0; i < cfg->bar.module_count; i++)
+        bar->module_type_mask |= 1u << (unsigned)cfg->bar.modules[i].type;
+
     /* Place in the TOP layer tree so it renders above tiled/floating windows
      * but below OVERLAY (which hosts DnD icons and unmanaged xwayland). */
     bar->tree = wlr_scene_tree_create(
@@ -654,7 +686,9 @@ static void bar_destroy(nnwm_bar *bar) {
     if (!bar) return;
     if (bar->tick_timer) wl_event_source_remove(bar->tick_timer);
     if (bar->tree) wlr_scene_node_destroy(&bar->tree->node);
-    free(bar->last_signature);
+    if (bar->font_desc)
+        pango_font_description_free(
+            reinterpret_cast<PangoFontDescription *>(bar->font_desc));
     delete bar;
 }
 
@@ -726,48 +760,47 @@ void bar_shrink_usable_area(nnwm_server *server, nnwm_output *out,
     if (usable->height < 1) usable->height = 1;
 }
 
-/* Are any modules present that care about the given trigger? Avoids paying
- * cairo/pango cost for state changes the current bar doesn't display. */
-static bool bar_uses_module(nnwm_config *cfg, nnwm_bar_module_type t) {
-    for (int i = 0; i < cfg->bar.module_count; i++)
-        if (cfg->bar.modules[i].type == t) return true;
-    return false;
+/* Which module types would be affected by the trigger. Cached per-bar in
+ * bar->module_type_mask, so the check is a single bitwise AND. */
+static constexpr unsigned MASK_WORKSPACES = 1u << (unsigned)nnwm_bar_module_type::WORKSPACES;
+static constexpr unsigned MASK_WINDOW_TITLE = 1u << (unsigned)nnwm_bar_module_type::WINDOW_TITLE;
+static constexpr unsigned MASK_LAYOUT = 1u << (unsigned)nnwm_bar_module_type::LAYOUT;
+
+static inline bool bar_cares_about(nnwm_bar *bar, unsigned mask) {
+    return bar && (bar->module_type_mask & mask);
+}
+
+/* Coalesce redraws to at most one per output frame. `bar_notify_*` sets
+ * bar->dirty; the actual redraw runs on the next output_frame via
+ * bar_predraw_output(). This turns bursts of workspace/focus/title events
+ * into a single redraw per output. */
+static void redraw_if_cares(nnwm_bar *bar, unsigned mask) {
+    if (bar_cares_about(bar, mask)) bar->dirty = true;
 }
 
 void bar_notify_workspace_change(nnwm_server *server, nnwm_output *out) {
-    nnwm_config *cfg = server->config;
     /* Workspace-switching also changes the "focused window" for that output,
      * so window_title-only bars are affected too. */
-    if (!bar_uses_module(cfg, nnwm_bar_module_type::WORKSPACES)
-        && !bar_uses_module(cfg, nnwm_bar_module_type::WINDOW_TITLE)
-        && !bar_uses_module(cfg, nnwm_bar_module_type::LAYOUT))
-        return;
-    if (out && out->bar) bar_redraw(out->bar);
-    if (server->global_bar) bar_redraw(server->global_bar);
+    unsigned mask = MASK_WORKSPACES | MASK_WINDOW_TITLE | MASK_LAYOUT;
+    if (out) redraw_if_cares(out->bar, mask);
+    redraw_if_cares(server->global_bar, mask);
 }
 
 void bar_notify_focus_change(nnwm_server *server) {
-    nnwm_config *cfg = server->config;
-    if (!bar_uses_module(cfg, nnwm_bar_module_type::WINDOW_TITLE))
-        return;
+    unsigned mask = MASK_WINDOW_TITLE;
     nnwm_output *out;
-    wl_list_for_each(out, &server->outputs, link) {
-        if (out->bar) bar_redraw(out->bar);
-    }
-    if (server->global_bar) bar_redraw(server->global_bar);
+    wl_list_for_each(out, &server->outputs, link)
+        redraw_if_cares(out->bar, mask);
+    redraw_if_cares(server->global_bar, mask);
 }
 
 void bar_notify_windows_changed(nnwm_server *server) {
-    nnwm_config *cfg = server->config;
     /* Window open/close affects both workspace-occupancy and current title. */
-    if (!bar_uses_module(cfg, nnwm_bar_module_type::WORKSPACES)
-        && !bar_uses_module(cfg, nnwm_bar_module_type::WINDOW_TITLE))
-        return;
+    unsigned mask = MASK_WORKSPACES | MASK_WINDOW_TITLE;
     nnwm_output *out;
-    wl_list_for_each(out, &server->outputs, link) {
-        if (out->bar) bar_redraw(out->bar);
-    }
-    if (server->global_bar) bar_redraw(server->global_bar);
+    wl_list_for_each(out, &server->outputs, link)
+        redraw_if_cares(out->bar, mask);
+    redraw_if_cares(server->global_bar, mask);
 }
 
 void bar_destroy_all(nnwm_server *server) {
@@ -778,6 +811,16 @@ void bar_destroy_all(nnwm_server *server) {
         bar_destroy(out->bar);
         out->bar = nullptr;
     }
+}
+
+/* Called from output_frame just before scene commit. Drains any pending
+ * redraws for bars associated with `out` (per-output bar and, if the
+ * global bar targets `out`, the global bar too). */
+void bar_predraw_output(nnwm_server *server, nnwm_output *out) {
+    if (out->bar && out->bar->dirty) bar_redraw(out->bar);
+    if (server->global_bar && server->global_bar->dirty
+        && bar_target_output(server->global_bar) == out)
+        bar_redraw(server->global_bar);
 }
 
 void bar_destroy_for_output(nnwm_output *out) {
@@ -940,18 +983,16 @@ void bar_update_module(nnwm_server *server, const char *name) {
     }
     if (!any) return;
 
-    /* Invalidate every bar's signature so the redraw doesn't short-circuit
+    /* Invalidate every bar's hash so the redraw doesn't short-circuit
      * against the stale composition. */
     if (server->global_bar) {
-        free(server->global_bar->last_signature);
-        server->global_bar->last_signature = nullptr;
+        server->global_bar->has_last_hash = false;
         bar_redraw(server->global_bar);
     }
     nnwm_output *out;
     wl_list_for_each(out, &server->outputs, link) {
         if (!out->bar) continue;
-        free(out->bar->last_signature);
-        out->bar->last_signature = nullptr;
+        out->bar->has_last_hash = false;
         bar_redraw(out->bar);
     }
 }

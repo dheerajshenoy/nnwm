@@ -446,10 +446,20 @@ struct nnwm_bar
     bool position_top;
     bool dirty;                         /* redraw scheduled */
 
-    /* Efficiency: hash + concat of last-rendered module output. Skip cairo
+    /* Efficiency: 64-bit hash of the last-rendered composition. Skip cairo
      * work when the composition hasn't changed since the previous frame. */
-    char *last_signature;
-    int last_signature_len;
+    unsigned long long last_hash;
+    bool has_last_hash;
+
+    /* Cached PangoFontDescription — rebuilt only when cfg->bar.font
+     * changes (bar_apply_config tears the bar down on config reload, so
+     * we don't need explicit invalidation). Owned. */
+    struct _PangoFontDescription *font_desc;
+
+    /* Bitmask (1 << nnwm_bar_module_type) of the module types this bar
+     * actually hosts. Computed once at bar_create, consulted by the
+     * bar_notify_* fast-paths to skip work the bar doesn't care about. */
+    unsigned int module_type_mask;
 
     /* Hover tracking. hover_module_idx = -1 means "over the bar background",
      * -2 means "not over the bar at all". */

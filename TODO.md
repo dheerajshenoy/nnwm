@@ -195,6 +195,8 @@
     - [x] Custom interval per module
     - [x] signal module to update modules on demand
     - [x] Slow layout module update when switching layout
+    - [x] Clickable modules
+    - [x] Hover signal for modules
 - [x] Switching layout bug
 - [x] Log API: nnwm.log.info/warn/error writing to a known file — replaces print-debugging.
 - [x] Version API: nnwm.version() return a current version string, e.g. "0.1.0" or "0.1.0-rc1". Useful for configs that need to adapt to different versions.
@@ -229,8 +231,7 @@
 - [ ] nnwm.windows(), nnwm.workspaces(), nnwm.outputs(), and userdata objects with methods (:focus(), :close(), :move_to(), :set_floating(), :set_geometry(), :title(), :app_id(), :pid(), :is_xwayland(), :tag/untag).
 - [ ] External IPC (nnwmctl / socket). Without this you can't drive nnwm from waybar, rofi, shell scripts, or a status bar. Hyprland/sway/awesome all have this and it's what makes them scriptable. A Unix socket that accepts Lua code (or a small command grammar) and returns JSON is enough.
 - [ ] Custom layouts in Lua. Expose nnwm.register_layout("mylayout", function(area, windows) return {{x,y,w,h}, ...} end). This turns the compositor into a platform — users write dwm-style layouts without touching C++.
-- [ ] Modal keybinds / keychords. Vim/hyprland-style nnwm.mode("resize", {enter=fn, leave=fn, keys={...}}). Essential for resize/scale modes without eating global keys.
-- [ ] Event coverage.
+- Event coverage.
     - [ ] window_unfocus
     - [ ] window_title_change
     - [ ] window_geometry_change
@@ -245,9 +246,6 @@
     - [ ] Also pass the affected object into the callback, not just a bare event.
 - [ ] Runtime rules. nnwm.add_rule({app_id="firefox"}, function(w) w:set_floating(true) end) and nnwm.remove_rule(id). Right now rules are static config only.
 - [ ] Per-output / per-workspace config scopes. nnwm.output("HDMI-1").opt.gaps = 20, nnwm.workspace(3).layout = "tabbed". Currently most things are global.
-- [ ] nnwm.exec(cmd, {sync=true, on_exit=fn, capture=true}) — replaces spawn and lets configs read tool output at load time (battery, host, gpu, etc.).
-- [ ] nnwm.notify(msg, {level, timeout}) — for on handlers to surface state; today users must shell out to notify-send.
-- [ ] Cursor control: nnwm.cursor.pos(), nnwm.cursor.warp(x,y), nnwm.cursor.hide().
 - [ ] Input runtime control: switch xkb layout, per-device settings (touchpad tap-to-click, natural scroll) at runtime, not just via monitor config.
 - [ ] nnwm.reload(), nnwm.config_dir(), nnwm.data_dir().
 - [ ] Scratchpad introspection: nnwm.scratchpad("term"):windows(), :visible().
@@ -255,8 +253,17 @@
 - [ ] Focus stack / recent-windows list for alt-tab UIs in Lua.
 - [ ] DBus / MPRIS surface for media keys and status.
 - [ ] tile drag window, add sway like center and directional blocks on the dropping window
+- [ ] nnwm.exec(cmd, {sync=true, on_exit=fn, capture=true}) — replaces spawn and lets configs read tool output at load time (battery, host, gpu, etc.).
+- [ ] nnwm.notify(msg, {level, timeout}) — for on handlers to surface state; today users must shell out to notify-send.
 
 - Panel/Bar
     - [ ] Custom font per modules
-    - [ ] Clickable modules
-    - [ ] Hover signal for modules
+
+# DO THESE FIRST
+
+- [ ] nnwm.cursor.set_pos(x, y) to set cursor position
+- [ ] nnwm.cursor.pos to get cursor position
+- [ ] nnwm.cursor.warp(x,y) to warp the cursor to a specific position
+- [ ] nnwm.cursor.hide() to hide the cursor
+- [ ] nnwm.cursor.show() to show the cursor
+- [ ] nnwm.cursor.visible() to check if the cursor is visible

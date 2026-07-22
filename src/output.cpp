@@ -89,6 +89,11 @@ output_frame(wl_listener *listener, void * /*data*/)
     }
 #endif
 
+    /* Drain any pending status-bar redraws. bar_notify_* only marks bars
+     * dirty; coalescing here means a burst of events between frames
+     * (e.g. 20 window_open in a row) collapses into one cairo pass. */
+    bar_predraw_output(output->server, output);
+
     /* In overview mode, rebuild the GPU buffer every frame so window textures
      * reflect the latest client commits across all workspaces. */
     if (output->overview)

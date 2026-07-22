@@ -22,6 +22,9 @@ void bar_destroy_for_output(struct nnwm_output *out);
  * (signature short-circuit skips cairo). Ignored if `name` is null/empty
  * or doesn't match any module. */
 void bar_update_module(struct nnwm_server *server, const char *name);
+/* Drain any pending redraws for bars on `out` (called from output_frame
+ * before wlr_scene_output_commit so bursts of events coalesce). */
+void bar_predraw_output(struct nnwm_server *server, struct nnwm_output *out);
 
 /* Cursor hit-testing / event dispatch for bars. Returns true if the event
  * was consumed by a bar handler (caller should not forward it to the

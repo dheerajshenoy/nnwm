@@ -45,6 +45,32 @@
     redraw. Handlers no-op if the bar has no module that would care about
     the trigger, saving cairo work.
 
+- **Bar rendering optimizations**: substantial CPU/allocation reduction
+  in the status bar hot path.
+  - Signature replaced with a 64-bit FNV-1a hash — no per-event heap
+    allocation for signature computation or storage. Signature comparison
+    is a single 64-bit compare instead of `strcmp`.
+  - Module text refresh now caches in place via `cache_set()` — modules
+    only reallocate `cached_text` when the string actually changes. Steady
+    state (unchanged text) is zero-alloc.
+  - Text-shaping halved: the render pipeline builds each module's
+    `PangoLayout` once (measure pass) and reuses it in the draw pass.
+    Previously every text module was shaped twice per frame.
+  - `PangoFontDescription` is now built once at `bar_create` and cached on
+    the `nnwm_bar`, instead of being parsed and freed on every redraw.
+  - `bar_notify_*` fast-path uses a per-bar bitmask (`module_type_mask`)
+    of module types the bar hosts — the "does this bar care about this
+    event?" check is a single bitwise AND instead of scanning the module
+    list on every event.
+  - Workspace occupancy scan collapsed to a single `uint16_t` bitmap
+    computed once per redraw and reused by both the hash and the
+    workspaces module renderer.
+  - Redraw coalescing: `bar_notify_*` marks the bar dirty; the actual
+    redraw runs once at the top of `output_frame` (via `bar_predraw_output`)
+    just before scene commit. Bursts of events between frames (opening 20
+    windows, rapid workspace flips) collapse into one cairo pass per
+    output.
+
 - **Bar pointer events**: modules (and the bar itself) accept `on_click`
   and `on_hover` Lua handlers. `on_click(button, x, y)` fires on PRESS
   with the button as a string (`"left"`, `"right"`, `"middle"`, ...) and
