@@ -200,6 +200,12 @@
 - [x] Switching layout bug
 - [x] Log API: nnwm.log.info/warn/error writing to a known file — replaces print-debugging.
 - [x] Version API: nnwm.version() return a current version string, e.g. "0.1.0" or "0.1.0-rc1". Useful for configs that need to adapt to different versions.
+- [x] nnwm.cursor.set_pos(x, y) to set cursor position
+- [x] nnwm.cursor.pos to get cursor position
+- [x] nnwm.cursor.warp(x,y) to warp the cursor to a specific position
+- [x] nnwm.cursor.hide() to hide the cursor
+- [x] nnwm.cursor.show() to show the cursor
+- [x] nnwm.cursor.visible() to check if the cursor is visible
 
 ## TODO
 
@@ -259,11 +265,3 @@
 - Panel/Bar
     - [ ] Custom font per modules
 
-# DO THESE FIRST
-
-- [ ] nnwm.cursor.set_pos(x, y) to set cursor position
-- [ ] nnwm.cursor.pos to get cursor position
-- [ ] nnwm.cursor.warp(x,y) to warp the cursor to a specific position
-- [ ] nnwm.cursor.hide() to hide the cursor
-- [ ] nnwm.cursor.show() to show the cursor
-- [ ] nnwm.cursor.visible() to check if the cursor is visible
