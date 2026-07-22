@@ -2,7 +2,91 @@
 
 ## 0.1.3
 
+### Features
+
+- **Compositor-drawn status bar**: nnwm now ships a native status bar
+  (`nnwm.opt.bar = { ... }`). It's a Cairo-drawn `wlr_scene_buffer` at the
+  layer-shell TOP tree — no external process, no layer-shell client, no extra
+  dependencies. Configuration is Lua-only and optional; the bar is disabled
+  unless `enabled = true`.
+  - **Built-in modules**: `workspaces` (active/occupied/empty highlighting),
+    `window_title` (auto-ellipsized in the center), `clock` (strftime
+    `format`), `layout` (one-letter indicator: H/V/T/SH/SV/F), and `custom`
+    (Lua callback returning a string on a configurable interval).
+  - **Named modules**: register via `nnwm.bar.module(name, def)` and refer to
+    them by name in `modules.{left,center,right}`. Resolution order is
+    built-in name → registered name → error. Registrations persist across
+    hot reloads.
+  - **On-demand refresh**: `nnwm.bar.update(name)` forces a matching module
+    to re-poll and redraw immediately. Combined with the module-signature
+    short-circuit (no cairo if nothing changed), this lets event-driven
+    widgets skip polling entirely.
+  - **Per-monitor vs single**: `per_output = true` puts a bar on each
+    monitor. `per_output = false` places one bar on the named `output` (or
+    focused output). Layer-shell struts + `usable_area` are honored, so
+    tiled windows never overlap.
+  - **Per-module colors**: each module carries its own `colors = { ... }`
+    (workspaces supports `active_bg/fg`, `occupied_fg`, `unoccupied_fg` plus
+    `fg`/`bg`; other modules use `fg`/`bg`). Bar-level colors are limited
+    to `background` + `foreground` (default text color).
+  - **CSS-style padding**: `padding = 8` or `{ v, h }` or `{ t, r, b, l }`
+    creates a floating panel. Reserved `usable_area` accounts for
+    `padding.top + height + padding.bottom` on the anchored edge.
+  - **scenefx effects**: `nnwm.opt.bar.fx = { corner_radius, blur,
+    shadow = { ... } }` gives rounded corners, a backdrop-blurred panel,
+    and drop shadows. Shadow rect is auto-expanded by `2 * blur_sigma`
+    so the Gaussian bloom actually renders outside the bar rect.
+  - **Efficient**: signature-based short-circuit skips cairo when the
+    rendered composition is identical to the previous frame; the periodic
+    tick timer is only created when a `clock` or `custom` module exists
+    (and its cadence is `min(intervals)`, floored at 100ms).
+  - **Event-driven redraws**: `window_open/close`, `window_focus`,
+    title changes, workspace switches, and layout mutations trigger a
+    redraw. Handlers no-op if the bar has no module that would care about
+    the trigger, saving cairo work.
+
+- **Configurable layout cycle**: `nnwm.opt.layout.enabled_layouts` lists
+  which layouts (and in what order) `nnwm.layout.next()`/`.prev()` walk
+  through. `nnwm.set_layout(name)` can still jump to any layout regardless.
+
+  ```lua
+  nnwm.opt.layout = {
+      enabled_layouts = { "htile", "tabbed" }, -- Super+Space toggles these
+  }
+  ```
+
 ### Bug Fixes
+
+- **Xwayland windows didn't resize** after `master_ratio_grow/shrink` or
+  layout changes (only the borders resized). Two related bugs:
+  - `tl_xdg_set_size` skips xwayland surfaces by design (they use
+    `wlr_xwayland_surface_configure`), and `tl_set_geometry`'s animation
+    path only interpolated position/borders — it never sent the new size
+    to the client. `tl_set_geometry` now sends the target inner geometry
+    to xwayland clients up-front, matching how xdg clients are sized.
+  - During an interactive resize (Super+right-click drag), the client
+    responded with a stale `request_configure` on every frame that
+    undid the compositor's new geometry. `xwayland_request_configure`
+    now ignores client requests while the compositor owns the grab, and
+    `process_cursor_resize` writes the new size to `cur_x/y/w/h` so
+    subsequent stale requests are held to the compositor's authoritative
+    size.
+
+- **Windows disappeared after a VT switch**: after switching back from a VT,
+  toplevels whose `tl->output` pointed to an output that got destroyed
+  during the VT-away window were left with a stale (or null) output and
+  never re-tiled. `server_new_output` now re-adopts any orphaned toplevels
+  onto the newly-created output and runs `arrange_windows`;
+  `server_session_active` sweeps orphans onto the first live output as a
+  safety net.
+
+- **Discord (and other xwayland clients) crashed the compositor on close**
+  with `Assertion 'wl_list_empty(&xsurface->events.request_configure.listener_list)' failed`.
+  `xwayland_surface_destroy` was leaking the `commit` (used for
+  `request_configure`) and `request_maximize` listeners; both are now
+  removed alongside the others.
+
+- **`focus_dir` with fullscreen windows**: two bugs prevented fullscreen windows
 
 - **`focus_dir` with fullscreen windows**: two bugs prevented fullscreen windows
   from being focused via directional navigation.
