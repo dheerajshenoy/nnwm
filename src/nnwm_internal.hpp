@@ -17,6 +17,11 @@ void bar_notify_focus_change(struct nnwm_server *server);
 void bar_notify_windows_changed(struct nnwm_server *server);
 void bar_destroy_all(struct nnwm_server *server);
 void bar_destroy_for_output(struct nnwm_output *out);
+/* Force any module named `name` (across all bars) to re-poll its data
+ * source and redraw. Cheap when the module's rendered text hasn't changed
+ * (signature short-circuit skips cairo). Ignored if `name` is null/empty
+ * or doesn't match any module. */
+void bar_update_module(struct nnwm_server *server, const char *name);
 
 void render_tab_bar(struct nnwm_server *server, struct nnwm_output *out,
                     int width, int height);

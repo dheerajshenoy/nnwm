@@ -1423,6 +1423,22 @@ l_nnwm_monitor(lua_State *L)
     return 0;
 }
 
+/* nnwm.bar.update(name) — force any module with matching `name` to re-poll
+ * and redraw immediately. Cheap; the signature short-circuit still skips
+ * cairo if the module's text hasn't actually changed. */
+static int
+l_nnwm_bar_update(lua_State *L)
+{
+    if (!lua_isstring(L, 1))
+        return luaL_error(L, "nnwm.bar.update(name) expects a string");
+    const char *name = lua_tostring(L, 1);
+
+    nnwm_server *server = get_server(L);
+    if (!server) return 0;
+    bar_update_module(server, name);
+    return 0;
+}
+
 /* nnwm.bar.module(name, def) — register a named module. Later, using the
  * name as a string in nnwm.opt.bar.modules[...] expands to this definition. */
 static int
@@ -1533,6 +1549,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     }
     lua_pushcfunction(L, l_nnwm_bar_module);
     lua_setfield(L, -2, "module");
+    lua_pushcfunction(L, l_nnwm_bar_update);
+    lua_setfield(L, -2, "update");
     lua_pop(L, 1); /* pop nnwm.bar */
 
     /* get or create nnwm.opt */
@@ -2324,11 +2342,58 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         char *font = get_string_field(L, "font", cfg->bar.font);
         free(cfg->bar.font);
         cfg->bar.font = font;
-        cfg->bar.padding = get_int_field(L, "padding", cfg->bar.padding);
+        /* padding: accepts a number (all sides), or a table 1–4 entries
+         * following CSS shorthand:
+         *   {a}          → top=right=bottom=left=a
+         *   {v,h}        → top=bottom=v, left=right=h
+         *   {t,h,b}      → left=right=h
+         *   {t,r,b,l}    → full explicit
+         */
+        lua_getfield(L, -1, "padding");
+        if (lua_isnumber(L, -1)) {
+            int v = (int)lua_tointeger(L, -1);
+            cfg->bar.padding.top    = v;
+            cfg->bar.padding.right  = v;
+            cfg->bar.padding.bottom = v;
+            cfg->bar.padding.left   = v;
+        } else if (lua_istable(L, -1)) {
+            int n = (int)lua_rawlen(L, -1);
+            int v[4] = {0, 0, 0, 0};
+            for (int i = 0; i < 4 && i < n; i++) {
+                lua_rawgeti(L, -1, i + 1);
+                if (lua_isnumber(L, -1)) v[i] = (int)lua_tointeger(L, -1);
+                lua_pop(L, 1);
+            }
+            switch (n) {
+                case 1:
+                    cfg->bar.padding.top = cfg->bar.padding.right
+                        = cfg->bar.padding.bottom = cfg->bar.padding.left = v[0];
+                    break;
+                case 2:
+                    cfg->bar.padding.top = cfg->bar.padding.bottom = v[0];
+                    cfg->bar.padding.left = cfg->bar.padding.right = v[1];
+                    break;
+                case 3:
+                    cfg->bar.padding.top    = v[0];
+                    cfg->bar.padding.right  = v[1];
+                    cfg->bar.padding.bottom = v[2];
+                    cfg->bar.padding.left   = v[1];
+                    break;
+                default:
+                    cfg->bar.padding.top    = v[0];
+                    cfg->bar.padding.right  = v[1];
+                    cfg->bar.padding.bottom = v[2];
+                    cfg->bar.padding.left   = v[3];
+                    break;
+            }
+        }
+        lua_pop(L, 1);
+
         cfg->bar.module_spacing
             = get_int_field(L, "module_spacing", cfg->bar.module_spacing);
 
-        /* Colors live under nnwm.opt.bar.colors = { ... } */
+        /* Bar-level colors: only background + foreground. Module-specific
+         * palettes live on individual modules under `colors = { ... }`. */
         lua_getfield(L, -1, "colors");
         if (lua_istable(L, -1))
         {
@@ -2338,21 +2403,13 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
             float dfg[4] = {cfg->bar.fg_color[0], cfg->bar.fg_color[1],
                             cfg->bar.fg_color[2], cfg->bar.fg_color[3]};
             get_color_field(L, "foreground", cfg->bar.fg_color, dfg);
-            float dawb[4] = {cfg->bar.active_ws_bg[0], cfg->bar.active_ws_bg[1],
-                             cfg->bar.active_ws_bg[2], cfg->bar.active_ws_bg[3]};
-            get_color_field(L, "active_workspace_bg", cfg->bar.active_ws_bg, dawb);
-            float dawf[4] = {cfg->bar.active_ws_fg[0], cfg->bar.active_ws_fg[1],
-                             cfg->bar.active_ws_fg[2], cfg->bar.active_ws_fg[3]};
-            get_color_field(L, "active_workspace_fg", cfg->bar.active_ws_fg, dawf);
-            float dowf[4] = {cfg->bar.occupied_ws_fg[0], cfg->bar.occupied_ws_fg[1],
-                             cfg->bar.occupied_ws_fg[2], cfg->bar.occupied_ws_fg[3]};
-            get_color_field(L, "occupied_workspace_fg", cfg->bar.occupied_ws_fg, dowf);
         }
         lua_pop(L, 1); /* pop 'colors' */
 
         /* Modules: { left = {...}, center = {...}, right = {...} } */
         /* Free any modules from a previous parse. */
         for (int i = 0; i < cfg->bar.module_count; i++) {
+            free(cfg->bar.modules[i].name);
             free(cfg->bar.modules[i].format);
             free(cfg->bar.modules[i].cached_text);
             if (cfg->bar.modules[i].lua_update_ref >= 0)
@@ -2410,6 +2467,9 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                 !strcmp(name, "clock") ||
                                 !strcmp(name, "layout");
                             if (!is_builtin) {
+                                /* Remember the registered name so
+                                 * nnwm.bar.update(name) can target it. */
+                                m.name = strdup(name);
                                 lua_getglobal(L, "nnwm");
                                 lua_getfield(L, -1, "bar");
                                 lua_getfield(L, -1, "_registered");
@@ -2467,15 +2527,50 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                             }
                             free(type);
 
+                            /* Inline tables may set a `name` field to enable
+                             * targeting via nnwm.bar.update(name). If we got
+                             * here via the registered-lookup path, m.name is
+                             * already set — don't overwrite. */
+                            if (!m.name) {
+                                char *nm = get_string_field(L, "name", nullptr);
+                                m.name = nm;
+                            }
                             char *fmt = get_string_field(L, "format", nullptr);
                             m.format = fmt;
                             m.padding = get_int_field(L, "padding", -1);
                             m.interval_ms
                                 = get_int_field(L, "interval", 1000);
-                            float dfg2[4] = {0,0,0,-1};
-                            get_color_field(L, "fg", m.fg, dfg2);
-                            float dbg2[4] = {0,0,0,0};
-                            get_color_field(L, "bg", m.bg, dbg2);
+                            /* Colors: module-level `colors = { fg, bg,
+                             * active_bg, active_fg, occupied_fg,
+                             * unoccupied_fg }`. All optional; anything
+                             * omitted inherits from the bar. Flat `fg`/`bg`
+                             * on the module table are also accepted for
+                             * backwards convenience. */
+                            float dinh[4] = {0,0,0,-1};
+                            get_color_field(L, "fg", m.fg, dinh);
+                            float dtrans[4] = {0,0,0,0};
+                            get_color_field(L, "bg", m.bg, dtrans);
+                            for (int c = 0; c < 4; c++) {
+                                m.ws_active_bg[c]     = -1.0f;
+                                m.ws_active_fg[c]     = -1.0f;
+                                m.ws_occupied_fg[c]   = -1.0f;
+                                m.ws_unoccupied_fg[c] = -1.0f;
+                            }
+                            lua_getfield(L, -1, "colors");
+                            if (lua_istable(L, -1)) {
+                                get_color_field(L, "fg", m.fg, m.fg);
+                                get_color_field(L, "bg", m.bg, m.bg);
+                                float sentinel[4] = {0,0,0,-1};
+                                get_color_field(L, "active_bg",
+                                                m.ws_active_bg, sentinel);
+                                get_color_field(L, "active_fg",
+                                                m.ws_active_fg, sentinel);
+                                get_color_field(L, "occupied_fg",
+                                                m.ws_occupied_fg, sentinel);
+                                get_color_field(L, "unoccupied_fg",
+                                                m.ws_unoccupied_fg, sentinel);
+                            }
+                            lua_pop(L, 1); /* pop 'colors' */
 
                             if (m.type == nnwm_bar_module_type::CUSTOM) {
                                 lua_getfield(L, -1, "update");
@@ -3180,19 +3275,16 @@ nnwm::config_defaults(void)
     cfg->bar.height         = 28;
     cfg->bar.per_output     = true;
     cfg->bar.output_name    = nullptr;
-    cfg->bar.font           = strdup("monospace 11");
-    cfg->bar.padding        = 8;
-    cfg->bar.module_spacing = 8;
+    cfg->bar.font              = strdup("monospace 11");
+    cfg->bar.padding.top       = 0;
+    cfg->bar.padding.right     = 0;
+    cfg->bar.padding.bottom    = 0;
+    cfg->bar.padding.left      = 0;
+    cfg->bar.module_spacing    = 8;
     cfg->bar.bg_color[0] = 0.08f; cfg->bar.bg_color[1] = 0.09f;
     cfg->bar.bg_color[2] = 0.12f; cfg->bar.bg_color[3] = 0.95f;
     cfg->bar.fg_color[0] = 0.85f; cfg->bar.fg_color[1] = 0.85f;
     cfg->bar.fg_color[2] = 0.85f; cfg->bar.fg_color[3] = 1.0f;
-    cfg->bar.active_ws_bg[0] = 0.3f;  cfg->bar.active_ws_bg[1] = 0.5f;
-    cfg->bar.active_ws_bg[2] = 0.8f;  cfg->bar.active_ws_bg[3] = 1.0f;
-    cfg->bar.active_ws_fg[0] = 1.0f;  cfg->bar.active_ws_fg[1] = 1.0f;
-    cfg->bar.active_ws_fg[2] = 1.0f;  cfg->bar.active_ws_fg[3] = 1.0f;
-    cfg->bar.occupied_ws_fg[0] = 0.65f; cfg->bar.occupied_ws_fg[1] = 0.7f;
-    cfg->bar.occupied_ws_fg[2] = 0.85f; cfg->bar.occupied_ws_fg[3] = 1.0f;
     cfg->bar.modules      = nullptr;
     cfg->bar.module_count = 0;
 
@@ -3229,6 +3321,7 @@ nnwm::config_free(struct nnwm_config *cfg)
     free(cfg->bar.font);
     free(cfg->bar.output_name);
     for (int i = 0; i < cfg->bar.module_count; i++) {
+        free(cfg->bar.modules[i].name);
         free(cfg->bar.modules[i].format);
         free(cfg->bar.modules[i].cached_text);
         /* Lua registry ref is released when the Lua state is closed. */

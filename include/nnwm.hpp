@@ -441,6 +441,11 @@ struct nnwm_bar
     int x, y;                           /* current position in layout coords */
     bool position_top;
     bool dirty;                         /* redraw scheduled */
+
+    /* Efficiency: hash + concat of last-rendered module output. Skip cairo
+     * work when the composition hasn't changed since the previous frame. */
+    char *last_signature;
+    int last_signature_len;
 };
 
 struct nnwm_timer

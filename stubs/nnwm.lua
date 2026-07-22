@@ -89,14 +89,26 @@ MOD = {}
 ---@class nnwm.bar.module_simple
 --- Simple module referenced by name (see `nnwm.bar.modules` for available names).
 
+---@class nnwm.bar.module.colors
+--- Per-module color palette. Anything omitted inherits the corresponding
+--- bar-level color. The workspace-specific keys are only used by the
+--- `workspaces` module type.
+---@field fg?             nnwm.color  Text color (any module).
+---@field bg?             nnwm.color  Background color (any module).
+---@field active_bg?      nnwm.color  Workspaces: active workspace pill background.
+---@field active_fg?      nnwm.color  Workspaces: active workspace text color.
+---@field occupied_fg?    nnwm.color  Workspaces: non-active but occupied workspace text.
+---@field unoccupied_fg?  nnwm.color  Workspaces: empty workspace text.
+
 ---@class nnwm.bar.module
 ---@field type      "workspaces"|"window_title"|"clock"|"layout"|"custom"  Module type.
 ---@field format?   string   For `clock`: strftime format (default: `"%H:%M"`). Unused for others.
 ---@field interval? integer  For `custom`: poll interval in milliseconds (default: 1000). Ignored by other types.
 ---@field update?   fun():string  For `custom`: function called every `interval` ms; must return a string to display.
 ---@field padding?  integer  Horizontal padding inside this module in pixels; <0 = inherit bar default.
----@field fg?       nnwm.color  Module foreground color; alpha<0 = inherit bar foreground.
----@field bg?       nnwm.color  Module background color; alpha=0 = transparent.
+---@field fg?       nnwm.color  Shorthand for `colors.fg` (module foreground).
+---@field bg?       nnwm.color  Shorthand for `colors.bg` (module background).
+---@field colors?   nnwm.bar.module.colors  Full per-module color palette; overrides bar-level colors.
 
 ---@class nnwm.bar.modules
 --- Ordered module lists. Each entry is either:
@@ -109,11 +121,11 @@ MOD = {}
 ---@field right?  (string|nnwm.bar.module)[]  Right-aligned modules.
 
 ---@class nnwm.bar.colors
----@field background?            nnwm.color  Bar background color (default: {0.08, 0.09, 0.12, 0.95}).
----@field foreground?            nnwm.color  Default text color (default: {0.85, 0.85, 0.85, 1.0}).
----@field active_workspace_bg?   nnwm.color  Background of the active workspace pill (default: {0.30, 0.50, 0.80, 1.0}).
----@field active_workspace_fg?   nnwm.color  Foreground of the active workspace label (default: {1.0, 1.0, 1.0, 1.0}).
----@field occupied_workspace_fg? nnwm.color  Foreground of non-active but occupied workspace labels (default: {0.65, 0.70, 0.85, 1.0}).
+--- Bar-level colors. Only `background` and `foreground` live here; anything
+--- more specific (workspace pill colors, per-widget accents) is set on the
+--- individual module via its own `colors` sub-table.
+---@field background? nnwm.color  Bar background color (default: {0.08, 0.09, 0.12, 0.95}).
+---@field foreground? nnwm.color  Default text color for modules that don't override it (default: {0.85, 0.85, 0.85, 1.0}).
 
 ---@class nnwm.bar
 --- Compositor-drawn status bar. Ships built-in modules and supports Lua custom text widgets.
@@ -133,7 +145,7 @@ MOD = {}
 ---@field per_output?      boolean            When true, one bar per monitor. When false, a single bar attached to `output` (or the focused output). Default: true.
 ---@field output?          string             When `per_output = false`, name of the output to attach the bar to (e.g. `"HDMI-A-1"`). Nil = focused output.
 ---@field font?            string             Pango font description, e.g. `"monospace 11"` (default: "monospace 11").
----@field padding?         integer            Horizontal padding at the bar's outer edges in pixels (default: 8).
+---@field padding?         integer|integer[]  Outer margin around the bar (CSS-style). Number applies to all sides; table shorthand: `{a}`, `{v,h}`, `{t,r,b}`, or `{t,r,b,l}`. Non-zero values shrink the bar and float it inward from the output edges. Default: 0.
 ---@field module_spacing?  integer            Space between adjacent modules in pixels (default: 8).
 ---@field colors?          nnwm.bar.colors    Color palette for the bar and its built-in modules.
 ---@field modules?         nnwm.bar.modules   Ordered modules by alignment.
@@ -297,6 +309,28 @@ nnwm.bar = {}
 ---@param name string   Module name (used to reference from modules lists).
 ---@param def  nnwm.bar.module  Module definition.
 function nnwm.bar.module(name, def) end
+
+--- Force any bar module named `name` to re-poll its data source and redraw
+--- immediately. Cheap: the compositor still short-circuits the cairo work
+--- when the module's rendered text hasn't actually changed. Useful for
+--- event-driven widgets (e.g. redraw the battery module on a `udev` event
+--- instead of paying to poll every N seconds).
+---
+--- ```lua
+--- nnwm.bar.module("battery", { type = "custom", interval = 60000,
+---     update = function() return battery_string() end })
+---
+--- nnwm.on("startup", function()
+---     nnwm.interval(2000, function()
+---         if battery_changed_recently() then nnwm.bar.update("battery") end
+---     end)
+--- end)
+--- ```
+---
+--- Matches every module in the current config whose registered/inline name
+--- equals `name`; no-op if none match.
+---@param name string  Name given to `nnwm.bar.module()` or the `name` field of an inline module table.
+function nnwm.bar.update(name) end
 
 ---Register a keybinding. `combo` is an array of modifier and key name strings;
 ---`callback` is called when the combo is pressed. The optional `description`

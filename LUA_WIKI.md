@@ -320,14 +320,18 @@ nnwm.opt = {
         per_output = true,               -- false = single bar on `output` (or focused)
         -- output = "HDMI-A-1",          -- only used when per_output = false
         font     = "monospace 11",
-        padding  = 8,                    -- edge padding
-        module_spacing = 8,              -- gap between modules
+        -- Outer margin around the bar (CSS-style). Non-zero → floating panel.
+        --   number         → all sides
+        --   { v, h }       → vertical, horizontal
+        --   { t, r, b }    → top, horizontal, bottom
+        --   { t, r, b, l } → explicit
+        padding  = { 8, 12 },            -- floating: 8px vertical, 12px horizontal
+        module_spacing = 8,              -- gap between modules (inside the bar)
         colors = {
-            background            = "#141620F0",
-            foreground            = "#D9D9D9",
-            active_workspace_bg   = "#4C7FBF",
-            active_workspace_fg   = "#FFFFFF",
-            occupied_workspace_fg = "#A6B2D9",
+            -- Only background and foreground are bar-level. Every other
+            -- color belongs to a module (set via its own `colors` table).
+            background = "#141620F0",
+            foreground = "#D9D9D9",
         },
         modules = {
             -- Each entry is either a built-in name (string), a name of a
@@ -438,6 +442,41 @@ Resolution order for a string entry in `modules`:
 
 If neither matches, the entry is skipped and an error is logged.
 
+### `nnwm.bar.update(name)`
+
+Force any module named `name` to re-poll its data source and redraw
+immediately. Matches modules registered via `nnwm.bar.module(name, ...)` and
+inline module tables that set a `name = "..."` field. No-op when nothing
+matches.
+
+The redraw remains cheap: if the module's rendered text hasn't changed since
+the last frame, the signature short-circuit skips cairo entirely. This makes
+`nnwm.bar.update` the right primitive for **event-driven widgets**: instead
+of polling on a timer, wire the update to whatever produces the change.
+
+```lua
+nnwm.bar.module("mpd", {
+    type = "custom",
+    -- No `interval` needed when refreshed on demand — pick a large fallback
+    -- for the rare case where nothing has explicitly signalled it.
+    interval = 60000,
+    update = function()
+        local f = io.popen("mpc current 2>/dev/null")
+        local s = f:read("*l"); f:close()
+        return s or ""
+    end,
+})
+
+-- Redraw whenever a window focus change might change the visible track
+-- (e.g. terminal running mpc). Cheap: no-op if the text is unchanged.
+nnwm.on("window_focus", function() nnwm.bar.update("mpd") end)
+```
+
+Under the hood: matched modules have their cached text invalidated and
+`cached_ts` reset so the next redraw calls `update()` regardless of
+`interval`. Every bar containing at least one matched module gets its
+signature invalidated and re-rendered.
+
 ### Module definition fields
 
 | Field       | Type              | Applies to     | Description |
@@ -449,6 +488,40 @@ If neither matches, the entry is skipped and an error is logged.
 | `padding`   | integer           | all            | Horizontal padding in pixels; <0 = inherit bar default |
 | `fg`        | color             | all            | Text color; alpha<0 = inherit bar foreground |
 | `bg`        | color             | all            | Segment background; alpha=0 = transparent |
+| `colors`    | table             | all            | Per-module color palette (see below). Overrides bar-level colors. |
+
+All module-specific colors live on the module itself, not on the bar.
+`nnwm.opt.bar.colors` only accepts `background` and `foreground` (the latter
+is the fallback text color for any module that doesn't set `fg`).
+
+Per-module `colors` keys:
+
+| Module type   | Accepted color keys                                              |
+|---------------|------------------------------------------------------------------|
+| `workspaces`  | `fg`, `bg`, `active_bg`, `active_fg`, `occupied_fg`, `unoccupied_fg` |
+| others        | `fg`, `bg`                                                       |
+
+Anything omitted uses a built-in default for the module type (workspaces has
+a sensible default palette; other modules inherit `nnwm.opt.bar.colors.fg`).
+
+```lua
+nnwm.bar.module("loadavg", {
+    type = "custom", interval = 5000,
+    update = function() ... end,
+    colors = { fg = "#F0C674", bg = "#00000000" },
+})
+
+-- Per-module workspace theming: dim the "occupied" state, keep active bright.
+{
+    type = "workspaces",
+    colors = {
+        active_bg     = "#4C7899",
+        active_fg     = "#FFFFFF",
+        occupied_fg   = "#8AB4C9",
+        unoccupied_fg = "#555555",
+    },
+}
+```
 
 ---
 
