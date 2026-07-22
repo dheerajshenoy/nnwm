@@ -253,13 +253,11 @@
 - [ ] Runtime rules. nnwm.add_rule({app_id="firefox"}, function(w) w:set_floating(true) end) and nnwm.remove_rule(id). Right now rules are static config only.
 - [ ] Per-output / per-workspace config scopes. nnwm.output("HDMI-1").opt.gaps = 20, nnwm.workspace(3).layout = "tabbed". Currently most things are global.
 - [ ] Input runtime control: switch xkb layout, per-device settings (touchpad tap-to-click, natural scroll) at runtime, not just via monitor config.
-- [ ] nnwm.reload(), nnwm.config_dir(), nnwm.data_dir().
 - [ ] Scratchpad introspection: nnwm.scratchpad("term"):windows(), :visible().
 - [ ] nnwm.timer cancel/pause/resume handle (if not already returned).
 - [ ] Focus stack / recent-windows list for alt-tab UIs in Lua.
 - [ ] DBus / MPRIS surface for media keys and status.
 - [ ] tile drag window, add sway like center and directional blocks on the dropping window
-- [ ] nnwm.exec(cmd, {sync=true, on_exit=fn, capture=true}) — replaces spawn and lets configs read tool output at load time (battery, host, gpu, etc.).
 - [ ] nnwm.notify(msg, {level, timeout}) — for on handlers to surface state; today users must shell out to notify-send.
 
 - Panel/Bar
