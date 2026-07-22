@@ -146,6 +146,18 @@
     subsequent stale requests are held to the compositor's authoritative
     size.
 
+- **Workspace switch (and other user actions) blocked for 1-2s when
+  custom bar modules did I/O**: `bar_redraw` inline-called the CUSTOM
+  module `update` Lua callback whenever its interval had elapsed. A
+  workspace switch triggered a redraw, which triggered the pcall,
+  which — for a widget doing `io.popen("cat /proc/loadavg | cut ...")` —
+  forked `/bin/sh` + `cat` + `cut` and blocked on the pipe read.
+  Fix: CUSTOM module polling is now restricted to the tick timer path
+  (`bar_tick_cb`). Event-driven redraws (workspace switch, focus change,
+  window open/close, title update) only read `cached_text` and never run
+  user Lua callbacks. `nnwm.bar.update(name)` still polls on demand
+  because that's its explicit purpose.
+
 - **Hot-reload crashed with any xwayland window open**:
   `server_apply_config` dereferenced `tl->xdg_toplevel->base->surface` for
   every toplevel while re-applying focus colors, but `xdg_toplevel` is

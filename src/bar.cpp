@@ -150,12 +150,20 @@ static bool cache_set(nnwm_bar_module &m, const char *s) {
     return true;
 }
 
-/* Refresh `m.cached_text` for the current frame. Called at most once per
- * redraw per module. WORKSPACES doesn't use cached_text. */
-static void module_refresh(nnwm_bar *bar, nnwm_bar_module &m, double now) {
-    nnwm_server *server = bar->server;
+/* Refresh `m.cached_text` for the current frame. This is the CHEAP path:
+ * only updates trivially-computable module texts (WINDOW_TITLE, LAYOUT,
+ * CLOCK). CUSTOM modules are polled separately via `module_tick_poll`
+ * from the tick timer so their Lua callback (which may do I/O like
+ * `io.popen`) never blocks a user-driven redraw such as a workspace
+ * switch or focus change. */
+static void module_refresh(nnwm_bar *bar, nnwm_bar_module &m, double /*now*/) {
     switch (m.type) {
         case nnwm_bar_module_type::WORKSPACES:
+            return;
+        case nnwm_bar_module_type::CUSTOM:
+            /* Tick-timer owned; ensure a valid string exists on first
+             * frame so the hash is stable and the layout can measure. */
+            if (!m.cached_text) m.cached_text = strdup("");
             return;
 
         case nnwm_bar_module_type::WINDOW_TITLE: {
@@ -181,31 +189,36 @@ static void module_refresh(nnwm_bar *bar, nnwm_bar_module &m, double now) {
             cache_set(m, buf);
             return;
         }
-        case nnwm_bar_module_type::CUSTOM: {
-            /* Poll only when interval elapsed (or never polled). */
-            bool need = !m.cached_text
-                        || (m.interval_ms > 0
-                            && (now - m.cached_ts) * 1000.0 >= m.interval_ms);
-            if (!need) return;
-            if (m.lua_update_ref < 0 || !server->lua) {
-                if (!m.cached_text) m.cached_text = strdup("");
-                return;
-            }
-            lua_State *L = server->lua;
-            lua_rawgeti(L, LUA_REGISTRYINDEX, m.lua_update_ref);
-            const char *result = "";
-            if (lua_pcall(L, 0, 1, 0) == 0) {
-                if (lua_isstring(L, -1)) result = lua_tostring(L, -1);
-            } else {
-                wlr_log(WLR_ERROR, "bar custom widget error: %s",
-                        lua_tostring(L, -1));
-            }
-            cache_set(m, result);
-            m.cached_ts = now;
-            lua_pop(L, 1);
-            return;
-        }
     }
+}
+
+/* Poll a single CUSTOM module. May run its Lua `update` callback, which
+ * is allowed to block (e.g. `io.popen`) — that's why this is only called
+ * from the tick timer, never from user-facing redraws. */
+static void module_tick_poll(nnwm_bar *bar, nnwm_bar_module &m, double now) {
+    if (m.type != nnwm_bar_module_type::CUSTOM) return;
+    bool need = !m.cached_text
+                || (m.interval_ms > 0
+                    && (now - m.cached_ts) * 1000.0 >= m.interval_ms);
+    if (!need) return;
+
+    nnwm_server *server = bar->server;
+    if (m.lua_update_ref < 0 || !server->lua) {
+        if (!m.cached_text) m.cached_text = strdup("");
+        return;
+    }
+    lua_State *L = server->lua;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, m.lua_update_ref);
+    const char *result = "";
+    if (lua_pcall(L, 0, 1, 0) == 0) {
+        if (lua_isstring(L, -1)) result = lua_tostring(L, -1);
+    } else {
+        wlr_log(WLR_ERROR, "bar custom widget error: %s",
+                lua_tostring(L, -1));
+    }
+    cache_set(m, result);
+    m.cached_ts = now;
+    lua_pop(L, 1);
 }
 
 /* Pick module-level color if set (alpha >= 0), else the fallback. */
@@ -627,9 +640,15 @@ static int bar_tick_interval_ms(nnwm_config *cfg) {
 
 static int bar_tick_cb(void *data) {
     nnwm_bar *bar = static_cast<nnwm_bar *>(data);
+    /* Poll CUSTOM modules first — this is the only place their Lua
+     * callback may run. Then trigger the (cheap) redraw. */
+    double now = now_seconds();
+    nnwm_config *cfg = bar->server->config;
+    for (int i = 0; i < cfg->bar.module_count; i++)
+        module_tick_poll(bar, cfg->bar.modules[i], now);
     bar_redraw(bar);
     if (bar->tick_timer) {
-        int ms = bar_tick_interval_ms(bar->server->config);
+        int ms = bar_tick_interval_ms(cfg);
         if (ms > 0)
             wl_event_source_timer_update(bar->tick_timer, ms);
     }
@@ -1061,16 +1080,27 @@ void bar_update_module(nnwm_server *server, const char *name) {
     if (!name || !name[0]) return;
     nnwm_config *cfg = server->config;
 
-    /* Invalidate the cached text for every module matching `name` so the
-     * next redraw calls module_render_text (which for CUSTOM re-invokes the
-     * Lua update fn regardless of interval). */
+    /* Re-poll matching CUSTOM modules synchronously (this is the whole
+     * point of the on-demand API — the user is telling us to refresh
+     * now). For non-CUSTOM the module_refresh call at redraw time picks
+     * up any changes. */
     bool any = false;
+    double now = now_seconds();
     for (int i = 0; i < cfg->bar.module_count; i++) {
         nnwm_bar_module &m = cfg->bar.modules[i];
         if (m.name && strcmp(m.name, name) == 0) {
-            m.cached_ts = 0;      /* force re-poll on next module_render_text */
-            free(m.cached_text);
-            m.cached_text = nullptr;
+            m.cached_ts = 0; /* force pcall regardless of interval */
+            /* Any bar hosting this module will surface the change on its
+             * next redraw. Pick the first live bar to actually run the
+             * pcall (modules are shared across bars, so one poll suffices). */
+            nnwm_bar *any_bar = server->global_bar;
+            if (!any_bar) {
+                nnwm_output *o;
+                wl_list_for_each(o, &server->outputs, link) {
+                    if (o->bar) { any_bar = o->bar; break; }
+                }
+            }
+            if (any_bar) module_tick_poll(any_bar, m, now);
             any = true;
         }
     }
