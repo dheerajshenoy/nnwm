@@ -306,9 +306,11 @@ xwayland_surface_destroy(wl_listener *listener, void * /*data*/)
     wl_list_remove(&toplevel->map.link);
     wl_list_remove(&toplevel->unmap.link);
     wl_list_remove(&toplevel->destroy.link);
+    wl_list_remove(&toplevel->commit.link);
     wl_list_remove(&toplevel->set_title.link);
     wl_list_remove(&toplevel->request_move.link);
     wl_list_remove(&toplevel->request_resize.link);
+    wl_list_remove(&toplevel->request_maximize.link);
     wl_list_remove(&toplevel->request_fullscreen.link);
 
     /* Destroy scene tree if unmap didn't already */

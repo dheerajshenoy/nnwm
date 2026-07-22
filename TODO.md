@@ -186,6 +186,7 @@
 
 ## TODO
 
+- [ ] Discord XWayland crash
 - Window Rules
     - [ ] blur
     - [ ] animation
