@@ -2773,7 +2773,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                 !strcmp(name, "workspaces") ||
                                 !strcmp(name, "window_title") ||
                                 !strcmp(name, "clock") ||
-                                !strcmp(name, "layout");
+                                !strcmp(name, "layout") ||
+                                !strcmp(name, "tray");
                             if (!is_builtin) {
                                 /* Remember the registered name so
                                  * nnwm.bar.update(name) can target it. */

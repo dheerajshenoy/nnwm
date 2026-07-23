@@ -181,6 +181,19 @@ static char *find_icon_png(const char *name, int preferred_size) {
     snprintf(path, sizeof(path), "/usr/share/pixmaps/%s.png", name);
     if (access(path, R_OK) == 0) return strdup(path);
 
+    /* If name ends with "-symbolic", strip that suffix and retry */
+    const char *sym = strstr(name, "-symbolic");
+    if (sym && sym[9] == '\0' && sym != name) {
+        char stripped[256];
+        size_t len = (size_t)(sym - name);
+        if (len < sizeof(stripped)) {
+            memcpy(stripped, name, len);
+            stripped[len] = '\0';
+            char *result = find_icon_png(stripped, preferred_size);
+            if (result) return result;
+        }
+    }
+
     return nullptr;
 }
 
@@ -348,8 +361,11 @@ static void item_rebuild_surface(nnwm_tray_item *item, int bar_h) {
     if (item->icon_name && item->icon_name[0]) {
         char *path = find_icon_png(item->icon_name, icon_h);
         if (path) {
+            wlr_log(WLR_DEBUG, "tray: icon '%s' -> %s", item->icon_name, path);
             item->surface = load_icon_surface_from_file(path, icon_h);
             free(path);
+        } else {
+            wlr_log(WLR_INFO, "tray: icon '%s' not found (no PNG)", item->icon_name);
         }
     }
 }
@@ -426,6 +442,12 @@ static void parse_item_properties(nnwm_tray *tray, nnwm_tray_item *item,
 
         dbus_message_iter_next(&arr);
     }
+
+    wlr_log(WLR_INFO, "tray: item '%s' props: status='%s' icon_name='%s' pixmap=%s",
+            item->service,
+            item->status    ? item->status    : "(null)",
+            item->icon_name ? item->icon_name : "(null)",
+            (item->pixmap_data && item->pixmap_w > 0) ? "yes" : "no");
 
     tray->generation++;
     bar_notify_tray_changed(tray->server);
@@ -553,6 +575,8 @@ static void register_item(nnwm_tray *tray, const char *service_arg,
     item->object_path = object_path;
 
     wl_list_insert(tray->items.prev, &item->link);
+    wlr_log(WLR_INFO, "tray: registered item service='%s' path='%s'",
+            item->service, item->object_path);
 
     /* Subscribe to PropertiesChanged on this service */
     char match[512];
