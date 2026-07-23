@@ -185,6 +185,7 @@
 - [x] Named scratchpads — a single global scratchpad is limiting; per-name scratchpads (each with their own toggle) are a common pattern
 - [x] Discord XWayland crash
 - Panel/Bar
+    - [x] Tray
     - [x] Workspaces
     - [x] Occupied state for workspace module
     - [x] Custom modules

@@ -1,5 +1,6 @@
 #include "nnwm.hpp"
 #include "nnwm_internal.hpp"
+#include "tray.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -159,6 +160,8 @@ static bool cache_set(nnwm_bar_module &m, const char *s) {
 static void module_refresh(nnwm_bar *bar, nnwm_bar_module &m, double /*now*/) {
     switch (m.type) {
         case nnwm_bar_module_type::WORKSPACES:
+            return;
+        case nnwm_bar_module_type::TRAY:
             return;
         case nnwm_bar_module_type::CUSTOM:
             /* Tick-timer owned; ensure a valid string exists on first
@@ -326,6 +329,8 @@ static uint64_t bar_hash(nnwm_bar *bar, uint16_t occ_bits, int active_ws) {
             h = fnv1a_str(h, m.cached_text);
         }
     }
+    /* Include tray generation so bar redraws when tray items change. */
+    h = fnv1a_u32(h, tray_generation(bar->server));
     return h;
 }
 
@@ -395,7 +400,11 @@ static void bar_redraw(nnwm_bar *bar) {
         nnwm_bar_module &m = cfg->bar.modules[i];
         PangoFontDescription *mfd = module_font(i);
         segs[i].m = &m;
-        if (m.type == nnwm_bar_module_type::WORKSPACES) {
+        if (m.type == nnwm_bar_module_type::TRAY) {
+            segs[i].is_ws = true; /* reuse is_ws flag for "no PangoLayout" */
+            int pad = m.padding >= 0 ? m.padding : 4;
+            segs[i].w = tray_measure_width(bar->server, bar->height, spacing) + 2 * pad;
+        } else if (m.type == nnwm_bar_module_type::WORKSPACES) {
             segs[i].is_ws = true;
             /* Measure workspace pill row. This has to lay out each label,
              * but each is only a few glyphs so still cheap. */
@@ -475,7 +484,11 @@ static void bar_redraw(nnwm_bar *bar) {
         int pad = s.m->padding >= 0 ? s.m->padding : 6;
         int drawn = 0;
 
-        if (s.is_ws) {
+        if (s.m->type == nnwm_bar_module_type::TRAY) {
+            int pad = s.m->padding >= 0 ? s.m->padding : 4;
+            int icon_w = tray_draw(bar->server, cr, bar->height, x + pad, spacing);
+            drawn = icon_w + 2 * pad;
+        } else if (s.is_ws) {
             drawn = draw_workspaces_module(cr, module_font(i), bar, *s.m,
                                            x, bar->height,
                                            occ_bits, active_ws);
@@ -1059,6 +1072,15 @@ bool bar_handle_button(nnwm_server *server, double lx, double ly,
 
     nnwm_config *cfg = server->config;
     int idx = bar_module_at(bar, bx, by);
+
+    /* Tray module: route clicks to D-Bus item methods instead of Lua. */
+    if (idx >= 0 && cfg->bar.modules[idx].type == nnwm_bar_module_type::TRAY) {
+        nnwm_bar_module &m = cfg->bar.modules[idx];
+        tray_handle_click(server, bx - m.rect_x, bar->height, m.rect_x,
+                          bar->x, bar->y, button);
+        return true;
+    }
+
     int click_ref = (idx >= 0)
         ? cfg->bar.modules[idx].lua_click_ref
         : cfg->bar.lua_click_ref;
@@ -1074,6 +1096,14 @@ bool bar_handle_button(nnwm_server *server, double lx, double ly,
         lua_pop(L, 1);
     }
     return true;
+}
+
+void bar_notify_tray_changed(nnwm_server *server) {
+    static constexpr unsigned MASK_TRAY = 1u << (unsigned)nnwm_bar_module_type::TRAY;
+    nnwm_output *out;
+    wl_list_for_each(out, &server->outputs, link)
+        redraw_if_cares(out->bar, MASK_TRAY);
+    redraw_if_cares(server->global_bar, MASK_TRAY);
 }
 
 void bar_update_module(nnwm_server *server, const char *name) {

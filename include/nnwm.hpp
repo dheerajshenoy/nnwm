@@ -403,6 +403,8 @@ struct nnwm_server
      * Per-output bars live on nnwm_output::bar. */
     struct nnwm_bar *global_bar;
 
+    void *tray; /* nnwm_tray* — system tray state; null if disabled */
+
     /* Overview drag state */
     struct nnwm_toplevel *overview_drag_toplevel; /* non-null while dragging in overview */
 

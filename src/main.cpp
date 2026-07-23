@@ -1,6 +1,7 @@
 #include "nnwm.hpp"
 #include "nnwm_internal.hpp"
 #include "lua/config.hpp"
+#include "tray.hpp"
 #include <cstdio>
 
 extern "C" {
@@ -102,6 +103,7 @@ main(int argc, char *argv[])
     /* The Wayland display is managed by libwayland. It handles accepting
      * clients from the Unix socket, managing Wayland globals, and so on. */
     server.wl_display = wl_display_create();
+    tray_init(&server);
     struct wl_event_loop *loop = wl_display_get_event_loop(server.wl_display);
     wl_event_loop_add_signal(loop, SIGINT,  handle_signal, server.wl_display);
     wl_event_loop_add_signal(loop, SIGTERM, handle_signal, server.wl_display);
@@ -736,6 +738,7 @@ main(int argc, char *argv[])
     wlr_allocator_destroy(server.allocator);
     wlr_renderer_destroy(server.renderer);
     wlr_backend_destroy(server.backend);
+    tray_destroy(&server);
     wl_display_destroy(server.wl_display);
     cursor_ring_stop(&server);
     if (server.config_event_source)

@@ -26,6 +26,7 @@ pkg_check_modules(LIBINPUT REQUIRED libinput)
 pkg_check_modules(LUA REQUIRED lua5.4)
 pkg_check_modules(PANGOCAIRO REQUIRED pangocairo)
 pkg_check_modules(PIXMAN REQUIRED pixman-1)
+pkg_check_modules(DBUS REQUIRED dbus-1)
 
 if(USE_SCENEFX)
     include(ExternalProject)
@@ -185,6 +186,7 @@ add_executable(nnwm
     src/ext_workspace.cpp
     src/foreign_toplevel.cpp
     src/lua/config.cpp
+    src/tray.cpp
 )
 add_dependencies(nnwm protocol_headers)
 
@@ -198,6 +200,7 @@ target_include_directories(nnwm PRIVATE
     ${LUA_INCLUDE_DIRS}
     ${PANGOCAIRO_INCLUDE_DIRS}
     ${PIXMAN_INCLUDE_DIRS}
+    ${DBUS_INCLUDE_DIRS}
 )
 
 target_compile_definitions(nnwm PRIVATE
@@ -226,6 +229,7 @@ target_link_libraries(nnwm PRIVATE
     ${LUA_LIBRARIES}
     ${PANGOCAIRO_LIBRARIES}
     ${PIXMAN_LIBRARIES}
+    ${DBUS_LIBRARIES}
 )
 
 option(HAVE_XWAYLAND "Build with XWayland support" ON)

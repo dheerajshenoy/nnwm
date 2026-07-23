@@ -76,6 +76,7 @@ enum class nnwm_bar_module_type
     CLOCK,
     LAYOUT,
     CUSTOM,
+    TRAY,
 };
 
 enum class nnwm_bar_align

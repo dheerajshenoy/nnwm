@@ -102,7 +102,7 @@ MOD = {}
 ---@field unoccupied_fg?  nnwm.color  Workspaces: empty workspace text.
 
 ---@class nnwm.bar.module
----@field type      "workspaces"|"window_title"|"clock"|"layout"|"custom"  Module type.
+---@field type      "workspaces"|"window_title"|"clock"|"layout"|"custom"|"tray"  Module type.
 ---@field format?   string   For `clock`: strftime format (default: `"%H:%M"`). Unused for others.
 ---@field interval? integer  For `custom`: poll interval in milliseconds (default: 1000). Ignored by other types.
 ---@field update?   fun():string  For `custom`: function called every `interval` ms; must return a string to display.
@@ -145,6 +145,7 @@ MOD = {}
 ---   * `"clock"`        — strftime-formatted date/time
 ---   * `"layout"`       — one-letter layout indicator (H/V/T/SH/SV/F)
 ---   * `"custom"`       — Lua-provided string (requires `update` callback)
+---   * `"tray"`         — StatusNotifierItem (SNI) system tray; renders app icons from D-Bus
 ---
 ---@field enabled?         boolean            Enable the compositor status bar (default: false).
 ---@field position?        "top"|"bottom"     Bar position on each output (default: "top").

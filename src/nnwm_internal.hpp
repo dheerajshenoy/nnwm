@@ -94,6 +94,9 @@ struct nnwm_toplevel *overview_toplevel_at(struct nnwm_server *server,
                                             int *out_ws);
 void overview_update_labels(struct nnwm_server *server, struct nnwm_output *out);
 
+/* ---- Tray ---- */
+void bar_notify_tray_changed(nnwm_server *server);
+
 /* ---- Config error overlay ---- */
 void show_config_error(struct nnwm_server *server, const char *message);
 void hide_config_error(struct nnwm_server *server);

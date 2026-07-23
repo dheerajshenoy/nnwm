@@ -2811,6 +2811,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                 m.type = nnwm_bar_module_type::CLOCK;
                             else if (!strcmp(name, "layout"))
                                 m.type = nnwm_bar_module_type::LAYOUT;
+                            else if (!strcmp(name, "tray"))
+                                m.type = nnwm_bar_module_type::TRAY;
                         } else if (lua_istable(L, -1)) {
                             char *type = get_string_field(L, "type", nullptr);
                             if (!type) {
@@ -2828,6 +2830,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                 m.type = nnwm_bar_module_type::LAYOUT;
                             else if (!strcmp(type, "custom"))
                                 m.type = nnwm_bar_module_type::CUSTOM;
+                            else if (!strcmp(type, "tray"))
+                                m.type = nnwm_bar_module_type::TRAY;
                             else {
                                 wlr_log(WLR_ERROR,
                                     "bar: unknown module type '%s'", type);
