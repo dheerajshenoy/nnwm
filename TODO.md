@@ -264,3 +264,5 @@
 - Panel/Bar
     - [ ] Custom font per modules
     - [ ] Touchpad click support
+
+- [ ] Don't show panel in fullscreen mode
