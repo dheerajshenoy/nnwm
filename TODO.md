@@ -263,4 +263,4 @@
 
 - Panel/Bar
     - [ ] Custom font per modules
-
+    - [ ] Touchpad click support
