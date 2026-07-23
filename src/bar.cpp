@@ -1076,7 +1076,7 @@ bool bar_handle_button(nnwm_server *server, double lx, double ly,
     /* Tray module: route clicks to D-Bus item methods instead of Lua. */
     if (idx >= 0 && cfg->bar.modules[idx].type == nnwm_bar_module_type::TRAY) {
         nnwm_bar_module &m = cfg->bar.modules[idx];
-        tray_handle_click(server, bx - m.rect_x, bar->height, m.rect_x,
+        tray_handle_click(server, bx, bar->height, m.rect_x,
                           bar->x, bar->y, button);
         return true;
     }
