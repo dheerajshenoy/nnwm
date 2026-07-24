@@ -966,7 +966,7 @@ void bar_update_fullscreen_visibility(nnwm_server *server, nnwm_output *out) {
     bool has_fullscreen = false;
     nnwm_toplevel *tl;
     wl_list_for_each(tl, &server->toplevels, link) {
-        if (tl->output == out && (tl->fullscreen || tl->fake_fullscreen)) {
+        if (tl->output == out && tl->fullscreen) {
             has_fullscreen = true;
             break;
         }
