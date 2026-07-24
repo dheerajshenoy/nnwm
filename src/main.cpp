@@ -2,6 +2,7 @@
 #include "nnwm_internal.hpp"
 #include "lua/config.hpp"
 #include "tray.hpp"
+#include "ipc.hpp"
 #include <cstdio>
 
 extern "C" {
@@ -660,6 +661,9 @@ main(int argc, char *argv[])
         }
     }
 
+    /* Set up IPC socket */
+    ipc_init(&server, loop);
+
     /* Run the Wayland event loop. This does not return until you exit the
      * compositor. Starting the backend rigged up all of the necessary event
      * loop configuration to listen to libinput events, DRM events, generate
@@ -676,6 +680,9 @@ main(int argc, char *argv[])
     /* Fire "shutdown" before clients are destroyed so the hook can still
      * interact with running windows. */
     fire_hook_plain(&server, "shutdown");
+
+    /* Tear down IPC socket before destroying clients */
+    ipc_fini(&server);
 
     /* Once wl_display_run returns, we destroy all clients then shut down the
      * server. */

@@ -4,6 +4,24 @@
 
 ### Features
 
+- **nnwmctl IPC**: a companion CLI tool (`nnwmctl`) communicates with the
+  running compositor over a Unix socket (`$XDG_RUNTIME_DIR/nnwm-ipc.sock`).
+  Commands map to the underlying Lua API:
+
+  ```sh
+  nnwmctl workspace 3           # switch workspace
+  nnwmctl focus left            # focus left
+  nnwmctl window fullscreen     # toggle fullscreen
+  nnwmctl layout tabbed         # switch to tabbed layout
+  nnwmctl get windows           # list all windows
+  nnwmctl get focused           # focused window info
+  nnwmctl spawn "firefox"       # launch a program
+  nnwmctl exec "return 2 + 2"   # raw Lua escape hatch
+  ```
+
+  Socket is owner-only (0600). No threads — the server side integrates into
+  the compositor's `wl_event_loop` as a non-blocking fd.
+
 - **Fullscreen bar hiding**: the status bar is automatically hidden when a
   window enters real fullscreen (`nnwm.fullscreen()`) and restored when it
   leaves. Fake fullscreen (`nnwm.fake_fullscreen()`) does not hide the bar,

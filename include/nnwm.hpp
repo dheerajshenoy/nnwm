@@ -408,6 +408,10 @@ struct nnwm_server
     /* Overview drag state */
     struct nnwm_toplevel *overview_drag_toplevel; /* non-null while dragging in overview */
 
+    /* IPC */
+    int ipc_fd;
+    struct wl_event_source *ipc_event_source;
+
     /* Cursor attention animation (find_cursor action) */
     struct wlr_scene_buffer *cursor_ring_buf;
     struct wl_event_source  *cursor_ring_timer;

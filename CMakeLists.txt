@@ -187,6 +187,7 @@ add_executable(nnwm
     src/foreign_toplevel.cpp
     src/lua/config.cpp
     src/tray.cpp
+    src/ipc.cpp
 )
 add_dependencies(nnwm protocol_headers)
 
@@ -255,9 +256,16 @@ target_compile_options(nnwm PRIVATE
     $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
 )
 
+# ---- nnwmctl ----
+add_executable(nnwmctl src/nnwmctl/nnwmctl.cpp)
+target_compile_options(nnwmctl PRIVATE
+    $<$<CONFIG:Debug>:-ggdb3>
+    $<$<CONFIG:Debug>:-O0>
+)
+
 include(GNUInstallDirs)
 
-install(TARGETS nnwm RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS nnwm nnwmctl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES nnwm.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/wayland-sessions)
 if(USE_SCENEFX)
     install(FILES "${SCENEFX_LIB}" DESTINATION ${CMAKE_INSTALL_LIBDIR})

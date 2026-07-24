@@ -210,7 +210,7 @@
 
 ## TODO
 
-- [ ] nnwmctl - a command line tool to control nnwm from shell scripts, waybar, rofi, etc.
+- [x] nnwmctl - a command line tool to control nnwm from shell scripts, waybar, rofi, etc.
 - Window Rules
     - [ ] blur
     - [ ] animation
@@ -220,7 +220,7 @@
     - [ ] Sway like h/v choosable layout
     - [ ] Dwindle
 - [ ] Jump label support (like MangoWM)
-- [ ] IPC for nnwm
+- [x] IPC for nnwm
 - Layer rules
     - [ ] layer z-order
     - [ ] opacity
