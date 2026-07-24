@@ -106,6 +106,7 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
 
     apply_fx_decorations(tl);
     arrange_windows(server, out);
+    bar_update_fullscreen_visibility(server, out);
 }
 
 void
@@ -133,6 +134,7 @@ do_toggle_fake_fullscreen(nnwm_toplevel *tl)
     }
 
     arrange_windows(server, out);
+    bar_update_fullscreen_visibility(server, out);
 }
 
 nnwm_toplevel *

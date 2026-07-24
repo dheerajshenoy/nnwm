@@ -1,5 +1,6 @@
 #include "nnwm.hpp"
 #include "nnwm_internal.hpp"
+#include "actions.hpp"
 #include "tray.hpp"
 
 #include <cstdio>
@@ -954,6 +955,41 @@ void bar_destroy_for_output(nnwm_output *out) {
     out->bar = nullptr;
 }
 
+/* Hide or show the bar(s) for `out` based on whether any window on that
+ * output is fullscreen. Called after fullscreen state changes. */
+void bar_update_fullscreen_visibility(nnwm_server *server, nnwm_output *out) {
+    if (!out) return;
+    nnwm_config *cfg = server->config;
+    if (!cfg->bar.enabled || cfg->bar.height <= 0) return;
+
+    /* Check whether any window on this output is fullscreen. */
+    bool has_fullscreen = false;
+    nnwm_toplevel *tl;
+    wl_list_for_each(tl, &server->toplevels, link) {
+        if (tl->output == out && (tl->fullscreen || tl->fake_fullscreen)) {
+            has_fullscreen = true;
+            break;
+        }
+    }
+
+    /* Per-output bar */
+    if (out->bar && out->bar->tree) {
+        wlr_scene_node_set_enabled(&out->bar->tree->node, !has_fullscreen);
+        if (has_fullscreen) {
+            /* Make sure the bar doesn't reserve usable area while hidden */
+            wlr_scene_node_set_position(&out->bar->tree->node, out->bar->x,
+                                        out->bar->y);
+        }
+    }
+
+    /* Global bar — hide if it targets this output */
+    if (server->global_bar && server->global_bar->tree
+        && bar_target_output(server->global_bar) == out) {
+        wlr_scene_node_set_enabled(&server->global_bar->tree->node,
+                                   !has_fullscreen);
+    }
+}
+
 /* ---- Cursor event dispatch ---- */
 
 /* Locate a bar the cursor is currently over. Returns the bar and the
@@ -1066,8 +1102,8 @@ bool bar_handle_button(nnwm_server *server, double lx, double ly,
     nnwm_bar *bar = bar_at(server, lx, ly, &bx, &by);
     if (!bar) return false;
 
-    /* Only PRESS triggers on_click (release is swallowed too so the client
-     * below never sees a stray release without a matching press). */
+    /* Both press and release are consumed so the client below never sees a
+     * stray event without a matching counterpart. */
     if (!pressed) return true;
 
     nnwm_config *cfg = server->config;
@@ -1081,21 +1117,82 @@ bool bar_handle_button(nnwm_server *server, double lx, double ly,
         return true;
     }
 
+    /* If a Lua on_click handler is set, fire it (module-level takes
+     * priority over bar-level). */
     int click_ref = (idx >= 0)
         ? cfg->bar.modules[idx].lua_click_ref
         : cfg->bar.lua_click_ref;
-    if (click_ref < 0 || !server->lua) return true; /* still consume */
-
-    lua_State *L = server->lua;
-    lua_rawgeti(L, LUA_REGISTRYINDEX, click_ref);
-    lua_pushstring(L, button_name(button));
-    lua_pushinteger(L, (lua_Integer)bx);
-    lua_pushinteger(L, (lua_Integer)by);
-    if (lua_pcall(L, 3, 0, 0) != 0) {
-        wlr_log(WLR_ERROR, "bar on_click: %s", lua_tostring(L, -1));
-        lua_pop(L, 1);
+    if (click_ref >= 0 && server->lua) {
+        lua_State *L = server->lua;
+        lua_rawgeti(L, LUA_REGISTRYINDEX, click_ref);
+        lua_pushstring(L, button_name(button));
+        lua_pushinteger(L, (lua_Integer)bx);
+        lua_pushinteger(L, (lua_Integer)by);
+        if (lua_pcall(L, 3, 0, 0) != 0) {
+            wlr_log(WLR_ERROR, "bar on_click: %s", lua_tostring(L, -1));
+            lua_pop(L, 1);
+        }
+        return true;
     }
-    return true;
+
+    /* Built-in default click actions for modules without a Lua handler. */
+    if (idx >= 0 && button == BTN_LEFT) {
+        nnwm_bar_module &m = cfg->bar.modules[idx];
+        nnwm_output *out = bar_target_output(bar);
+
+        if (m.type == nnwm_bar_module_type::WORKSPACES && out) {
+            /* Determine which workspace pill was clicked. Recompute the
+             * same layout used by draw_workspaces_module so the hit-test
+             * matches what's rendered. */
+            int count = cfg->workspace_count > 0 ? cfg->workspace_count : 9;
+            if (count > NNWM_NUM_WORKSPACES) count = NNWM_NUM_WORKSPACES;
+            int pad = m.padding >= 0 ? m.padding : 8;
+
+            PangoFontDescription *fd = reinterpret_cast<PangoFontDescription *>(
+                bar->font_desc);
+
+            /* Create a temporary cairo surface for Pango measurement. */
+            cairo_surface_t *tmp_surf = cairo_image_surface_create(
+                CAIRO_FORMAT_ARGB32, 1, 1);
+            cairo_t *tmp_cr = cairo_create(tmp_surf);
+
+            int cursor_x = m.rect_x;
+            for (int i = 0; i < count; i++) {
+                const char *label = nullptr;
+                if (out->workspace_names[i]) label = out->workspace_names[i];
+                else if (cfg->workspace_names[i]) label = cfg->workspace_names[i];
+                char buf[16];
+                if (!label) {
+                    snprintf(buf, sizeof(buf), "%d", i + 1);
+                    label = buf;
+                }
+                PangoLayout *pl = pango_cairo_create_layout(tmp_cr);
+                pango_layout_set_font_description(pl, fd);
+                pango_layout_set_text(pl, label, -1);
+                int tw, th;
+                pango_layout_get_pixel_size(pl, &tw, &th);
+                g_object_unref(pl);
+                int pill_w = tw + 2 * pad;
+
+                if (bx >= cursor_x && bx < cursor_x + pill_w) {
+                    cairo_destroy(tmp_cr);
+                    cairo_surface_destroy(tmp_surf);
+                    server->focused_output = out;
+                    nnwm::workspace::switch_to(server, i);
+                    return true;
+                }
+                cursor_x += pill_w;
+            }
+            cairo_destroy(tmp_cr);
+            cairo_surface_destroy(tmp_surf);
+        } else if (m.type == nnwm_bar_module_type::LAYOUT && out) {
+            /* Cycle layout on left-click. */
+            nnwm::layout::next(server);
+            return true;
+        }
+    }
+
+    return true; /* always consume — click was over the bar */
 }
 
 void bar_notify_tray_changed(nnwm_server *server) {
