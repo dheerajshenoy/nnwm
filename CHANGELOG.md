@@ -4,6 +4,11 @@
 
 ### Features
 
+- **Fullscreen bar hiding**: the status bar is automatically hidden when a
+  window enters real fullscreen (`nnwm.fullscreen()`) and restored when it
+  leaves. Fake fullscreen (`nnwm.fake_fullscreen()`) does not hide the bar,
+  since the output is not actually covered.
+
 - **Compositor-drawn status bar**: nnwm now ships a native status bar
   (`nnwm.opt.bar = { ... }`). It's a Cairo-drawn `wlr_scene_buffer` at the
   layer-shell TOP tree — no external process, no layer-shell client, no extra
@@ -65,6 +70,10 @@
   - Workspace occupancy scan collapsed to a single `uint16_t` bitmap
     computed once per redraw and reused by both the hash and the
     workspaces module renderer.
+  - Workspace pill rendering: measurement creates a single shared
+    `PangoLayout` reused across all pills (instead of one per pill), and
+    per-pill widths are cached and passed through to the draw pass so
+    pills are drawn without a second round of text shaping.
   - Redraw coalescing: `bar_notify_*` marks the bar dirty; the actual
     redraw runs once at the top of `output_frame` (via `bar_predraw_output`)
     just before scene commit. Bursts of events between frames (opening 20
@@ -81,6 +90,10 @@
   the cursor is over the bar background (between modules). All pointer
   events over the bar are consumed by the compositor so windows below
   never see them.
+  - **Built-in module click actions**: workspaces pills switch to the
+    clicked workspace, and the layout module cycles layouts on left-click.
+    These work without any Lua callbacks; `on_click` overrides the
+    built-in behavior when present.
 
 - **Per-module font styling**: every bar module accepts `font`, `style`,
   `weight`, `size` overrides.

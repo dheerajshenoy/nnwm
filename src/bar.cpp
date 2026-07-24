@@ -113,8 +113,8 @@ static nnwm_toplevel *bar_focused_toplevel(nnwm_bar *bar) {
 /* Draw a text segment with pango, return advance width. If `bg` alpha > 0
  * fills a rectangle behind. Returns the width consumed (text + padding*2). */
 static int draw_text_segment(cairo_t *cr, PangoFontDescription *fd,
-                             const char *text, int x, int bar_h,
-                             const float fg[4], const float bg[4], int pad) {
+                              const char *text, int x, int bar_h,
+                              const float fg[4], const float bg[4], int pad) {
     if (!text || !text[0]) return 0;
 
     PangoLayout *layout = pango_cairo_create_layout(cr);
@@ -254,9 +254,11 @@ static uint16_t workspace_occupancy_bits(nnwm_server *server, nnwm_output *out) 
 
 /* Draw the workspaces module. Returns width consumed. */
 static int draw_workspaces_module(cairo_t *cr, PangoFontDescription *fd,
-                                  nnwm_bar *bar, nnwm_bar_module &m,
-                                  int x, int bar_h,
-                                  uint16_t occ_bits, int active_ws) {
+                                   nnwm_bar *bar, nnwm_bar_module &m,
+                                   int x, int bar_h,
+                                   uint16_t occ_bits, int active_ws,
+                                   const int *pill_widths = nullptr,
+                                   int pill_height = 0) {
     nnwm_config *cfg = bar->server->config;
     nnwm_output *out = bar_target_output(bar);
     int count = cfg->workspace_count > 0 ? cfg->workspace_count : 9;
@@ -269,6 +271,10 @@ static int draw_workspaces_module(cairo_t *cr, PangoFontDescription *fd,
 
     int pad = m.padding >= 0 ? m.padding : 8;
     int used = 0;
+    PangoLayout *shared = pill_widths ? pango_cairo_create_layout(cr) : nullptr;
+    if (shared) {
+        pango_layout_set_font_description(shared, fd);
+    }
     for (int i = 0; i < count; i++) {
         const char *label = nullptr;
         if (out && out->workspace_names[i]) label = out->workspace_names[i];
@@ -290,8 +296,25 @@ static int draw_workspaces_module(cairo_t *cr, PangoFontDescription *fd,
         } else {
             fg = c_unocc_fg;
         }
-        used += draw_text_segment(cr, fd, label, x + used, bar_h, fg, bg, pad);
+        if (shared && pill_widths) {
+            int text_w = pill_widths[i];
+            int w = text_w + 2 * pad;
+            if (bg && bg[3] > 0.0f) {
+                cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3]);
+                cairo_rectangle(cr, x + used, 0, w, bar_h);
+                cairo_fill(cr);
+            }
+            double ty = (bar_h - pill_height) / 2.0;
+            cairo_set_source_rgba(cr, fg[0], fg[1], fg[2], fg[3]);
+            pango_layout_set_text(shared, label, -1);
+            cairo_move_to(cr, x + used + pad, ty);
+            pango_cairo_show_layout(cr, shared);
+            used += w;
+        } else {
+            used += draw_text_segment(cr, fd, label, x + used, bar_h, fg, bg, pad);
+        }
     }
+    if (shared) g_object_unref(shared);
     return used;
 }
 
@@ -385,6 +408,9 @@ static void bar_redraw(nnwm_bar *bar) {
         int text_w, text_h; /* pango pixel size, for drawing */
         nnwm_bar_module *m;
         PangoLayout *layout; /* null for WORKSPACES */
+        int *pill_widths; /* cached per-pill text widths for WORKSPACES */
+        int pill_height;  /* cached pill text height */
+        int pill_count;
         bool is_ws;
     };
     /* Helper: which font description a module should use. */
@@ -407,26 +433,34 @@ static void bar_redraw(nnwm_bar *bar) {
             segs[i].w = tray_measure_width(bar->server, bar->height, spacing) + 2 * pad;
         } else if (m.type == nnwm_bar_module_type::WORKSPACES) {
             segs[i].is_ws = true;
-            /* Measure workspace pill row. This has to lay out each label,
-             * but each is only a few glyphs so still cheap. */
+            segs[i].pill_widths = nullptr;
+            segs[i].pill_count = 0;
+            /* Measure workspace pill row using a single reused PangoLayout. */
             int count = cfg->workspace_count > 0 ? cfg->workspace_count : 9;
             if (count > NNWM_NUM_WORKSPACES) count = NNWM_NUM_WORKSPACES;
             int pad = m.padding >= 0 ? m.padding : 8;
             int w = 0;
             nnwm_output *tout = bar_target_output(bar);
+            int *pw_arr = static_cast<int *>(calloc(count, sizeof(int)));
+            PangoLayout *shared = pango_cairo_create_layout(cr);
+            pango_layout_set_font_description(shared, mfd);
+            int pill_h = 0;
             for (int j = 0; j < count; j++) {
                 const char *label = nullptr;
                 if (tout && tout->workspace_names[j]) label = tout->workspace_names[j];
                 else if (cfg->workspace_names[j])     label = cfg->workspace_names[j];
                 char buf[16];
                 if (!label) { snprintf(buf, sizeof(buf), "%d", j + 1); label = buf; }
-                PangoLayout *L = pango_cairo_create_layout(cr);
-                pango_layout_set_font_description(L, mfd);
-                pango_layout_set_text(L, label, -1);
-                int tw, th; pango_layout_get_pixel_size(L, &tw, &th);
-                g_object_unref(L);
+                pango_layout_set_text(shared, label, -1);
+                int tw, th; pango_layout_get_pixel_size(shared, &tw, &th);
+                pw_arr[j] = tw;
+                if (th > pill_h) pill_h = th;
                 w += tw + 2 * pad;
             }
+            g_object_unref(shared);
+            segs[i].pill_widths = pw_arr;
+            segs[i].pill_height = pill_h;
+            segs[i].pill_count = count;
             segs[i].w = w;
         } else {
             const char *text = m.cached_text;
@@ -492,7 +526,8 @@ static void bar_redraw(nnwm_bar *bar) {
         } else if (s.is_ws) {
             drawn = draw_workspaces_module(cr, module_font(i), bar, *s.m,
                                            x, bar->height,
-                                           occ_bits, active_ws);
+                                           occ_bits, active_ws,
+                                           s.pill_widths, s.pill_height);
         } else if (s.m->type == nnwm_bar_module_type::WINDOW_TITLE
                    && s.m->align == nnwm_bar_align::CENTER) {
             /* Ellipsize to available space between left and right groups. */
@@ -547,6 +582,8 @@ static void bar_redraw(nnwm_bar *bar) {
         cursor[idx] += drawn + spacing;
         if (s.m->align == nnwm_bar_align::LEFT) left_cursor = cursor[idx];
     }
+    for (int i = 0; i < cfg->bar.module_count; i++)
+        free(segs[i].pill_widths);
     free(segs);
 
     cairo_destroy(cr);

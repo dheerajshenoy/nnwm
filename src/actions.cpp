@@ -87,6 +87,7 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
 #endif
             apply_fx_decorations(tl);
             arrange_windows(server, out);
+            bar_update_fullscreen_visibility(server, out);
             return;
         }
 #endif
