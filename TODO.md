@@ -267,3 +267,4 @@
     - [ ] Touchpad click support
 
 - [ ] Don't show panel in fullscreen mode
+- [ ] Fullscreen panel hidden on all workspaces/monitor, not the required behavior
