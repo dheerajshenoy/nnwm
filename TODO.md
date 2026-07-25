@@ -198,6 +198,7 @@
     - [x] Slow layout module update when switching layout
     - [x] Clickable modules
     - [x] Hover signal for modules
+    - [x] Touchpad click support
 - [x] Switching layout bug
 - [x] Log API: nnwm.log.info/warn/error writing to a known file — replaces print-debugging.
 - [x] Version API: nnwm.version() return a current version string, e.g. "0.1.0" or "0.1.0-rc1". Useful for configs that need to adapt to different versions.
@@ -207,6 +208,9 @@
 - [x] nnwm.cursor.hide() to hide the cursor
 - [x] nnwm.cursor.show() to show the cursor
 - [x] nnwm.cursor.visible() to check if the cursor is visible
+- [x] Don't show panel in fullscreen mode
+- [x] Fullscreen panel hidden on all workspaces/monitor, not the required behavior
+- [x] IPC for nnwm
 
 ## TODO
 
@@ -220,7 +224,6 @@
     - [ ] Sway like h/v choosable layout
     - [ ] Dwindle
 - [ ] Jump label support (like MangoWM)
-- [x] IPC for nnwm
 - Layer rules
     - [ ] layer z-order
     - [ ] opacity
@@ -264,7 +267,4 @@
 
 - Panel/Bar
     - [ ] Custom font per modules
-    - [ ] Touchpad click support
 
-- [ ] Don't show panel in fullscreen mode
-- [ ] Fullscreen panel hidden on all workspaces/monitor, not the required behavior
