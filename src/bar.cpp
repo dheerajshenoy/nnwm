@@ -947,6 +947,10 @@ void bar_notify_workspace_change(nnwm_server *server, nnwm_output *out) {
     unsigned mask = MASK_WORKSPACES | MASK_WINDOW_TITLE | MASK_LAYOUT;
     if (out) redraw_if_cares(out->bar, mask);
     redraw_if_cares(server->global_bar, mask);
+
+    /* The active workspace changed — a fullscreen window on the old
+     * workspace should no longer hide the bar. */
+    if (out) bar_update_fullscreen_visibility(server, out);
 }
 
 void bar_notify_focus_change(nnwm_server *server) {
@@ -999,11 +1003,14 @@ void bar_update_fullscreen_visibility(nnwm_server *server, nnwm_output *out) {
     nnwm_config *cfg = server->config;
     if (!cfg->bar.enabled || cfg->bar.height <= 0) return;
 
-    /* Check whether any window on this output is fullscreen. */
+    /* Check whether any window on this output is fullscreen AND on the
+     * active workspace.  A fullscreen window on a different workspace
+     * should not hide this output's bar. */
     bool has_fullscreen = false;
     nnwm_toplevel *tl;
     wl_list_for_each(tl, &server->toplevels, link) {
-        if (tl->output == out && tl->fullscreen) {
+        if (tl->output == out && tl->fullscreen
+            && tl->workspace == out->active_workspace) {
             has_fullscreen = true;
             break;
         }

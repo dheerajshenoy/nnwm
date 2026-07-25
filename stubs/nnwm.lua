@@ -827,3 +827,4 @@ function nnwm.log.error(...) end
 --- resolution rules), or `nil` if `$HOME` is unset and no override is given.
 ---@return string?
 function nnwm.log.path() end
+
