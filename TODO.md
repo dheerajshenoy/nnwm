@@ -199,6 +199,7 @@
     - [x] Clickable modules
     - [x] Hover signal for modules
     - [x] Touchpad click support
+    - [x] Custom font per modules
 - [x] Switching layout bug
 - [x] Log API: nnwm.log.info/warn/error writing to a known file — replaces print-debugging.
 - [x] Version API: nnwm.version() return a current version string, e.g. "0.1.0" or "0.1.0-rc1". Useful for configs that need to adapt to different versions.
@@ -264,7 +265,3 @@
 - [ ] DBus / MPRIS surface for media keys and status.
 - [ ] tile drag window, add sway like center and directional blocks on the dropping window
 - [ ] nnwm.notify(msg, {level, timeout}) — for on handlers to surface state; today users must shell out to notify-send.
-
-- Panel/Bar
-    - [ ] Custom font per modules
-
