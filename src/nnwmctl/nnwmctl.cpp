@@ -1,8 +1,10 @@
+#include <argparse.hpp>
 #include <cerrno>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -75,7 +77,6 @@ static bool ipc_send_and_recv(int fd, const char *code, char *buf,
     }
     buf[rlen] = '\0';
 
-    /* Strip trailing newlines */
     while (rlen > 0 && (buf[rlen - 1] == '\n' || buf[rlen - 1] == '\r'))
         buf[--rlen] = '\0';
 
@@ -97,263 +98,230 @@ static void emit(const char *fmt, ...)
     va_end(ap);
 }
 
-/* ---- Usage ---- */
-
-static void usage(const char *prog)
-{
-    std::fprintf(stderr,
-        "Usage: %s [-s SOCKET] COMMAND [ARGS...]\n"
-        "\n"
-        "Commands:\n"
-        "  workspace <n>          Switch to workspace n\n"
-        "  move-to-workspace <n>  Move focused window to workspace n\n"
-        "  focus <dir>            Focus in direction (left|right|up|down)\n"
-        "  swap <dir>             Swap in direction (left|right)\n"
-        "  layout <action>        Layout operations:\n"
-        "                           next, prev\n"
-        "                           tile, tabbed, float\n"
-        "                           vertical-tile, horizontal-tile\n"
-        "                           master-ratio-grow, master-ratio-shrink\n"
-        "  window <action>        Window operations:\n"
-        "                           close, float, fullscreen, fake-fullscreen,\n"
-        "                           maximize, sticky\n"
-        "  scratchpad [name]      Toggle scratchpad (optionally named)\n"
-        "  move-to-scratchpad [name]  Move to scratchpad\n"
-        "  monitor <action>       Monitor operations: next, prev\n"
-        "  move-to-monitor <action>   Move to monitor: next, prev\n"
-        "  overview               Toggle overview\n"
-        "  spawn <command...>     Spawn a command\n"
-        "  quit                   Quit the compositor\n"
-        "\n"
-        "  get windows            List all windows\n"
-        "  get workspaces         List all workspaces\n"
-        "  get outputs            List all outputs\n"
-        "  get focused            Get focused window\n"
-        "  get workspace          Get current workspace info\n"
-        "  get output             Get current output info\n"
-        "  get version            Get compositor version\n"
-        "\n"
-        "  exec <lua-code>        Execute raw Lua code (escape hatch)\n"
-        "\n"
-        "Options:\n"
-        "  -s SOCKET   Path to the IPC socket (default: $NNWM_SOCKET)\n"
-        "  -h          Show this help\n",
-        prog);
-}
-
-/* ---- Command dispatch ---- */
-
-static int dispatch(int argc, char **argv, int argi, const char *prog)
-{
-    if (argi >= argc)
-    {
-        usage(prog);
-        return 1;
-    }
-
-    const char *cmd = argv[argi++];
-
-    if (std::strcmp(cmd, "-h") == 0 || std::strcmp(cmd, "--help") == 0)
-    {
-        usage(prog);
-        return 0;
-    }
-
-    /* ---- Actions ---- */
-
-    if (std::strcmp(cmd, "workspace") == 0)
-    {
-        if (argi >= argc) { std::fprintf(stderr, "%s: workspace: missing number\n", prog); return 1; }
-        emit("nnwm.switch_workspace(%s)", argv[argi++]);
-    }
-    else if (std::strcmp(cmd, "move-to-workspace") == 0)
-    {
-        if (argi >= argc) { std::fprintf(stderr, "%s: move-to-workspace: missing number\n", prog); return 1; }
-        emit("nnwm.move_to_workspace(%s)", argv[argi++]);
-    }
-    else if (std::strcmp(cmd, "focus") == 0)
-    {
-        if (argi >= argc) { std::fprintf(stderr, "%s: focus: missing direction (left|right|up|down)\n", prog); return 1; }
-        const char *dir = argv[argi++];
-        if (std::strcmp(dir, "left") == 0)       emit("nnwm.focus_left()");
-        else if (std::strcmp(dir, "right") == 0)  emit("nnwm.focus_right()");
-        else if (std::strcmp(dir, "up") == 0)     emit("nnwm.focus_dir(\"up\")");
-        else if (std::strcmp(dir, "down") == 0)   emit("nnwm.focus_dir(\"down\")");
-        else if (std::strcmp(dir, "next") == 0)   emit("nnwm.focus_next()");
-        else if (std::strcmp(dir, "prev") == 0)   emit("nnwm.focus_prev()");
-        else { std::fprintf(stderr, "%s: focus: unknown direction '%s'\n", prog, dir); return 1; }
-    }
-    else if (std::strcmp(cmd, "swap") == 0)
-    {
-        if (argi >= argc) { std::fprintf(stderr, "%s: swap: missing direction (left|right)\n", prog); return 1; }
-        const char *dir = argv[argi++];
-        if (std::strcmp(dir, "left") == 0)       emit("nnwm.swap_left()");
-        else if (std::strcmp(dir, "right") == 0)  emit("nnwm.swap_right()");
-        else if (std::strcmp(dir, "next") == 0)   emit("nnwm.swap_next()");
-        else if (std::strcmp(dir, "prev") == 0)   emit("nnwm.swap_prev()");
-        else if (std::strcmp(dir, "master") == 0) emit("nnwm.swap_master()");
-        else { std::fprintf(stderr, "%s: swap: unknown direction '%s'\n", prog, dir); return 1; }
-    }
-    else if (std::strcmp(cmd, "layout") == 0)
-    {
-        if (argi >= argc) { std::fprintf(stderr, "%s: layout: missing action\n", prog); return 1; }
-        const char *act = argv[argi++];
-        if (std::strcmp(act, "next") == 0)                  emit("nnwm.layout.next()");
-        else if (std::strcmp(act, "prev") == 0)             emit("nnwm.layout.prev()");
-        else if (std::strcmp(act, "tile") == 0)             emit("nnwm.set_layout(\"htile\")");
-        else if (std::strcmp(act, "tabbed") == 0)           emit("nnwm.set_layout(\"tabbed\")");
-        else if (std::strcmp(act, "float") == 0)            emit("nnwm.set_layout(\"float\")");
-        else if (std::strcmp(act, "vertical-tile") == 0)    emit("nnwm.set_layout(\"vtile\")");
-        else if (std::strcmp(act, "horizontal-tile") == 0)  emit("nnwm.set_layout(\"htile\")");
-        else if (std::strcmp(act, "master-ratio-grow") == 0)   emit("nnwm.master_ratio_grow()");
-        else if (std::strcmp(act, "master-ratio-shrink") == 0) emit("nnwm.master_ratio_shrink()");
-        else { std::fprintf(stderr, "%s: layout: unknown action '%s'\n", prog, act); return 1; }
-    }
-    else if (std::strcmp(cmd, "window") == 0)
-    {
-        if (argi >= argc) { std::fprintf(stderr, "%s: window: missing action\n", prog); return 1; }
-        const char *act = argv[argi++];
-        if (std::strcmp(act, "close") == 0)            emit("nnwm.close()");
-        else if (std::strcmp(act, "float") == 0)       emit("nnwm.toggle_float()");
-        else if (std::strcmp(act, "fullscreen") == 0)  emit("nnwm.toggle_fullscreen()");
-        else if (std::strcmp(act, "fake-fullscreen") == 0) emit("nnwm.toggle_fake_fullscreen()");
-        else if (std::strcmp(act, "maximize") == 0)    emit("nnwm.toggle_maximize()");
-        else if (std::strcmp(act, "sticky") == 0)      emit("nnwm.toggle_sticky()");
-        else { std::fprintf(stderr, "%s: window: unknown action '%s'\n", prog, act); return 1; }
-    }
-    else if (std::strcmp(cmd, "scratchpad") == 0)
-    {
-        if (argi < argc)
-            emit("nnwm.scratchpad_toggle(\"%s\")", argv[argi++]);
-        else
-            emit("nnwm.scratchpad_toggle()");
-    }
-    else if (std::strcmp(cmd, "move-to-scratchpad") == 0)
-    {
-        if (argi < argc)
-            emit("nnwm.move_to_scratchpad(\"%s\")", argv[argi++]);
-        else
-            emit("nnwm.move_to_scratchpad()");
-    }
-    else if (std::strcmp(cmd, "monitor") == 0)
-    {
-        if (argi >= argc) { std::fprintf(stderr, "%s: monitor: missing action (next|prev)\n", prog); return 1; }
-        const char *act = argv[argi++];
-        if (std::strcmp(act, "next") == 0) emit("nnwm.focus_monitor_next()");
-        else if (std::strcmp(act, "prev") == 0) emit("nnwm.focus_monitor_prev()");
-        else { std::fprintf(stderr, "%s: monitor: unknown action '%s'\n", prog, act); return 1; }
-    }
-    else if (std::strcmp(cmd, "move-to-monitor") == 0)
-    {
-        if (argi >= argc) { std::fprintf(stderr, "%s: move-to-monitor: missing action (next|prev)\n", prog); return 1; }
-        const char *act = argv[argi++];
-        if (std::strcmp(act, "next") == 0) emit("nnwm.move_to_monitor_next()");
-        else if (std::strcmp(act, "prev") == 0) emit("nnwm.move_to_monitor_prev()");
-        else { std::fprintf(stderr, "%s: move-to-monitor: unknown action '%s'\n", prog, act); return 1; }
-    }
-    else if (std::strcmp(cmd, "overview") == 0)
-    {
-        emit("nnwm.toggle_overview()");
-    }
-    else if (std::strcmp(cmd, "spawn") == 0)
-    {
-        if (argi >= argc) { std::fprintf(stderr, "%s: spawn: missing command\n", prog); return 1; }
-        /* Rejoin remaining args as the command string */
-        char cmd_buf[4096] = {};
-        for (int i = argi; i < argc; i++)
-        {
-            if (i > argi) strcat(cmd_buf, " ");
-            strcat(cmd_buf, argv[i]);
-        }
-        emit("nnwm.spawn(\"%s\")", cmd_buf);
-    }
-    else if (std::strcmp(cmd, "quit") == 0)
-    {
-        emit("nnwm.quit()");
-    }
-
-    /* ---- Queries ---- */
-
-    else if (std::strcmp(cmd, "get") == 0)
-    {
-        if (argi >= argc) { std::fprintf(stderr, "%s: get: missing resource\n", prog); return 1; }
-        const char *res = argv[argi++];
-        if (std::strcmp(res, "windows") == 0)
-            emit("return nnwm.current_output().windows");
-        else if (std::strcmp(res, "workspaces") == 0)
-            emit("return nnwm.current_output().workspaces");
-        else if (std::strcmp(res, "outputs") == 0)
-            emit("return nnwm.current_output()");
-        else if (std::strcmp(res, "focused") == 0)
-            emit("return nnwm.current_window()");
-        else if (std::strcmp(res, "workspace") == 0)
-            emit("return nnwm.current_workspace()");
-        else if (std::strcmp(res, "output") == 0)
-            emit("return nnwm.current_output()");
-        else if (std::strcmp(res, "version") == 0)
-            emit("return nnwm.version()");
-        else { std::fprintf(stderr, "%s: get: unknown resource '%s'\n", prog, res); return 1; }
-    }
-
-    /* ---- Escape hatch ---- */
-
-    else if (std::strcmp(cmd, "exec") == 0)
-    {
-        if (argi >= argc) { std::fprintf(stderr, "%s: exec: missing lua code\n", prog); return 1; }
-        char code_buf[256 * 1000] = {};
-        for (int i = argi; i < argc; i++)
-        {
-            if (i > argi) strcat(code_buf, " ");
-            strcat(code_buf, argv[i]);
-        }
-        snprintf(lua_buf, sizeof(lua_buf), "return (function() %s end)()", code_buf);
-    }
-    else
-    {
-        std::fprintf(stderr, "%s: unknown command '%s'\n", prog, cmd);
-        usage(prog);
-        return 1;
-    }
-
-    return -1; /* signal: send lua_buf to server */
-}
-
 /* ---- Main ---- */
 
 int main(int argc, char **argv)
 {
-    const char *sock_path = nullptr;
-    int argi = 1;
+    argparse::ArgumentParser program("nnwmctl");
 
-    /* Parse -s flag */
-    while (argi < argc && argv[argi][0] == '-')
-    {
-        if (std::strcmp(argv[argi], "-h") == 0 || std::strcmp(argv[argi], "--help") == 0)
-        {
-            usage(argv[0]);
-            return 0;
-        }
-        if (std::strcmp(argv[argi], "-s") == 0 && argi + 1 < argc)
-        {
-            sock_path = argv[++argi];
-            argi++;
-        }
-        else
-        {
-            std::fprintf(stderr, "%s: unknown option '%s'\n", argv[0], argv[argi]);
-            usage(argv[0]);
-            return 1;
-        }
+    program.add_argument("-s", "--socket")
+        .help("path to the IPC socket (default: $NNWM_SOCKET)")
+        .nargs(1)
+        .default_value(std::string(""));
+
+    /* Subcommands */
+    argparse::ArgumentParser cmd_workspace("workspace");
+    cmd_workspace.add_description("Switch to workspace n");
+    cmd_workspace.add_argument("n", "workspace number")
+        .nargs(1);
+
+    argparse::ArgumentParser cmd_move_to_workspace("move-to-workspace");
+    cmd_move_to_workspace.add_description("Move focused window to workspace n");
+    cmd_move_to_workspace.add_argument("n", "workspace number")
+        .nargs(1);
+
+    argparse::ArgumentParser cmd_focus("focus");
+    cmd_focus.add_description("Focus in direction");
+    cmd_focus.add_argument("direction", "left|right|up|down|next|prev")
+        .nargs(1);
+
+    argparse::ArgumentParser cmd_swap("swap");
+    cmd_swap.add_description("Swap in direction");
+    cmd_swap.add_argument("direction", "left|right|next|prev|master")
+        .nargs(1);
+
+    argparse::ArgumentParser cmd_layout("layout");
+    cmd_layout.add_description("Layout operations");
+    cmd_layout.add_argument("action", "next|prev|tile|tabbed|float|vertical-tile|master-ratio-grow|master-ratio-shrink")
+        .nargs(1);
+
+    argparse::ArgumentParser cmd_window("window");
+    cmd_window.add_description("Window operations");
+    cmd_window.add_argument("action", "close|float|fullscreen|fake-fullscreen|maximize|sticky")
+        .nargs(1);
+
+    argparse::ArgumentParser cmd_scratchpad("scratchpad");
+    cmd_scratchpad.add_description("Toggle scratchpad");
+    cmd_scratchpad.add_argument("name")
+        .nargs(argparse::nargs_pattern::optional);
+
+    argparse::ArgumentParser cmd_move_to_scratchpad("move-to-scratchpad");
+    cmd_move_to_scratchpad.add_description("Move window to scratchpad");
+    cmd_move_to_scratchpad.add_argument("name")
+        .nargs(argparse::nargs_pattern::optional);
+
+    argparse::ArgumentParser cmd_monitor("monitor");
+    cmd_monitor.add_description("Monitor operations");
+    cmd_monitor.add_argument("action", "next|prev")
+        .nargs(1);
+
+    argparse::ArgumentParser cmd_move_to_monitor("move-to-monitor");
+    cmd_move_to_monitor.add_description("Move window to monitor");
+    cmd_move_to_monitor.add_argument("action", "next|prev")
+        .nargs(1);
+
+    argparse::ArgumentParser cmd_spawn("spawn");
+    cmd_spawn.add_description("Spawn a command");
+    cmd_spawn.add_argument("command", "command to spawn")
+        .nargs(argparse::nargs_pattern::at_least_one);
+
+    argparse::ArgumentParser cmd_get("get");
+    cmd_get.add_description("Query compositor state");
+    cmd_get.add_argument("resource", "windows|workspaces|outputs|focused|workspace|output|version")
+        .nargs(1);
+
+    argparse::ArgumentParser cmd_exec("exec");
+    cmd_exec.add_description("Execute raw Lua code");
+    cmd_exec.add_argument("code", "Lua code to execute")
+        .nargs(argparse::nargs_pattern::at_least_one);
+
+    /* Add subcommands */
+    program.add_subparser(cmd_workspace);
+    program.add_subparser(cmd_move_to_workspace);
+    program.add_subparser(cmd_focus);
+    program.add_subparser(cmd_swap);
+    program.add_subparser(cmd_layout);
+    program.add_subparser(cmd_window);
+    program.add_subparser(cmd_scratchpad);
+    program.add_subparser(cmd_move_to_scratchpad);
+    program.add_subparser(cmd_monitor);
+    program.add_subparser(cmd_move_to_monitor);
+    program.add_subparser(cmd_spawn);
+    program.add_subparser(cmd_get);
+    program.add_subparser(cmd_exec);
+
+    try {
+        program.parse_args(argc, argv);
+    } catch (const std::runtime_error &err) {
+        std::fprintf(stderr, "%s\n", err.what());
+        return 1;
     }
 
-    int rc = dispatch(argc, argv, argi, argv[0]);
-    if (rc >= 0) return rc;
+    /* Dispatch subcommands */
+    if (program.is_subcommand_used(cmd_workspace))
+        emit("nnwm.switch_workspace(%s)", cmd_workspace.get<std::string>("n").c_str());
+    else if (program.is_subcommand_used(cmd_move_to_workspace))
+        emit("nnwm.move_to_workspace(%s)", cmd_move_to_workspace.get<std::string>("n").c_str());
+    else if (program.is_subcommand_used(cmd_focus))
+    {
+        std::string dir = cmd_focus.get<std::string>("direction");
+        if (dir == "left")       emit("nnwm.focus_left()");
+        else if (dir == "right")  emit("nnwm.focus_right()");
+        else if (dir == "up")     emit("nnwm.focus_dir(\"up\")");
+        else if (dir == "down")   emit("nnwm.focus_dir(\"down\")");
+        else if (dir == "next")   emit("nnwm.focus_next()");
+        else if (dir == "prev")   emit("nnwm.focus_prev()");
+        else { std::fprintf(stderr, "nnwmctl: focus: unknown direction '%s'\n", dir.c_str()); return 1; }
+    }
+    else if (program.is_subcommand_used(cmd_swap))
+    {
+        std::string dir = cmd_swap.get<std::string>("direction");
+        if (dir == "left")       emit("nnwm.swap_left()");
+        else if (dir == "right")  emit("nnwm.swap_right()");
+        else if (dir == "next")   emit("nnwm.swap_next()");
+        else if (dir == "prev")   emit("nnwm.swap_prev()");
+        else if (dir == "master") emit("nnwm.swap_master()");
+        else { std::fprintf(stderr, "nnwmctl: swap: unknown direction '%s'\n", dir.c_str()); return 1; }
+    }
+    else if (program.is_subcommand_used(cmd_layout))
+    {
+        std::string act = cmd_layout.get<std::string>("action");
+        if (act == "next")                  emit("nnwm.layout.next()");
+        else if (act == "prev")             emit("nnwm.layout.prev()");
+        else if (act == "tile")             emit("nnwm.set_layout(\"htile\")");
+        else if (act == "tabbed")           emit("nnwm.set_layout(\"tabbed\")");
+        else if (act == "float")            emit("nnwm.set_layout(\"float\")");
+        else if (act == "vertical-tile")    emit("nnwm.set_layout(\"vtile\")");
+        else if (act == "horizontal-tile")  emit("nnwm.set_layout(\"htile\")");
+        else if (act == "master-ratio-grow")   emit("nnwm.master_ratio_grow()");
+        else if (act == "master-ratio-shrink") emit("nnwm.master_ratio_shrink()");
+        else { std::fprintf(stderr, "nnwmctl: layout: unknown action '%s'\n", act.c_str()); return 1; }
+    }
+    else if (program.is_subcommand_used(cmd_window))
+    {
+        std::string act = cmd_window.get<std::string>("action");
+        if (act == "close")            emit("nnwm.close()");
+        else if (act == "float")       emit("nnwm.toggle_float()");
+        else if (act == "fullscreen")  emit("nnwm.toggle_fullscreen()");
+        else if (act == "fake-fullscreen") emit("nnwm.toggle_fake_fullscreen()");
+        else if (act == "maximize")    emit("nnwm.toggle_maximize()");
+        else if (act == "sticky")      emit("nnwm.toggle_sticky()");
+        else { std::fprintf(stderr, "nnwmctl: window: unknown action '%s'\n", act.c_str()); return 1; }
+    }
+    else if (program.is_subcommand_used(cmd_scratchpad))
+    {
+        if (cmd_scratchpad.is_used("name"))
+            emit("nnwm.scratchpad_toggle(\"%s\")", cmd_scratchpad.get<std::string>("name").c_str());
+        else
+            emit("nnwm.scratchpad_toggle()");
+    }
+    else if (program.is_subcommand_used(cmd_move_to_scratchpad))
+    {
+        if (cmd_move_to_scratchpad.is_used("name"))
+            emit("nnwm.move_to_scratchpad(\"%s\")", cmd_move_to_scratchpad.get<std::string>("name").c_str());
+        else
+            emit("nnwm.move_to_scratchpad()");
+    }
+    else if (program.is_subcommand_used(cmd_monitor))
+    {
+        std::string act = cmd_monitor.get<std::string>("action");
+        if (act == "next") emit("nnwm.focus_monitor_next()");
+        else if (act == "prev") emit("nnwm.focus_monitor_prev()");
+        else { std::fprintf(stderr, "nnwmctl: monitor: unknown action '%s'\n", act.c_str()); return 1; }
+    }
+    else if (program.is_subcommand_used(cmd_move_to_monitor))
+    {
+        std::string act = cmd_move_to_monitor.get<std::string>("action");
+        if (act == "next") emit("nnwm.move_to_monitor_next()");
+        else if (act == "prev") emit("nnwm.move_to_monitor_prev()");
+        else { std::fprintf(stderr, "nnwmctl: move-to-monitor: unknown action '%s'\n", act.c_str()); return 1; }
+    }
+    else if (program.is_subcommand_used(cmd_spawn))
+    {
+        auto cmds = cmd_spawn.get<std::vector<std::string>>("command");
+        std::string joined;
+        for (size_t i = 0; i < cmds.size(); i++)
+        {
+            if (i > 0) joined += " ";
+            joined += cmds[i];
+        }
+        emit("nnwm.spawn(\"%s\")", joined.c_str());
+    }
+    else if (program.is_subcommand_used(cmd_get))
+    {
+        std::string res = cmd_get.get<std::string>("resource");
+        if (res == "windows")    emit("return nnwm.current_output().windows");
+        else if (res == "workspaces") emit("return nnwm.current_output().workspaces");
+        else if (res == "outputs")    emit("return nnwm.current_output()");
+        else if (res == "focused")    emit("return nnwm.current_window()");
+        else if (res == "workspace")  emit("return nnwm.current_workspace()");
+        else if (res == "output")     emit("return nnwm.current_output()");
+        else if (res == "version")    emit("return nnwm.version()");
+        else { std::fprintf(stderr, "nnwmctl: get: unknown resource '%s'\n", res.c_str()); return 1; }
+    }
+    else if (program.is_subcommand_used(cmd_exec))
+    {
+        auto code_parts = cmd_exec.get<std::vector<std::string>>("code");
+        std::string code;
+        for (size_t i = 0; i < code_parts.size(); i++)
+        {
+            if (i > 0) code += " ";
+            code += code_parts[i];
+        }
+        snprintf(lua_buf, sizeof(lua_buf), "return (function() %s end)()", code.c_str());
+    }
+    else
+    {
+        std::fprintf(stderr, "%s\n", program.help().str().c_str());
+        return 1;
+    }
 
-    /* rc == -1: send lua_buf to server */
-    if (!sock_path) sock_path = find_socket();
+    /* Connect and send */
+    std::string sock_str = program.get<std::string>("--socket");
+    const char *sock_path = sock_str.empty() ? find_socket() : sock_str.c_str();
     if (!sock_path)
     {
-        std::fprintf(stderr, "%s: no socket. Is nnwm running?\n", argv[0]);
+        std::fprintf(stderr, "nnwmctl: no socket. Is nnwm running?\n");
         return 1;
     }
 
@@ -363,7 +331,7 @@ int main(int argc, char **argv)
     char result[256 * 1024];
     if (!ipc_send_and_recv(fd, lua_buf, result, sizeof(result)))
     {
-        std::fprintf(stderr, "%s: communication error\n", argv[0]);
+        std::fprintf(stderr, "nnwmctl: communication error\n");
         close(fd);
         return 1;
     }

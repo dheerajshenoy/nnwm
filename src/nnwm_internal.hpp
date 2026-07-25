@@ -182,6 +182,8 @@ void handle_xdg_popup_destroy(struct wl_listener *listener, void *data);
 /* ---- Window rules ---- */
 void apply_window_rules(struct nnwm_server *server,
                         struct nnwm_toplevel *toplevel);
+void apply_runtime_rules(struct nnwm_server *server,
+                         struct nnwm_toplevel *toplevel);
 
 /* ---- Event hooks ---- */
 void fire_hook_plain(struct nnwm_server *server, const char *event);

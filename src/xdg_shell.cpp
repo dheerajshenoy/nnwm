@@ -81,6 +81,8 @@ apply_window_rules(nnwm_server *server, nnwm_toplevel *toplevel)
             }
         }
     }
+
+    apply_runtime_rules(server, toplevel);
 }
 
 /* ---- XDG toplevel lifecycle ---- */

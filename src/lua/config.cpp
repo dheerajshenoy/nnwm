@@ -1239,6 +1239,281 @@ l_nnwm_rule(lua_State *L)
     return 0;
 }
 
+/* ---- Window userdata for runtime rule callbacks ---- */
+
+static const char *WNDMT = "nnwm_window";
+
+struct nnwm_window_ud
+{
+    nnwm_toplevel *tl;
+};
+
+static nnwm_window_ud *check_window_ud(lua_State *L, int idx)
+{
+    return static_cast<nnwm_window_ud *>(
+        luaL_checkudata(L, idx, WNDMT));
+}
+
+static int
+l_wnd_set_floating(lua_State *L)
+{
+    auto *ud = check_window_ud(L, 1);
+    if (!ud->tl) return 0;
+    ud->tl->floating = lua_toboolean(L, 2);
+    return 0;
+}
+
+static int
+l_wnd_set_fullscreen(lua_State *L)
+{
+    auto *ud = check_window_ud(L, 1);
+    if (!ud->tl) return 0;
+    bool want = lua_toboolean(L, 2);
+    if (want != ud->tl->fullscreen)
+    {
+        ud->tl->fullscreen = want;
+        if (ud->tl->xdg_toplevel)
+            wlr_xdg_toplevel_set_fullscreen(ud->tl->xdg_toplevel, want);
+#ifdef HAVE_XWAYLAND
+        if (ud->tl->is_xwayland)
+            nnwm_xw_set_fullscreen(ud->tl->xwayland_surface, want ? 1 : 0);
+#endif
+    }
+    return 0;
+}
+
+static int
+l_wnd_set_maximize(lua_State *L)
+{
+    auto *ud = check_window_ud(L, 1);
+    if (!ud->tl) return 0;
+    ud->tl->maximize = lua_toboolean(L, 2);
+    return 0;
+}
+
+static int
+l_wnd_set_sticky(lua_State *L)
+{
+    auto *ud = check_window_ud(L, 1);
+    if (!ud->tl) return 0;
+    ud->tl->sticky = lua_toboolean(L, 2);
+    return 0;
+}
+
+static int
+l_wnd_set_opacity(lua_State *L)
+{
+    auto *ud = check_window_ud(L, 1);
+    if (!ud->tl) return 0;
+    float v = (float)luaL_checknumber(L, 2);
+    if (v >= 0.0f && v <= 1.0f)
+        ud->tl->rule_opacity = v;
+    return 0;
+}
+
+static int
+l_wnd_set_workspace(lua_State *L)
+{
+    auto *ud = check_window_ud(L, 1);
+    if (!ud->tl) return 0;
+    int ws = (int)luaL_checkinteger(L, 2) - 1; /* Lua 1-N → internal 0-(N-1) */
+    auto *server = ud->tl->server;
+    if (ws >= 0 && ws < server->config->workspace_count)
+        ud->tl->workspace = ws;
+    return 0;
+}
+
+static int
+l_wnd_close(lua_State *L)
+{
+    auto *ud = check_window_ud(L, 1);
+    if (ud->tl) tl_send_close(ud->tl);
+    return 0;
+}
+
+static int
+l_wnd_index(lua_State *L)
+{
+    auto *ud = check_window_ud(L, 1);
+    const char *key = luaL_checkstring(L, 2);
+    if (!ud->tl || !key) { lua_pushnil(L); return 1; }
+
+    auto *tl = ud->tl;
+
+    if (std::strcmp(key, "title") == 0)
+        lua_pushstring(L, tl->xdg_toplevel && tl->xdg_toplevel->title
+                              ? tl->xdg_toplevel->title : "");
+    else if (std::strcmp(key, "app_id") == 0)
+        lua_pushstring(L, tl->xdg_toplevel && tl->xdg_toplevel->app_id
+                              ? tl->xdg_toplevel->app_id : "");
+    else if (std::strcmp(key, "floating") == 0)
+        lua_pushboolean(L, tl->floating);
+    else if (std::strcmp(key, "fullscreen") == 0)
+        lua_pushboolean(L, tl->fullscreen);
+    else if (std::strcmp(key, "fake_fullscreen") == 0)
+        lua_pushboolean(L, tl->fake_fullscreen);
+    else if (std::strcmp(key, "maximized") == 0)
+        lua_pushboolean(L, tl->maximize);
+    else if (std::strcmp(key, "sticky") == 0)
+        lua_pushboolean(L, tl->sticky);
+    else if (std::strcmp(key, "workspace") == 0)
+        lua_pushinteger(L, tl->workspace + 1);
+    else if (std::strcmp(key, "x") == 0)
+        lua_pushinteger(L, tl->cur_x);
+    else if (std::strcmp(key, "y") == 0)
+        lua_pushinteger(L, tl->cur_y);
+    else if (std::strcmp(key, "width") == 0)
+        lua_pushinteger(L, tl->cur_w);
+    else if (std::strcmp(key, "height") == 0)
+        lua_pushinteger(L, tl->cur_h);
+    else if (std::strcmp(key, "output") == 0)
+    {
+        if (tl->output && tl->output->wlr_output->name)
+            lua_pushstring(L, tl->output->wlr_output->name);
+        else
+            lua_pushnil(L);
+    }
+    else
+        lua_pushnil(L);
+
+    return 1;
+}
+
+static void push_window_ud(lua_State *L, nnwm_toplevel *tl)
+{
+    auto *ud = static_cast<nnwm_window_ud *>(
+        lua_newuserdata(L, sizeof(nnwm_window_ud)));
+    ud->tl = tl;
+    luaL_setmetatable(L, WNDMT);
+}
+
+static void ensure_window_metatable(lua_State *L)
+{
+    if (luaL_newmetatable(L, WNDMT))
+    {
+        lua_pushcfunction(L, l_wnd_set_floating);   lua_setfield(L, -2, "set_floating");
+        lua_pushcfunction(L, l_wnd_set_fullscreen);  lua_setfield(L, -2, "set_fullscreen");
+        lua_pushcfunction(L, l_wnd_set_maximize);    lua_setfield(L, -2, "set_maximize");
+        lua_pushcfunction(L, l_wnd_set_sticky);      lua_setfield(L, -2, "set_sticky");
+        lua_pushcfunction(L, l_wnd_set_opacity);     lua_setfield(L, -2, "set_opacity");
+        lua_pushcfunction(L, l_wnd_set_workspace);   lua_setfield(L, -2, "set_workspace");
+        lua_pushcfunction(L, l_wnd_close);           lua_setfield(L, -2, "close");
+        lua_pushcfunction(L, l_wnd_index);           lua_setfield(L, -2, "__index");
+    }
+    lua_pop(L, 1);
+}
+
+/* ---- Runtime rules API ---- */
+
+static int
+l_nnwm_add_rule(lua_State *L)
+{
+    if (!lua_istable(L, 1) || !lua_isfunction(L, 2))
+        return luaL_error(L, "nnwm.add_rule: expected (match_table, callback)");
+
+    auto *server = get_server(L);
+
+    /* Grow runtime_rules array if needed */
+    if (server->runtime_rule_count >= server->runtime_rule_cap)
+    {
+        server->runtime_rule_cap = server->runtime_rule_cap ? server->runtime_rule_cap * 2 : 8;
+        server->runtime_rules = static_cast<nnwm_runtime_rule *>(
+            realloc(server->runtime_rules,
+                    (size_t)server->runtime_rule_cap * sizeof(nnwm_runtime_rule)));
+    }
+
+    auto &r = server->runtime_rules[server->runtime_rule_count++];
+    memset(&r, 0, sizeof(r));
+    r.id = server->runtime_rule_next_id++;
+
+    /* Match criteria */
+    lua_getfield(L, 1, "app_id");
+    if (lua_isstring(L, -1))
+        r.app_id = strdup(lua_tostring(L, -1));
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "title");
+    if (lua_isstring(L, -1))
+        r.title = strdup(lua_tostring(L, -1));
+    lua_pop(L, 1);
+
+    /* Store the callback — reference it so it survives lua_pop */
+    lua_pushvalue(L, 2);
+    r.func_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+    lua_pushinteger(L, r.id);
+    return 1;
+}
+
+static int
+l_nnwm_remove_rule(lua_State *L)
+{
+    int id = (int)luaL_checkinteger(L, 1);
+    auto *server = get_server(L);
+
+    for (int i = 0; i < server->runtime_rule_count; i++)
+    {
+        if (server->runtime_rules[i].id == id)
+        {
+            auto &r = server->runtime_rules[i];
+            free(r.app_id);
+            free(r.title);
+            luaL_unref(server->lua, LUA_REGISTRYINDEX, r.func_ref);
+
+            /* Swap with last and shrink */
+            server->runtime_rules[i] = server->runtime_rules[server->runtime_rule_count - 1];
+            server->runtime_rule_count--;
+            lua_pushboolean(L, true);
+            return 1;
+        }
+    }
+
+    lua_pushboolean(L, false);
+    return 1;
+}
+
+/* Called from apply_window_rules — runs every matching runtime rule's
+ * callback with a window userdata. */
+void apply_runtime_rules(nnwm_server *server, nnwm_toplevel *tl)
+{
+    lua_State *L = server->lua;
+    if (!L) return;
+
+    const char *app_id = tl_app_id(tl);
+    const char *title  = tl_title(tl);
+
+    for (int i = 0; i < server->runtime_rule_count; i++)
+    {
+        auto &r = server->runtime_rules[i];
+
+        bool match = true;
+        if (r.app_id)
+        {
+            if (!app_id || fnmatch(r.app_id, app_id, 0) != 0)
+                match = false;
+        }
+        if (match && r.title)
+        {
+            if (!title || fnmatch(r.title, title, 0) != 0)
+                match = false;
+        }
+        if (!r.app_id && !r.title) match = false;
+        if (!match) continue;
+
+        /* Push the callback */
+        lua_rawgeti(L, LUA_REGISTRYINDEX, r.func_ref);
+        push_window_ud(L, tl);
+
+        if (lua_pcall(L, 1, 0, 0) != LUA_OK)
+        {
+            const char *err = lua_tostring(L, -1);
+            std::fprintf(stderr, "nnwm: add_rule callback error: %s\n",
+                         err ? err : "unknown");
+            lua_pop(L, 1);
+        }
+    }
+}
+
 /* ---- Event hooks and timers ---- */
 
 static void
@@ -1707,6 +1982,8 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"host_name", l_nnwm_host_name},
     {"version", l_nnwm_version},
     {"rule", l_nnwm_rule},
+    {"add_rule", l_nnwm_add_rule},
+    {"remove_rule", l_nnwm_remove_rule},
     {"current_window",    l_nnwm_current_window},
     {"current_workspace", l_nnwm_current_workspace},
     {"current_output",    l_nnwm_current_output},
@@ -1721,6 +1998,8 @@ static const struct luaL_Reg nnwm_funcs[] = {
 static void
 push_config_defaults(lua_State *L, struct nnwm_config *cfg)
 {
+    ensure_window_metatable(L);
+
     lua_getglobal(L, "nnwm");
     if (!lua_istable(L, -1))
     {
@@ -3280,6 +3559,20 @@ nnwm::lua_fini(struct nnwm_server *server)
             delete t;
         }
     }
+
+    /* Release runtime rule references */
+    for (int i = 0; i < server->runtime_rule_count; i++)
+    {
+        auto &r = server->runtime_rules[i];
+        free(r.app_id);
+        free(r.title);
+        luaL_unref(server->lua, LUA_REGISTRYINDEX, r.func_ref);
+    }
+    std::free(server->runtime_rules);
+    server->runtime_rules       = nullptr;
+    server->runtime_rule_count  = 0;
+    server->runtime_rule_cap    = 0;
+    server->runtime_rule_next_id = 0;
 
     lua_close(server->lua);
     server->lua = nullptr;

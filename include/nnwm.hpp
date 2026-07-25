@@ -399,6 +399,12 @@ struct nnwm_server
     struct wl_list hooks;  /* nnwm_hook::link  — event → lua callback */
     struct wl_list timers; /* nnwm_timer::link — wl_event_source timers */
 
+    /* Runtime window rules (survive config reload) */
+    struct nnwm_runtime_rule *runtime_rules;
+    int runtime_rule_count;
+    int runtime_rule_cap;
+    int runtime_rule_next_id;
+
     /* Compositor status bar in single-bar mode (per_output=false).
      * Per-output bars live on nnwm_output::bar. */
     struct nnwm_bar *global_bar;
@@ -433,6 +439,14 @@ struct nnwm_hook
     struct wl_list link;
     char *event;   /* owned copy of event name */
     int func_ref;  /* luaL_ref reference */
+};
+
+struct nnwm_runtime_rule
+{
+    int id;              /* unique, monotonically increasing */
+    char *app_id;        /* owned, fnmatch glob — NULL = skip */
+    char *title;         /* owned, fnmatch glob — NULL = skip */
+    int func_ref;        /* luaL_ref reference to Lua callback */
 };
 
 struct nnwm_bar

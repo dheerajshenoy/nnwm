@@ -193,6 +193,7 @@ add_dependencies(nnwm protocol_headers)
 
 target_include_directories(nnwm PRIVATE
     include
+    third_party
     "${CMAKE_CURRENT_BINARY_DIR}"
     ${WLROOTS_INCLUDE_DIRS}
     ${WAYLAND_SERVER_INCLUDE_DIRS}
@@ -258,6 +259,7 @@ target_compile_options(nnwm PRIVATE
 
 # ---- nnwmctl ----
 add_executable(nnwmctl src/nnwmctl/nnwmctl.cpp)
+target_include_directories(nnwmctl PRIVATE third_party)
 target_compile_options(nnwmctl PRIVATE
     $<$<CONFIG:Debug>:-ggdb3>
     $<$<CONFIG:Debug>:-O0>

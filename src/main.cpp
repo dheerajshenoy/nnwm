@@ -3,6 +3,7 @@
 #include "lua/config.hpp"
 #include "tray.hpp"
 #include "ipc.hpp"
+#include <argparse.hpp>
 #include <cstdio>
 
 extern "C" {
@@ -41,30 +42,28 @@ int
 main(int argc, char *argv[])
 {
     wlr_log_init(WLR_DEBUG, nullptr);
-    char *startup_cmd  = nullptr;
-    char *config_path  = nullptr;
 
-    int c;
-    while ((c = getopt(argc, argv, "c:s:h")) != -1)
-    {
-        switch (c)
-        {
-            case 'c':
-                config_path = optarg;
-                break;
-            case 's':
-                startup_cmd = optarg;
-                break;
-            default:
-                std::fprintf(stderr, "Usage: %s [-c config.lua] [-s startup command]\n", argv[0]);
-                return 0;
-        }
+    argparse::ArgumentParser program("nnwm", NNWM_VERSION);
+    program.add_argument("-c", "--config")
+        .help("path to config file (default: $NNWM_CONFIG or ~/.config/nnwm/init.lua)")
+        .nargs(1)
+        .default_value(std::string(""));
+    program.add_argument("-s", "--startup")
+        .help("command to run after startup")
+        .nargs(1)
+        .default_value(std::string(""));
+
+    try {
+        program.parse_args(argc, argv);
+    } catch (const std::runtime_error &err) {
+        std::fprintf(stderr, "%s\n", err.what());
+        return 1;
     }
-    if (optind < argc)
-    {
-        std::fprintf(stderr, "Usage: %s [-s startup command]\n", argv[0]);
-        return 0;
-    }
+
+    std::string config_str = program.get<std::string>("--config");
+    std::string startup_str = program.get<std::string>("--startup");
+    char *config_path  = config_str.empty() ? nullptr : strdup(config_str.c_str());
+    char *startup_cmd  = startup_str.empty() ? nullptr : strdup(startup_str.c_str());
 
     nnwm_server server = {};
     wl_list_init(&server.layer_surfaces);
