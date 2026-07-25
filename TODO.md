@@ -211,6 +211,7 @@
 - [x] Don't show panel in fullscreen mode
 - [x] Fullscreen panel hidden on all workspaces/monitor, not the required behavior
 - [x] IPC for nnwm
+- [x] External IPC (nnwmctl / socket). Without this you can't drive nnwm from waybar, rofi, shell scripts, or a status bar. Hyprland/sway/awesome all have this and it's what makes them scriptable. A Unix socket that accepts Lua code (or a small command grammar) and returns JSON is enough.
 
 ## TODO
 
@@ -240,7 +241,6 @@
     ```
 
 - [ ] nnwm.windows(), nnwm.workspaces(), nnwm.outputs(), and userdata objects with methods (:focus(), :close(), :move_to(), :set_floating(), :set_geometry(), :title(), :app_id(), :pid(), :is_xwayland(), :tag/untag).
-- [ ] External IPC (nnwmctl / socket). Without this you can't drive nnwm from waybar, rofi, shell scripts, or a status bar. Hyprland/sway/awesome all have this and it's what makes them scriptable. A Unix socket that accepts Lua code (or a small command grammar) and returns JSON is enough.
 - [ ] Custom layouts in Lua. Expose nnwm.register_layout("mylayout", function(area, windows) return {{x,y,w,h}, ...} end). This turns the compositor into a platform — users write dwm-style layouts without touching C++.
 - Event coverage.
     - [ ] window_unfocus
