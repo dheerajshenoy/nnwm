@@ -73,10 +73,7 @@
     - [x] xdg-output-unstable-v1
     - [x] wlr-screencopy-unstable-v1
     - [x] Screenrecording
-    - [x] ext-image-copy-capture-v1
-    - [x] ext-session-lock-v1
     - [x] wlr-output-power-management-unstable-v1
-    - [x] ext-workspace-v1
     - [x] wlr-data-control-unstable-v1
     - [x] wlr-output-configuration-unstable-v1
     - [x] wlr-export-dmabuf-unstable-v1
@@ -84,6 +81,11 @@
     - [x] wlr-virtual-pointer-unstable-v1
     - [x] wlr-virtual-keyboard-unstable-v1
     - [x] wlr-gamma-control-unstable-v1
+- ext protocols
+    - [x] ext-workspace-v1
+    - [x] ext-image-copy-capture-v1
+    - [x] ext-session-lock-v1
+    - [x] ext-idle-notify-v1
 - [x] Fake fullscreen mode
 - [x] Don't show titlebar in tabbed layout mode (if activated)
 - [x] Don't show titlebar in fullscreen mode
