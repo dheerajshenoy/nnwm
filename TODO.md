@@ -211,12 +211,10 @@
 - [x] nnwm.cursor.visible() to check if the cursor is visible
 - [x] Don't show panel in fullscreen mode
 - [x] Fullscreen panel hidden on all workspaces/monitor, not the required behavior
-- [x] IPC for nnwm
-- [x] External IPC (nnwmctl / socket). Without this you can't drive nnwm from waybar, rofi, shell scripts, or a status bar. Hyprland/sway/awesome all have this and it's what makes them scriptable. A Unix socket that accepts Lua code (or a small command grammar) and returns JSON is enough.
+- [x] nnwmctl - a command line tool to control nnwm from shell scripts, waybar, rofi, etc.
 
 ## TODO
 
-- [x] nnwmctl - a command line tool to control nnwm from shell scripts, waybar, rofi, etc.
 - Window Rules
     - [ ] blur
     - [ ] animation
@@ -241,7 +239,6 @@
         end
     ```
 
-- [ ] nnwm.windows(), nnwm.workspaces(), nnwm.outputs(), and userdata objects with methods (:focus(), :close(), :move_to(), :set_floating(), :set_geometry(), :title(), :app_id(), :pid(), :is_xwayland(), :tag/untag).
 - [ ] Custom layouts in Lua. Expose nnwm.register_layout("mylayout", function(area, windows) return {{x,y,w,h}, ...} end). This turns the compositor into a platform — users write dwm-style layouts without touching C++.
 - Event coverage.
     - [ ] window_unfocus
@@ -261,7 +258,5 @@
 - [ ] Input runtime control: switch xkb layout, per-device settings (touchpad tap-to-click, natural scroll) at runtime, not just via monitor config.
 - [ ] Scratchpad introspection: nnwm.scratchpad("term"):windows(), :visible().
 - [ ] nnwm.timer cancel/pause/resume handle (if not already returned).
-- [ ] Focus stack / recent-windows list for alt-tab UIs in Lua.
-- [ ] DBus / MPRIS surface for media keys and status.
 - [ ] tile drag window, add sway like center and directional blocks on the dropping window
 - [ ] nnwm.notify(msg, {level, timeout}) — for on handlers to surface state; today users must shell out to notify-send.
