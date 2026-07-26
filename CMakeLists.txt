@@ -255,6 +255,10 @@ target_compile_options(nnwm PRIVATE
     $<$<CONFIG:Debug>:-ggdb3>
     $<$<CONFIG:Debug>:-O0>
     $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
+    $<$<CONFIG:Debug>:-fsanitize=address,leak>
+)
+target_link_options(nnwm PRIVATE
+    $<$<CONFIG:Debug>:-fsanitize=address,leak>
 )
 
 # ---- nnwmctl ----
