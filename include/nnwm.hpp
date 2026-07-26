@@ -361,6 +361,12 @@ struct nnwm_server
     struct wl_event_source *idle_source; /* wl_event_loop timer for idle hook */
     bool is_idle;                        /* true between "idle" and "resume" fires */
 
+    /* Hot corners */
+    struct wl_event_source *hot_corner_timer; /* dwell timer — fires action */
+    int hot_corner_active;   /* -1=none, 0-3=current corner index */
+    int hot_corner_cooldown; /* bitmask of corners that fired and haven't been left */
+    struct nnwm_output *hot_corner_output; /* output where the active corner lives */
+
     struct wlr_pointer_constraints_v1 *pointer_constraints;
     struct wl_listener new_pointer_constraint;
     struct wlr_pointer_constraint_v1 *active_constraint;

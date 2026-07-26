@@ -4,6 +4,10 @@
 
 #include <algorithm>
 #include <ctime>
+extern "C" {
+#include <lua.h>
+#include <lauxlib.h>
+}
 #include <linux/input-event-codes.h>
 #include <wlr/types/wlr_data_device.h>
 
@@ -344,6 +348,117 @@ process_cursor_resize(nnwm_server *server)
                     tl_wlr_surface(toplevel) == fs);
 }
 
+/* ---- Hot corners ---- */
+
+/* Return the effective corner config for the given output, or the global. */
+static const nnwm_hot_corner *
+hot_corner_for_output(nnwm_server *server, nnwm_output *out, int corner_idx)
+{
+    nnwm_config *cfg = server->config;
+    if (out && out->wlr_output && out->wlr_output->name) {
+        for (int i = 0; i < cfg->monitor_hot_corner_count; i++) {
+            if (strcmp(cfg->monitor_hot_corners[i].name, out->wlr_output->name) == 0) {
+                const nnwm_hot_corner *mc = &cfg->monitor_hot_corners[i].corners[corner_idx];
+                if (mc->func_ref != -2) return mc; /* per-monitor override */
+                break;
+            }
+        }
+    }
+    return &cfg->hot_corners[corner_idx];
+}
+
+int
+hot_corner_timer_cb(void *data)
+{
+    nnwm_server *server = static_cast<nnwm_server *>(data);
+    int ci = server->hot_corner_active;
+    if (ci < 0 || ci > 3) return 0;
+    /* Mark cooldown so we don't re-fire while the cursor stays there */
+    server->hot_corner_cooldown |= (1 << ci);
+    const nnwm_hot_corner *hc = hot_corner_for_output(server, server->hot_corner_output, ci);
+    if (hc->func_ref >= 0) {
+        lua_State *L = server->lua;
+        lua_rawgeti(L, LUA_REGISTRYINDEX, hc->func_ref);
+        if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
+            fprintf(stderr, "nnwm: hot_corner action error: %s\n", lua_tostring(L, -1));
+            lua_pop(L, 1);
+        }
+    }
+    return 0;
+}
+
+void
+process_hot_corners(nnwm_server *server)
+{
+    nnwm_config *cfg = server->config;
+    if (cfg->hot_corner_size <= 0) return;
+
+    double cx = server->cursor->x;
+    double cy = server->cursor->y;
+
+    /* Determine which output the cursor is on */
+    nnwm_output *out = nullptr;
+    {
+        nnwm_output *o;
+        wl_list_for_each(o, &server->outputs, link) {
+            wlr_box box;
+            wlr_output_layout_get_box(server->output_layout, o->wlr_output, &box);
+            if (cx >= box.x && cx < box.x + box.width &&
+                cy >= box.y && cy < box.y + box.height) {
+                out = o;
+                break;
+            }
+        }
+    }
+    if (!out) return;
+
+    wlr_box ob;
+    wlr_output_layout_get_box(server->output_layout, out->wlr_output, &ob);
+    int sz = cfg->hot_corner_size;
+
+    /* Determine which corner (if any) the cursor is in */
+    int ci = -1;
+    if (cx < ob.x + sz && cy < ob.y + sz)                               ci = NNWM_CORNER_TL;
+    else if (cx >= ob.x + ob.width - sz && cy < ob.y + sz)              ci = NNWM_CORNER_TR;
+    else if (cx < ob.x + sz && cy >= ob.y + ob.height - sz)             ci = NNWM_CORNER_BL;
+    else if (cx >= ob.x + ob.width - sz && cy >= ob.y + ob.height - sz) ci = NNWM_CORNER_BR;
+
+    if (ci == server->hot_corner_active && out == server->hot_corner_output)
+        return; /* no change */
+
+    /* Cancel any pending timer */
+    if (server->hot_corner_timer)
+        wl_event_source_timer_update(server->hot_corner_timer, 0);
+
+    if (ci < 0) {
+        /* Left all corners — clear cooldown for the corner we were in */
+        if (server->hot_corner_active >= 0)
+            server->hot_corner_cooldown &= ~(1 << server->hot_corner_active);
+        server->hot_corner_active = -1;
+        server->hot_corner_output = nullptr;
+        return;
+    }
+
+    server->hot_corner_active = ci;
+    server->hot_corner_output = out;
+
+    /* Skip if cooldown is set (cursor never left since last fire) */
+    if (server->hot_corner_cooldown & (1 << ci)) return;
+
+    /* Check this corner has an action configured */
+    const nnwm_hot_corner *hc = hot_corner_for_output(server, out, ci);
+    if (hc->func_ref < 0) return;
+
+    int delay = hc->delay_ms;
+    if (delay < 0) delay = cfg->hot_corners[ci].delay_ms;
+    if (delay <= 0) {
+        /* Fire immediately */
+        hot_corner_timer_cb(server);
+    } else {
+        wl_event_source_timer_update(server->hot_corner_timer, delay);
+    }
+}
+
 void
 process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
 {
@@ -380,6 +495,8 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
         process_tile_drag_motion(server);
         return;
     }
+
+    if (real_motion) process_hot_corners(server);
 
     if (server->cursor_zoom_active)
         cursor_zoom_update_pos(server);

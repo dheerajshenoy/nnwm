@@ -50,6 +50,25 @@
   remains `true` (repeat enabled), preserving existing behaviour for bindings
   that rely on it (volume keys, directional focus, resize).
 
+- **Hot corners**: moving the cursor into any screen corner can trigger a Lua
+  callback after a configurable dwell time. Supports global defaults and
+  per-monitor overrides:
+  ```lua
+  nnwm.opt.hot_corners = {
+    size = 4,          -- corner zone in pixels (default 4)
+    top_left     = { action = function() nnwm.toggle_overview() end, delay = 300 },
+    bottom_right = { action = function() nnwm.lock() end, delay = 500 },
+    monitors = {
+      ["HDMI-1"] = {
+        top_right = { action = function() nnwm.spawn("rofi -show drun") end },
+      },
+    },
+  }
+  ```
+  Each corner fires at most once per entry (cooldown cleared only when the
+  cursor leaves the zone). `delay` defaults to 300 ms; set to 0 to fire
+  immediately.
+
 ## 0.1.3
 
 ### Features

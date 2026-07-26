@@ -86,6 +86,24 @@ enum class nnwm_bar_align
     RIGHT,
 };
 
+/* Hot corner indices: 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right */
+#define NNWM_CORNER_TL 0
+#define NNWM_CORNER_TR 1
+#define NNWM_CORNER_BL 2
+#define NNWM_CORNER_BR 3
+
+struct nnwm_hot_corner
+{
+    int func_ref;  /* Lua registry ref, -1=disabled, -2=inherit global */
+    int delay_ms;  /* dwell time before firing; -1 = inherit global */
+};
+
+struct nnwm_monitor_hot_corners
+{
+    char *name;                         /* output name, owned */
+    struct nnwm_hot_corner corners[4];  /* per-corner overrides; func_ref=-2=inherit */
+};
+
 struct nnwm_bar_module
 {
     nnwm_bar_module_type type;
@@ -334,6 +352,12 @@ struct nnwm_config
 
     /* Idle detection — 0 disables the hook-based idle timer entirely */
     int idle_timeout_ms;
+
+    /* Hot corners */
+    int hot_corner_size;                               /* corner zone size in pixels; default 4 */
+    struct nnwm_hot_corner hot_corners[4];             /* global corners; func_ref=-1=disabled */
+    struct nnwm_monitor_hot_corners *monitor_hot_corners; /* per-monitor overrides; may be NULL */
+    int monitor_hot_corner_count;
 
     /* find_cursor animation style: "rings" (concentric shrinking rings) or
      * "spotlight" (full-screen dim with circular cutout) */

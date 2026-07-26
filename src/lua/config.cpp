@@ -2820,6 +2820,10 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_pushnumber(L, cfg->idle_timeout_ms / 1000.0);
     lua_setfield(L, -2, "idle_timeout");
 
+    /* hot_corners defaults — push nil so config can detect "not set" */
+    lua_pushnil(L);
+    lua_setfield(L, -2, "hot_corners");
+
     lua_pop(L, 2); /* pop opt and nnwm */
 }
 
@@ -3759,6 +3763,88 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         cfg->idle_timeout_ms = (int)(lua_tonumber(L, -1) * 1000.0);
     lua_pop(L, 1);
 
+    /* hot_corners parsing */
+    lua_getfield(L, -1, "hot_corners");
+    if (lua_istable(L, -1)) {
+        static const char *corner_keys[4] = {
+            "top_left", "top_right", "bottom_left", "bottom_right"
+        };
+        lua_getfield(L, -1, "size");
+        if (lua_isnumber(L, -1))
+            cfg->hot_corner_size = (int)lua_tointeger(L, -1);
+        lua_pop(L, 1);
+
+        /* Parse global corner definitions */
+        for (int ci = 0; ci < 4; ci++) {
+            lua_getfield(L, -1, corner_keys[ci]);
+            if (lua_istable(L, -1)) {
+                cfg->hot_corners[ci].func_ref = -1; /* clear first */
+                lua_getfield(L, -1, "action");
+                if (lua_isfunction(L, -1))
+                    cfg->hot_corners[ci].func_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+                else
+                    lua_pop(L, 1);
+                lua_getfield(L, -1, "delay");
+                if (lua_isnumber(L, -1))
+                    cfg->hot_corners[ci].delay_ms = (int)lua_tointeger(L, -1);
+                lua_pop(L, 1);
+            }
+            lua_pop(L, 1);
+        }
+
+        /* Parse per-monitor overrides */
+        lua_getfield(L, -1, "monitors");
+        if (lua_istable(L, -1)) {
+            /* Free old per-monitor data */
+            for (int i = 0; i < cfg->monitor_hot_corner_count; i++)
+                free(cfg->monitor_hot_corners[i].name);
+            free(cfg->monitor_hot_corners);
+            cfg->monitor_hot_corners      = nullptr;
+            cfg->monitor_hot_corner_count = 0;
+
+            /* Count entries */
+            int n = 0;
+            lua_pushnil(L);
+            while (lua_next(L, -2)) { n++; lua_pop(L, 1); }
+
+            if (n > 0) {
+                cfg->monitor_hot_corners = static_cast<nnwm_monitor_hot_corners *>(
+                    calloc(n, sizeof(nnwm_monitor_hot_corners)));
+                int idx = 0;
+                lua_pushnil(L);
+                while (lua_next(L, -2)) {
+                    /* key=-2, value=-1 */
+                    if (lua_isstring(L, -2) && lua_istable(L, -1)) {
+                        auto &mhc = cfg->monitor_hot_corners[idx];
+                        mhc.name = strdup(lua_tostring(L, -2));
+                        for (int ci = 0; ci < 4; ci++) {
+                            mhc.corners[ci].func_ref = -2; /* inherit */
+                            mhc.corners[ci].delay_ms = -1; /* inherit */
+                            lua_getfield(L, -1, corner_keys[ci]);
+                            if (lua_istable(L, -1)) {
+                                lua_getfield(L, -1, "action");
+                                if (lua_isfunction(L, -1))
+                                    mhc.corners[ci].func_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+                                else
+                                    lua_pop(L, 1);
+                                lua_getfield(L, -1, "delay");
+                                if (lua_isnumber(L, -1))
+                                    mhc.corners[ci].delay_ms = (int)lua_tointeger(L, -1);
+                                lua_pop(L, 1);
+                            }
+                            lua_pop(L, 1);
+                        }
+                        idx++;
+                    }
+                    lua_pop(L, 1); /* pop value */
+                }
+                cfg->monitor_hot_corner_count = idx;
+            }
+        }
+        lua_pop(L, 1); /* pop monitors */
+    }
+    lua_pop(L, 1); /* pop hot_corners */
+
     lua_pop(L, 2); /* pop opt and nnwm */
 }
 
@@ -4251,6 +4337,15 @@ nnwm::config_defaults(void)
     cfg->monitor_configs      = nullptr;
     cfg->monitor_config_count = 0;
 
+    /* Hot corners — all disabled by default */
+    cfg->hot_corner_size = 4;
+    for (int i = 0; i < 4; i++) {
+        cfg->hot_corners[i].func_ref = -1; /* -1 = disabled */
+        cfg->hot_corners[i].delay_ms = 300;
+    }
+    cfg->monitor_hot_corners      = nullptr;
+    cfg->monitor_hot_corner_count = 0;
+
     cfg->window_rules      = nullptr;
     cfg->window_rule_count = 0;
 
@@ -4325,6 +4420,9 @@ nnwm::config_free(struct nnwm_config *cfg)
         free(cfg->workspace_names[i]);
     free(cfg->find_cursor_style);
     free(cfg->layout.enabled_layouts);
+    for (int i = 0; i < cfg->monitor_hot_corner_count; i++)
+        free(cfg->monitor_hot_corners[i].name);
+    free(cfg->monitor_hot_corners);
 
     free(cfg->bar.font);
     free(cfg->bar.output_name);

@@ -563,6 +563,11 @@ main(int argc, char *argv[])
     server.idle_source   = wl_event_loop_add_timer(loop, idle_timer_cb, &server);
     idle_apply_config(&server);
 
+    server.hot_corner_timer    = wl_event_loop_add_timer(loop, hot_corner_timer_cb, &server);
+    server.hot_corner_active   = -1;
+    server.hot_corner_cooldown = 0;
+    server.hot_corner_output   = nullptr;
+
     /* relative-pointer-v1: exposes unaccelerated relative motion to clients
      * (games, remote-desktop tools). Must be created before pointer constraints
      * so it is ready when the first constraint activates. */
@@ -695,6 +700,7 @@ main(int argc, char *argv[])
     wl_display_destroy_clients(server.wl_display);
 
     if (server.idle_source) wl_event_source_remove(server.idle_source);
+    if (server.hot_corner_timer) wl_event_source_remove(server.hot_corner_timer);
     wl_list_remove(&server.new_idle_inhibitor.link);
     wl_list_remove(&server.new_pointer_constraint.link);
     if (server.active_constraint)

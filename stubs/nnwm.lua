@@ -241,6 +241,19 @@ MOD = {}
 ---@field workspace_names?           string[]  Workspace labels; the array length sets the workspace count (1–9, default: 9 unlabelled). Shown in the overview and sent via ext-workspace-v1. Empty strings fall back to the numeric index.
 ---@field find_cursor_style?         "rings"|"spotlight"|"zoom"  Animation style for `nnwm.find_cursor()`. "rings" = filled circle shrinking to cursor (default); "spotlight" = full-screen dim with circular cutout at cursor; "zoom" = temporarily enlarges the system cursor.
 ---@field idle_timeout?              number  Seconds of inactivity before the "idle" hook fires. 0 disables idle detection (default: 0).
+---@field hot_corners?               nnwm_hot_corners_config  Hot corner configuration.
+
+---@class nnwm_hot_corner_action
+---@field action  fun()    Callback fired when the cursor dwells in this corner.
+---@field delay?  integer  Dwell time in milliseconds before firing (default: 300).
+
+---@class nnwm_hot_corners_config
+---@field size?        integer                          Corner zone size in pixels (default: 4).
+---@field top_left?    nnwm_hot_corner_action
+---@field top_right?   nnwm_hot_corner_action
+---@field bottom_left? nnwm_hot_corner_action
+---@field bottom_right? nnwm_hot_corner_action
+---@field monitors?    table<string, { top_left?: nnwm_hot_corner_action, top_right?: nnwm_hot_corner_action, bottom_left?: nnwm_hot_corner_action, bottom_right?: nnwm_hot_corner_action }>
 
 ---@class nnwm
 ---@field opt nnwm_opts

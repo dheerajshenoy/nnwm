@@ -193,6 +193,10 @@ void nnwm_notify_activity(struct nnwm_server *server);
 void idle_apply_config(struct nnwm_server *server);
 int  idle_timer_cb(void *data);
 
+/* ---- Hot corners ---- */
+int  hot_corner_timer_cb(void *data);
+void process_hot_corners(struct nnwm_server *server);
+
 /* ---- Event hooks ---- */
 void fire_hook_plain(struct nnwm_server *server, const char *event);
 void fire_hook_window(struct nnwm_server *server, const char *event,
