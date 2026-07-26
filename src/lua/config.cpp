@@ -935,6 +935,177 @@ l_nnwm_current_output(lua_State *L)
 }
 
 static int
+l_nnwm_windows(lua_State *L)
+{
+    auto *server = get_server(L);
+    struct nnwm_toplevel *tl;
+
+    lua_newtable(L);
+    int idx = 1;
+
+    wl_list_for_each(tl, &server->toplevels, link)
+    {
+        lua_newtable(L);
+
+        lua_pushstring(L, tl->xdg_toplevel->title
+                              ? tl->xdg_toplevel->title : "");
+        lua_setfield(L, -2, "title");
+
+        lua_pushstring(L, tl->xdg_toplevel->app_id
+                              ? tl->xdg_toplevel->app_id : "");
+        lua_setfield(L, -2, "app_id");
+
+        lua_pushboolean(L, tl->floating);
+        lua_setfield(L, -2, "floating");
+
+        lua_pushboolean(L, tl->fullscreen);
+        lua_setfield(L, -2, "fullscreen");
+
+        lua_pushboolean(L, tl->maximize);
+        lua_setfield(L, -2, "maximized");
+
+        lua_pushboolean(L, tl->sticky);
+        lua_setfield(L, -2, "sticky");
+
+        lua_pushboolean(L, tl->urgent);
+        lua_setfield(L, -2, "urgent");
+
+        lua_pushinteger(L, tl->workspace + 1);
+        lua_setfield(L, -2, "workspace");
+
+        lua_pushinteger(L, tl->cur_x);
+        lua_setfield(L, -2, "x");
+        lua_pushinteger(L, tl->cur_y);
+        lua_setfield(L, -2, "y");
+        lua_pushinteger(L, tl->cur_w);
+        lua_setfield(L, -2, "width");
+        lua_pushinteger(L, tl->cur_h);
+        lua_setfield(L, -2, "height");
+
+        if (tl->output)
+        {
+            lua_pushstring(L, tl->output->wlr_output->name
+                                  ? tl->output->wlr_output->name : "");
+            lua_setfield(L, -2, "output");
+        }
+        else
+        {
+            lua_pushnil(L);
+            lua_setfield(L, -2, "output");
+        }
+
+        lua_rawseti(L, -2, idx++);
+    }
+
+    return 1;
+}
+
+static int
+l_nnwm_workspaces(lua_State *L)
+{
+    auto *server = get_server(L);
+    auto *out    = server->focused_output;
+    if (!out)
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    lua_newtable(L);
+
+    for (int ws = 0; ws < NNWM_NUM_WORKSPACES; ws++)
+    {
+        lua_newtable(L);
+
+        lua_pushinteger(L, ws + 1);
+        lua_setfield(L, -2, "index");
+
+        lua_pushboolean(L, ws == out->active_workspace);
+        lua_setfield(L, -2, "active");
+
+        lua_pushstring(L, layout_mode_str(out->layout_mode[ws]));
+        lua_setfield(L, -2, "layout");
+
+        lua_pushnumber(L, (double)out->master_ratio[ws]);
+        lua_setfield(L, -2, "master_ratio");
+
+        {
+            int count = 0;
+            struct nnwm_toplevel *t;
+            wl_list_for_each(t, &server->toplevels, link)
+            {
+                if (t->output == out && t->workspace == ws && !t->in_scratchpad)
+                    count++;
+            }
+            lua_pushinteger(L, count);
+        }
+        lua_setfield(L, -2, "window_count");
+
+        const char *ws_name = out->workspace_names[ws];
+        if (ws_name && ws_name[0] != '\0')
+            lua_pushstring(L, ws_name);
+        else
+            lua_pushnil(L);
+        lua_setfield(L, -2, "name");
+
+        lua_rawseti(L, -2, ws + 1);
+    }
+
+    return 1;
+}
+
+static int
+l_nnwm_outputs(lua_State *L)
+{
+    auto *server = get_server(L);
+    struct nnwm_output *out;
+
+    lua_newtable(L);
+    int idx = 1;
+
+    wl_list_for_each(out, &server->outputs, link)
+    {
+        struct wlr_output *wlr = out->wlr_output;
+
+        lua_newtable(L);
+
+        lua_pushstring(L, wlr->name ? wlr->name : "");
+        lua_setfield(L, -2, "name");
+
+        lua_pushstring(L, wlr->description ? wlr->description : "");
+        lua_setfield(L, -2, "description");
+
+        lua_pushinteger(L, wlr->width);
+        lua_setfield(L, -2, "width");
+
+        lua_pushinteger(L, wlr->height);
+        lua_setfield(L, -2, "height");
+
+        lua_pushnumber(L, (double)wlr->scale);
+        lua_setfield(L, -2, "scale");
+
+        {
+            wlr_box box;
+            wlr_output_layout_get_box(server->output_layout, wlr, &box);
+            lua_pushinteger(L, box.x);
+            lua_setfield(L, -2, "x");
+            lua_pushinteger(L, box.y);
+            lua_setfield(L, -2, "y");
+        }
+
+        lua_pushinteger(L, out->active_workspace + 1);
+        lua_setfield(L, -2, "active_workspace");
+
+        lua_pushboolean(L, out == server->focused_output);
+        lua_setfield(L, -2, "focused");
+
+        lua_rawseti(L, -2, idx++);
+    }
+
+    return 1;
+}
+
+static int
 l_nnwm_master_ratio_grow(lua_State *L)
 {
     nnwm::layout::master_ratio_grow(get_server(L));
@@ -1987,6 +2158,9 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"current_window",    l_nnwm_current_window},
     {"current_workspace", l_nnwm_current_workspace},
     {"current_output",    l_nnwm_current_output},
+    {"windows",           l_nnwm_windows},
+    {"workspaces",        l_nnwm_workspaces},
+    {"outputs",           l_nnwm_outputs},
     {"on",                l_nnwm_on},
     {"timer",             l_nnwm_timer},
     {"interval",          l_nnwm_interval},

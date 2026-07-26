@@ -7,6 +7,8 @@ extern "C" {
 #include <lualib.h>
 }
 
+#include <json.hpp>
+
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -14,6 +16,8 @@ extern "C" {
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+using json = nlohmann::json;
 
 /* ---- Per-client state ---- */
 
@@ -92,126 +96,92 @@ static void reply(ipc_client *cl, bool ok, const char *payload)
     schedule_write(cl);
 }
 
+/* ---- Lua → JSON conversion ---- */
+
+static json lua_to_json(lua_State *L, int idx, int depth = 0)
+{
+    if (depth > 32)
+        return "<max depth exceeded>";
+
+    /* Normalise relative index before any stack pushes */
+    if (idx < 0)
+        idx = lua_gettop(L) + idx + 1;
+
+    switch (lua_type(L, idx))
+    {
+    case LUA_TNIL:
+        return nullptr;
+    case LUA_TBOOLEAN:
+        return (bool)lua_toboolean(L, idx);
+    case LUA_TNUMBER:
+        if (lua_isinteger(L, idx))
+            return lua_tointeger(L, idx);
+        return lua_tonumber(L, idx);
+    case LUA_TSTRING:
+        return lua_tostring(L, idx);
+    case LUA_TTABLE:
+    {
+        lua_len(L, idx);
+        int n = (int)lua_tointeger(L, -1);
+        lua_pop(L, 1);
+
+        if (n > 0)
+        {
+            json arr = json::array();
+            for (int i = 1; i <= n; i++)
+            {
+                lua_geti(L, idx, i);
+                arr.push_back(lua_to_json(L, -1, depth + 1));
+                lua_pop(L, 1);
+            }
+            return arr;
+        }
+
+        json obj = json::object();
+        lua_pushnil(L);
+        while (lua_next(L, idx) != 0)
+        {
+            if (lua_type(L, -2) == LUA_TSTRING)
+                obj[lua_tostring(L, -2)] = lua_to_json(L, -1, depth + 1);
+            lua_pop(L, 1);
+        }
+        return obj;
+    }
+    default:
+    {
+        const char *s = lua_tostring(L, idx);
+        return s ? s : "<unknown>";
+    }
+    }
+}
+
 /* ---- Lua execution ---- */
 
 static bool exec_lua(lua_State *L, const char *code, char *out, size_t out_size)
 {
-    /* Wrap code in a function so 'return' works at top level */
     char chunk[128 * 1024];
     snprintf(chunk, sizeof(chunk), "return (function() %s end)()", code);
 
     if (luaL_loadstring(L, chunk) != LUA_OK)
     {
-        snprintf(out, out_size, "{\"ok\":false,\"error\":\"%s\"}",
-                 lua_tostring(L, -1));
+        json err = {{"ok", false}, {"error", lua_tostring(L, -1)}};
         lua_pop(L, 1);
+        snprintf(out, out_size, "%s", err.dump().c_str());
         return false;
     }
 
-    if (lua_pcall(L, 1, 1, 0) != LUA_OK)
+    if (lua_pcall(L, 0, 1, 0) != LUA_OK)
     {
-        const char *err = lua_tostring(L, -1);
-        snprintf(out, out_size, "{\"ok\":false,\"error\":\"%s\"}",
-                 err ? err : "unknown error");
+        const char *e = lua_tostring(L, -1);
+        json err = {{"ok", false}, {"error", e ? e : "unknown error"}};
         lua_pop(L, 1);
+        snprintf(out, out_size, "%s", err.dump().c_str());
         return false;
     }
 
-    /* Serialize result to string */
-    const char *str = nullptr;
-    size_t len = 0;
-
-    int t = lua_type(L, -1);
-    switch (t)
-    {
-    case LUA_TNIL:
-        snprintf(out, out_size, "{\"ok\":true,\"data\":null}");
-        break;
-    case LUA_TBOOLEAN:
-        snprintf(out, out_size, "{\"ok\":true,\"data\":%s}",
-                 lua_toboolean(L, -1) ? "true" : "false");
-        break;
-    case LUA_TNUMBER:
-        snprintf(out, out_size, "{\"ok\":true,\"data\":%s}",
-                 lua_tostring(L, -1));
-        break;
-    case LUA_TSTRING:
-        str = lua_tolstring(L, -1, &len);
-        /* Escape for JSON */
-        {
-            char *dst = out;
-            char *end = out + out_size;
-            int wrote = snprintf(dst, end - dst, "{\"ok\":true,\"data\":\"");
-            dst += wrote;
-            if (dst < end)
-            {
-                for (size_t i = 0; i < len && dst < end - 8; i++)
-                {
-                    char c = str[i];
-                    if (c == '"' || c == '\\')
-                    {
-                        *dst++ = '\\';
-                        *dst++ = c;
-                    }
-                    else if (c == '\n')
-                    {
-                        *dst++ = '\\';
-                        *dst++ = 'n';
-                    }
-                    else if (c == '\t')
-                    {
-                        *dst++ = '\\';
-                        *dst++ = 't';
-                    }
-                    else if (c == '\r')
-                    {
-                        *dst++ = '\\';
-                        *dst++ = 'r';
-                    }
-                    else if ((unsigned char)c < 0x20)
-                    {
-                        dst += snprintf(dst, end - dst, "\\u%04x", (unsigned)c);
-                    }
-                    else
-                    {
-                        *dst++ = c;
-                    }
-                }
-                if (dst < end)
-                    dst += snprintf(dst, end - dst, "\"}");
-            }
-        }
-        break;
-    case LUA_TTABLE:
-        /* Pretty-print tables as JSON-ish via Lua serialization */
-        lua_getglobal(L, "tostring");
-        lua_pushvalue(L, -2);
-        lua_call(L, 1, 1);
-        str = lua_tostring(L, -1);
-        if (str)
-        {
-            snprintf(out, out_size, "{\"ok\":true,\"data\":\"%s\"}",
-                     str);
-        }
-        else
-        {
-            snprintf(out, out_size,
-                     "{\"ok\":true,\"data\":\"<table>\"}");
-        }
-        lua_pop(L, 2); /* tostring result + table */
-        break;
-    default:
-        lua_getglobal(L, "tostring");
-        lua_pushvalue(L, -2);
-        lua_call(L, 1, 1);
-        str = lua_tostring(L, -1);
-        snprintf(out, out_size, "{\"ok\":true,\"data\":\"%s\"}",
-                 str ? str : "<unknown>");
-        lua_pop(L, 2);
-        break;
-    }
-
-    lua_pop(L, 1); /* pop result */
+    json result = {{"ok", true}, {"data", lua_to_json(L, -1)}};
+    lua_pop(L, 1);
+    snprintf(out, out_size, "%s", result.dump().c_str());
     return true;
 }
 

@@ -1,4 +1,5 @@
 #include <argparse.hpp>
+#include <json.hpp>
 #include <cerrno>
 #include <cstdarg>
 #include <cstdio>
@@ -8,6 +9,8 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+using json = nlohmann::json;
 
 /* ---- Socket helpers ---- */
 
@@ -290,9 +293,9 @@ int main(int argc, char **argv)
     else if (program.is_subcommand_used(cmd_get))
     {
         std::string res = cmd_get.get<std::string>("resource");
-        if (res == "windows")    emit("return nnwm.current_output().windows");
-        else if (res == "workspaces") emit("return nnwm.current_output().workspaces");
-        else if (res == "outputs")    emit("return nnwm.current_output()");
+        if (res == "windows")         emit("return nnwm.windows()");
+        else if (res == "workspaces") emit("return nnwm.workspaces()");
+        else if (res == "outputs")    emit("return nnwm.outputs()");
         else if (res == "focused")    emit("return nnwm.current_window()");
         else if (res == "workspace")  emit("return nnwm.current_workspace()");
         else if (res == "output")     emit("return nnwm.current_output()");
@@ -328,6 +331,14 @@ int main(int argc, char **argv)
     int fd = ipc_connect(sock_path, argv[0]);
     if (fd < 0) return 1;
 
+    /* Server needs a newline to delimit the command */
+    size_t lua_len = strlen(lua_buf);
+    if (lua_len + 1 < sizeof(lua_buf))
+    {
+        lua_buf[lua_len]     = '\n';
+        lua_buf[lua_len + 1] = '\0';
+    }
+
     char result[256 * 1024];
     if (!ipc_send_and_recv(fd, lua_buf, result, sizeof(result)))
     {
@@ -337,8 +348,26 @@ int main(int argc, char **argv)
     }
     close(fd);
 
-    if (result[0])
+    if (!result[0])
+        return 0;
+
+    try
+    {
+        json j = json::parse(result);
+        if (!j.value("ok", false))
+        {
+            std::fprintf(stderr, "nnwmctl: error: %s\n",
+                         j.value("error", "unknown").c_str());
+            return 1;
+        }
+        auto &data = j["data"];
+        if (!data.is_null())
+            std::printf("%s\n", data.dump(2).c_str());
+    }
+    catch (...)
+    {
         std::printf("%s\n", result);
+    }
 
     return 0;
 }
