@@ -743,6 +743,82 @@ ov_switch_ws(nnwm_server *server, nnwm_output *out, int ws)
     nnwm::ext_workspace_notify(server);
 }
 
+/* Two-pass directional candidate search.
+ *
+ * Pass 1 — overlap preference: a candidate is "preferred" if it overlaps the
+ * focused window along the perpendicular axis (e.g. for up/down, horizontal
+ * ranges overlap).  This prevents the master window in an HTILE stack from
+ * winning "down" navigation just because its center-y happens to be closer
+ * than the stack window directly below.
+ *
+ * Pass 2 — angular fallback: if no overlapping candidate exists (e.g. moving
+ * from the last stack window downward in VTILE), accept any candidate within
+ * a ~63° cone (pri*2 > sec). */
+static nnwm_toplevel *
+find_dir_target(nnwm_server *server, nnwm_output *out,
+                nnwm_toplevel *focused,
+                bool is_left, bool is_right, bool is_up, bool is_down)
+{
+    int ws  = out->active_workspace;
+    int fcx = focused->cur_x + focused->cur_w / 2;
+    int fcy = focused->cur_y + focused->cur_h / 2;
+
+    nnwm_toplevel *best      = nullptr;
+    int            best_pri  = INT_MAX;
+    int            best_sec  = INT_MAX;
+    bool           best_over = false; /* does best have perpendicular overlap? */
+
+    nnwm_toplevel *tl;
+    wl_list_for_each(tl, &server->toplevels, link)
+    {
+        if (tl == focused) continue;
+        if (tl->output != out) continue;
+        if (tl->workspace != ws && !tl->sticky) continue;
+        if (tl->floating) continue;
+        if (tl->in_scratchpad) continue;
+
+        int cx = tl->cur_x + tl->cur_w / 2;
+        int cy = tl->cur_y + tl->cur_h / 2;
+
+        int  pri   = 0;
+        int  sec   = 0;
+        bool valid = false;
+
+        if (is_left  && cx < fcx) { pri = fcx - cx; sec = std::abs(cy - fcy); valid = true; }
+        if (is_right && cx > fcx) { pri = cx - fcx; sec = std::abs(cy - fcy); valid = true; }
+        if (is_up    && cy < fcy) { pri = fcy - cy; sec = std::abs(cx - fcx); valid = true; }
+        if (is_down  && cy > fcy) { pri = cy - fcy; sec = std::abs(cx - fcx); valid = true; }
+
+        if (!valid) continue;
+
+        /* Perpendicular-axis overlap between focused and candidate */
+        bool overlap;
+        if (is_left || is_right)
+            overlap = tl->cur_y < focused->cur_y + focused->cur_h
+                      && tl->cur_y + tl->cur_h > focused->cur_y;
+        else
+            overlap = tl->cur_x < focused->cur_x + focused->cur_w
+                      && tl->cur_x + tl->cur_w > focused->cur_x;
+
+        /* Angular fallback gate: candidate must be within ~63° of direction */
+        bool in_cone = (pri * 2 > sec);
+
+        /* Accept if: overlapping candidate (always preferred over non-overlapping),
+         * or no overlapping candidate yet and within cone. */
+        if (!overlap && !in_cone) continue;
+        if (!overlap && best_over) continue; /* already have an overlapping candidate */
+
+        if (overlap && !best_over) {
+            /* First overlapping candidate — unconditionally take it */
+            best = tl; best_pri = pri; best_sec = sec; best_over = true;
+        } else if ((overlap == best_over)
+                   && (pri < best_pri || (pri == best_pri && sec < best_sec))) {
+            best = tl; best_pri = pri; best_sec = sec;
+        }
+    }
+    return best;
+}
+
 void
 nnwm::focus::dir(nnwm_server *server, const char *direction)
 {
@@ -857,38 +933,10 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
     }
 
     /* Find the nearest window in the requested direction on the current output */
-    nnwm_toplevel *best     = nullptr;
-    int            best_pri = INT_MAX; /* primary-axis distance (smaller = closer) */
-    int            best_sec = INT_MAX; /* secondary-axis distance (tiebreak)       */
-
-    if (!skip_on_output_search) {
-        nnwm_toplevel *tl;
-        wl_list_for_each(tl, &server->toplevels, link)
-        {
-            if (tl == focused) continue;
-            if (tl->output != out) continue;
-            if (tl->workspace != ws && !tl->sticky) continue;
-            if (tl->in_scratchpad) continue;
-
-            int cx = tl->cur_x + tl->cur_w / 2;
-            int cy = tl->cur_y + tl->cur_h / 2;
-
-            int pri, sec;
-            bool valid = false;
-
-            if (is_left  && cx < fcx) { pri = fcx - cx; sec = abs(cy - fcy); valid = true; }
-            if (is_right && cx > fcx) { pri = cx - fcx; sec = abs(cy - fcy); valid = true; }
-            if (is_up    && cy < fcy) { pri = fcy - cy; sec = abs(cx - fcx); valid = true; }
-            if (is_down  && cy > fcy) { pri = cy - fcy; sec = abs(cx - fcx); valid = true; }
-
-            if (valid && (pri < best_pri || (pri == best_pri && sec < best_sec)))
-            {
-                best     = tl;
-                best_pri = pri;
-                best_sec = sec;
-            }
-        }
-    }
+    nnwm_toplevel *best = nullptr;
+    if (!skip_on_output_search && focused && focused->output == out)
+        best = find_dir_target(server, out, focused,
+                               is_left, is_right, is_up, is_down);
 
     if (best)
     {
@@ -1020,42 +1068,9 @@ nnwm::focus::move_dir(nnwm_server *server, const char *direction)
         return;
     }
 
-    int ws = out->active_workspace;
-    int fcx = focused->cur_x + focused->cur_w / 2;
-    int fcy = focused->cur_y + focused->cur_h / 2;
-
     /* Find the nearest tiled window in the requested direction */
-    nnwm_toplevel *best     = nullptr;
-    int            best_pri = INT_MAX;
-    int            best_sec = INT_MAX;
-
-    nnwm_toplevel *tl;
-    wl_list_for_each(tl, &server->toplevels, link)
-    {
-        if (tl == focused) continue;
-        if (tl->output != out) continue;
-        if (tl->workspace != ws && !tl->sticky) continue;
-        if (tl->floating) continue;
-        if (tl->in_scratchpad) continue;
-
-        int cx = tl->cur_x + tl->cur_w / 2;
-        int cy = tl->cur_y + tl->cur_h / 2;
-
-        int pri, sec;
-        bool valid = false;
-
-        if (is_left  && cx < fcx) { pri = fcx - cx; sec = abs(cy - fcy); valid = true; }
-        if (is_right && cx > fcx) { pri = cx - fcx; sec = abs(cy - fcy); valid = true; }
-        if (is_up    && cy < fcy) { pri = fcy - cy; sec = abs(cx - fcx); valid = true; }
-        if (is_down  && cy > fcy) { pri = cy - fcy; sec = abs(cx - fcx); valid = true; }
-
-        if (valid && (pri < best_pri || (pri == best_pri && sec < best_sec)))
-        {
-            best     = tl;
-            best_pri = pri;
-            best_sec = sec;
-        }
-    }
+    nnwm_toplevel *best = find_dir_target(server, out, focused,
+                                          is_left, is_right, is_up, is_down);
 
     if (best)
     {
