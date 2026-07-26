@@ -134,9 +134,12 @@ main(int argc, char *argv[])
         if (drm_fd >= 0)
             server.renderer = fx_renderer_create_with_drm_fd(drm_fd);
     }
-    if (!server.renderer) {
+    if (server.renderer) {
+        server.use_fx_renderer = true;
+    } else {
         wlr_log(WLR_INFO, "scenefx: nested or no DRM fd — falling back to default renderer");
         server.renderer = wlr_renderer_autocreate(server.backend);
+        server.use_fx_renderer = false;
     }
 #else
     server.renderer = wlr_renderer_autocreate(server.backend);

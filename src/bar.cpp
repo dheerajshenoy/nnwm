@@ -938,7 +938,14 @@ static inline bool bar_cares_about(nnwm_bar *bar, unsigned mask) {
  * bar_predraw_output(). This turns bursts of workspace/focus/title events
  * into a single redraw per output. */
 static void redraw_if_cares(nnwm_bar *bar, unsigned mask) {
-    if (bar_cares_about(bar, mask)) bar->dirty = true;
+    if (!bar_cares_about(bar, mask)) return;
+    bar->dirty = true;
+    /* Guarantee a frame fires even if the scene graph has no pending damage
+     * (e.g. switching between empty workspaces). Without this, the bar update
+     * is delayed until the next user-driven damage event. */
+    nnwm_output *tgt = bar_target_output(bar);
+    if (tgt && tgt->wlr_output)
+        wlr_output_schedule_frame(tgt->wlr_output);
 }
 
 void bar_notify_workspace_change(nnwm_server *server, nnwm_output *out) {
