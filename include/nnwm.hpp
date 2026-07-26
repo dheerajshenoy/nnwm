@@ -418,10 +418,6 @@ struct nnwm_server
     int ipc_fd;
     struct wl_event_source *ipc_event_source;
 
-#ifdef HAVE_SCENEFX
-    bool use_fx_renderer; /* false when falling back to standard renderer (e.g. nested) */
-#endif
-
     /* Cursor attention animation (find_cursor action) */
     struct wlr_scene_buffer *cursor_ring_buf;
     struct wl_event_source  *cursor_ring_timer;

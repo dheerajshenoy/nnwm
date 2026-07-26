@@ -281,20 +281,7 @@ update_borders(nnwm_toplevel *toplevel, int width, int height, int bw)
     nnwm_config *cfg = toplevel->server->config;
     int th           = cfg->titlebar.height;
 #ifdef HAVE_SCENEFX
-    int r = toplevel->server->use_fx_renderer
-                ? effective_corner_radius(toplevel) : 0;
-    if (!toplevel->server->use_fx_renderer) {
-        /* fx renderer unavailable at runtime — use four-strip borders */
-        int sh = height - 2 * bw;
-        wlr_scene_node_set_position(&toplevel->border[0]->node, 0, 0);
-        wlr_scene_rect_set_size(toplevel->border[0], width, bw);
-        wlr_scene_node_set_position(&toplevel->border[1]->node, 0, height - bw);
-        wlr_scene_rect_set_size(toplevel->border[1], width, bw);
-        wlr_scene_node_set_position(&toplevel->border[2]->node, 0, bw);
-        wlr_scene_rect_set_size(toplevel->border[2], bw, sh);
-        wlr_scene_node_set_position(&toplevel->border[3]->node, width - bw, bw);
-        wlr_scene_rect_set_size(toplevel->border[3], bw, sh);
-    }
+    int r = effective_corner_radius(toplevel);
 #else
     /* Non-scenefx: four strips form the border frame. */
     int sh = height - 2 * bw;
@@ -885,8 +872,6 @@ void
 apply_fx_decorations(nnwm_toplevel *toplevel)
 {
 #ifdef HAVE_SCENEFX
-    if (!toplevel->server->use_fx_renderer) return;
-
     nnwm_config *cfg = toplevel->server->config;
 
     int r = effective_corner_radius(toplevel);
