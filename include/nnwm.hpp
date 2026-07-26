@@ -446,6 +446,8 @@ struct nnwm_server
     int   cursor_zoom_hot_x, cursor_zoom_hot_y;
 
     /* Keybinding overlay popup */
+    char *pending_config_error; /* error from initial load, shown after Wayland starts */
+
     struct wlr_scene_tree   *keybind_ov_tree;   /* subtree — disable node to hide */
     struct wlr_scene_rect   *keybind_ov_bg;
     struct wlr_scene_buffer *keybind_ov_buf;

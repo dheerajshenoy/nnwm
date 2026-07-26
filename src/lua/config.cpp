@@ -279,9 +279,11 @@ l_nnwm_key(lua_State *L)
 {
     int argc = lua_gettop(L);
     if (argc < 2 || argc > 3 || !lua_istable(L, 1) || !lua_isfunction(L, 2))
-        return luaL_error(L, "nnwm.key(combo_table, callback[, opts]) expected");
+        return luaL_error(L,
+                          "nnwm.key(combo_table, callback[, opts]) expected");
     if (argc == 3 && !lua_isstring(L, 3) && !lua_istable(L, 3))
-        return luaL_error(L, "nnwm.key: third arg must be a string (description) or table (opts)");
+        return luaL_error(L, "nnwm.key: third arg must be a string "
+                             "(description) or table (opts)");
 
     struct nnwm_server *server = get_server(L);
 
@@ -340,22 +342,28 @@ l_nnwm_key(lua_State *L)
                                              * server->lua_keybinding_cap));
     }
 
-    auto &kb        = server->lua_keybindings[server->lua_keybinding_count++];
-    kb.mods         = mods;
-    kb.keysym       = keysym;
-    kb.func_ref     = func_ref;
-    kb.no_repeat    = false;
-    kb.description  = nullptr;
+    auto &kb       = server->lua_keybindings[server->lua_keybinding_count++];
+    kb.mods        = mods;
+    kb.keysym      = keysym;
+    kb.func_ref    = func_ref;
+    kb.no_repeat   = false;
+    kb.description = nullptr;
 
-    if (argc == 3) {
-        if (lua_isstring(L, 3)) {
+    if (argc == 3)
+    {
+        if (lua_isstring(L, 3))
+        {
             kb.description = strdup(lua_tostring(L, 3));
-        } else if (lua_istable(L, 3)) {
+        }
+        else if (lua_istable(L, 3))
+        {
             lua_getfield(L, 3, "description");
-            if (lua_isstring(L, -1)) kb.description = strdup(lua_tostring(L, -1));
+            if (lua_isstring(L, -1))
+                kb.description = strdup(lua_tostring(L, -1));
             lua_pop(L, 1);
             lua_getfield(L, 3, "no_repeat");
-            if (lua_isboolean(L, -1)) kb.no_repeat = lua_toboolean(L, -1);
+            if (lua_isboolean(L, -1))
+                kb.no_repeat = lua_toboolean(L, -1);
             lua_pop(L, 1);
         }
     }
@@ -386,9 +394,8 @@ l_nnwm_gesture(lua_State *L)
     else if (strcmp(dir_str, "right") == 0)
         dir = nnwm_gesture_dir::RIGHT;
     else
-        return luaL_error(L,
-                          "nnwm.gesture: direction must be \"up\", \"down\","
-                          " \"left\", or \"right\"");
+        return luaL_error(L, "nnwm.gesture: direction must be \"up\", \"down\","
+                             " \"left\", or \"right\"");
 
     lua_pushvalue(L, 3);
     int func_ref = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -398,9 +405,8 @@ l_nnwm_gesture(lua_State *L)
         server->lua_gesture_cap
             = server->lua_gesture_cap ? server->lua_gesture_cap * 2 : 16;
         server->lua_gestures = static_cast<struct nnwm_lua_gesture *>(
-            std::realloc(server->lua_gestures,
-                         sizeof(struct nnwm_lua_gesture)
-                             * server->lua_gesture_cap));
+            std::realloc(server->lua_gestures, sizeof(struct nnwm_lua_gesture)
+                                                   * server->lua_gesture_cap));
     }
 
     auto &g    = server->lua_gestures[server->lua_gesture_count++];
@@ -441,10 +447,11 @@ l_nnwm_version(lua_State *L)
 static int
 l_nnwm_cursor_set_pos(lua_State *L)
 {
-    double x = luaL_checknumber(L, 1);
-    double y = luaL_checknumber(L, 2);
+    double x            = luaL_checknumber(L, 1);
+    double y            = luaL_checknumber(L, 2);
     nnwm_server *server = get_server(L);
-    if (!server || !server->cursor) return 0;
+    if (!server || !server->cursor)
+        return 0;
     wlr_cursor_warp(server->cursor, nullptr, x, y);
     /* Trigger the normal motion pipeline so hover/focus stay consistent
      * with the new position. Uses the current monotonic time in msec. */
@@ -460,7 +467,8 @@ static int
 l_nnwm_cursor_pos(lua_State *L)
 {
     nnwm_server *server = get_server(L);
-    if (!server || !server->cursor) {
+    if (!server || !server->cursor)
+    {
         lua_pushnil(L);
         return 1;
     }
@@ -469,7 +477,8 @@ l_nnwm_cursor_pos(lua_State *L)
     lua_setfield(L, -2, "x");
     lua_pushnumber(L, server->cursor->y);
     lua_setfield(L, -2, "y");
-    /* Also index as [1]/[2] so callers can do `local x, y = table.unpack(...)`. */
+    /* Also index as [1]/[2] so callers can do `local x, y = table.unpack(...)`.
+     */
     lua_pushnumber(L, server->cursor->x);
     lua_rawseti(L, -2, 1);
     lua_pushnumber(L, server->cursor->y);
@@ -480,13 +489,17 @@ l_nnwm_cursor_pos(lua_State *L)
 /* Alias for set_pos — kept because "warp" is the conventional name in
  * X/Wayland tooling and matches wlr_cursor_warp. */
 static int
-l_nnwm_cursor_warp(lua_State *L) { return l_nnwm_cursor_set_pos(L); }
+l_nnwm_cursor_warp(lua_State *L)
+{
+    return l_nnwm_cursor_set_pos(L);
+}
 
 static int
 l_nnwm_cursor_hide(lua_State *L)
 {
     nnwm_server *server = get_server(L);
-    if (!server || !server->cursor) return 0;
+    if (!server || !server->cursor)
+        return 0;
     wlr_cursor_unset_image(server->cursor);
     /* Reuse the existing "cursor hidden by typing" flag as a general
      * "hidden by compositor" state. process_cursor_motion clears it and
@@ -500,8 +513,10 @@ static int
 l_nnwm_cursor_show(lua_State *L)
 {
     nnwm_server *server = get_server(L);
-    if (!server || !server->cursor) return 0;
-    if (!server->cursor_hidden_by_typing) return 0;
+    if (!server || !server->cursor)
+        return 0;
+    if (!server->cursor_hidden_by_typing)
+        return 0;
     server->cursor_hidden_by_typing = false;
     if (!server->cursor_zoom_active)
         wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
@@ -512,8 +527,8 @@ static int
 l_nnwm_cursor_visible(lua_State *L)
 {
     nnwm_server *server = get_server(L);
-    lua_pushboolean(L,
-        server && server->cursor && !server->cursor_hidden_by_typing);
+    lua_pushboolean(L, server && server->cursor
+                           && !server->cursor_hidden_by_typing);
     return 1;
 }
 
@@ -523,32 +538,41 @@ l_nnwm_cursor_visible(lua_State *L)
  * $XDG_STATE_HOME/nnwm/nnwm.log, else $HOME/.local/state/nnwm/nnwm.log.
  * Returns a heap-allocated string the caller must free, or nullptr if
  * $HOME isn't set and no override is given. */
-static char *nnwm_log_path(void)
+static char *
+nnwm_log_path(void)
 {
     const char *override_ = getenv("NNWM_LOG_FILE");
-    if (override_ && override_[0]) return strdup(override_);
+    if (override_ && override_[0])
+        return strdup(override_);
     const char *xdg = getenv("XDG_STATE_HOME");
-    char *path = nullptr;
-    if (xdg && xdg[0]) {
+    char *path      = nullptr;
+    if (xdg && xdg[0])
+    {
         size_t n = strlen(xdg) + strlen("/nnwm/nnwm.log") + 1;
-        path = static_cast<char *>(malloc(n));
+        path     = static_cast<char *>(malloc(n));
         snprintf(path, n, "%s/nnwm/nnwm.log", xdg);
-    } else {
+    }
+    else
+    {
         const char *home = getenv("HOME");
-        if (!home || !home[0]) return nullptr;
+        if (!home || !home[0])
+            return nullptr;
         size_t n = strlen(home) + strlen("/.local/state/nnwm/nnwm.log") + 1;
-        path = static_cast<char *>(malloc(n));
+        path     = static_cast<char *>(malloc(n));
         snprintf(path, n, "%s/.local/state/nnwm/nnwm.log", home);
     }
     return path;
 }
 
 /* Ensure the parent directory of `path` exists (recursive mkdir). */
-static void ensure_parent_dir(const char *path)
+static void
+ensure_parent_dir(const char *path)
 {
     char *dup = strdup(path);
-    for (char *p = dup + 1; *p; p++) {
-        if (*p == '/') {
+    for (char *p = dup + 1; *p; p++)
+    {
+        if (*p == '/')
+        {
             *p = '\0';
             mkdir(dup, 0755);
             *p = '/';
@@ -561,11 +585,14 @@ static void ensure_parent_dir(const char *path)
  * of the server (closed implicitly at exit via the OS). */
 static FILE *nnwm_log_fp = nullptr;
 
-static FILE *nnwm_log_get(void)
+static FILE *
+nnwm_log_get(void)
 {
-    if (nnwm_log_fp) return nnwm_log_fp;
+    if (nnwm_log_fp)
+        return nnwm_log_fp;
     char *path = nnwm_log_path();
-    if (!path) return nullptr;
+    if (!path)
+        return nullptr;
     ensure_parent_dir(path);
     nnwm_log_fp = fopen(path, "a");
     free(path);
@@ -574,14 +601,17 @@ static FILE *nnwm_log_get(void)
     return nnwm_log_fp;
 }
 
-static int nnwm_log_write(lua_State *L, const char *level)
+static int
+nnwm_log_write(lua_State *L, const char *level)
 {
     /* Concatenate all arguments with a space separator, like Lua's print(). */
     int n = lua_gettop(L);
     luaL_Buffer b;
     luaL_buffinit(L, &b);
-    for (int i = 1; i <= n; i++) {
-        if (i > 1) luaL_addchar(&b, ' ');
+    for (int i = 1; i <= n; i++)
+    {
+        if (i > 1)
+            luaL_addchar(&b, ' ');
         size_t len;
         const char *s = luaL_tolstring(L, i, &len); /* stringifies any type */
         luaL_addlstring(&b, s, len);
@@ -592,7 +622,8 @@ static int nnwm_log_write(lua_State *L, const char *level)
     const char *msg = lua_tolstring(L, -1, &msg_len);
 
     FILE *fp = nnwm_log_get();
-    if (fp) {
+    if (fp)
+    {
         time_t t = time(nullptr);
         struct tm tmv;
         localtime_r(&t, &tmv);
@@ -604,16 +635,34 @@ static int nnwm_log_write(lua_State *L, const char *level)
     return 0;
 }
 
-static int l_nnwm_log_info(lua_State *L)  { return nnwm_log_write(L, "INFO"); }
-static int l_nnwm_log_warn(lua_State *L)  { return nnwm_log_write(L, "WARN"); }
-static int l_nnwm_log_error(lua_State *L) { return nnwm_log_write(L, "ERROR"); }
+static int
+l_nnwm_log_info(lua_State *L)
+{
+    return nnwm_log_write(L, "INFO");
+}
+static int
+l_nnwm_log_warn(lua_State *L)
+{
+    return nnwm_log_write(L, "WARN");
+}
+static int
+l_nnwm_log_error(lua_State *L)
+{
+    return nnwm_log_write(L, "ERROR");
+}
 
 /* Return the log file path so users can share it in bug reports. */
-static int l_nnwm_log_path(lua_State *L)
+static int
+l_nnwm_log_path(lua_State *L)
 {
     char *p = nnwm_log_path();
-    if (p) { lua_pushstring(L, p); free(p); }
-    else lua_pushnil(L);
+    if (p)
+    {
+        lua_pushstring(L, p);
+        free(p);
+    }
+    else
+        lua_pushnil(L);
     return 1;
 }
 
@@ -751,8 +800,8 @@ static int
 l_nnwm_switch_workspace(lua_State *L)
 {
     struct nnwm_server *server = get_server(L);
-    int ws = (int)luaL_checkinteger(L, 1);
-    int max = server->config->workspace_count;
+    int ws                     = (int)luaL_checkinteger(L, 1);
+    int max                    = server->config->workspace_count;
     if (ws < 1 || ws > max)
         return luaL_error(L, "nnwm.switch_workspace: index must be 1-%d", max);
     nnwm::workspace::switch_to(server, ws - 1);
@@ -763,8 +812,8 @@ static int
 l_nnwm_move_to_workspace(lua_State *L)
 {
     struct nnwm_server *server = get_server(L);
-    int ws = (int)luaL_checkinteger(L, 1);
-    int max = server->config->workspace_count;
+    int ws                     = (int)luaL_checkinteger(L, 1);
+    int max                    = server->config->workspace_count;
     if (ws < 1 || ws > max)
         return luaL_error(L, "nnwm.move_to_workspace: index must be 1-%d", max);
     nnwm::workspace::move_to(server, ws - 1);
@@ -776,26 +825,40 @@ layout_mode_str(nnwm_layout_mode m)
 {
     switch (m)
     {
-        case nnwm_layout_mode::HTILE:   return "htile";
-        case nnwm_layout_mode::VTILE:   return "vtile";
-        case nnwm_layout_mode::TABBED:  return "tabbed";
-        case nnwm_layout_mode::HSCROLL: return "hscroll";
-        case nnwm_layout_mode::VSCROLL: return "vscroll";
-        case nnwm_layout_mode::FLOAT:   return "float";
-        default:                        return "unknown";
+        case nnwm_layout_mode::HTILE:
+            return "htile";
+        case nnwm_layout_mode::VTILE:
+            return "vtile";
+        case nnwm_layout_mode::TABBED:
+            return "tabbed";
+        case nnwm_layout_mode::HSCROLL:
+            return "hscroll";
+        case nnwm_layout_mode::VSCROLL:
+            return "vscroll";
+        case nnwm_layout_mode::FLOAT:
+            return "float";
+        default:
+            return "unknown";
     }
 }
 
 static nnwm_layout_mode
 parse_layout_mode(const char *s, nnwm_layout_mode dflt)
 {
-    if (!s) return dflt;
-    if (strcmp(s, "htile")   == 0) return nnwm_layout_mode::HTILE;
-    if (strcmp(s, "vtile")   == 0) return nnwm_layout_mode::VTILE;
-    if (strcmp(s, "tabbed")  == 0) return nnwm_layout_mode::TABBED;
-    if (strcmp(s, "hscroll") == 0) return nnwm_layout_mode::HSCROLL;
-    if (strcmp(s, "vscroll") == 0) return nnwm_layout_mode::VSCROLL;
-    if (strcmp(s, "float")   == 0) return nnwm_layout_mode::FLOAT;
+    if (!s)
+        return dflt;
+    if (strcmp(s, "htile") == 0)
+        return nnwm_layout_mode::HTILE;
+    if (strcmp(s, "vtile") == 0)
+        return nnwm_layout_mode::VTILE;
+    if (strcmp(s, "tabbed") == 0)
+        return nnwm_layout_mode::TABBED;
+    if (strcmp(s, "hscroll") == 0)
+        return nnwm_layout_mode::HSCROLL;
+    if (strcmp(s, "vscroll") == 0)
+        return nnwm_layout_mode::VSCROLL;
+    if (strcmp(s, "float") == 0)
+        return nnwm_layout_mode::FLOAT;
     return dflt;
 }
 
@@ -812,12 +875,10 @@ l_nnwm_current_window(lua_State *L)
 
     lua_newtable(L);
 
-    lua_pushstring(L, tl->xdg_toplevel->title
-                          ? tl->xdg_toplevel->title : "");
+    lua_pushstring(L, tl->xdg_toplevel->title ? tl->xdg_toplevel->title : "");
     lua_setfield(L, -2, "title");
 
-    lua_pushstring(L, tl->xdg_toplevel->app_id
-                          ? tl->xdg_toplevel->app_id : "");
+    lua_pushstring(L, tl->xdg_toplevel->app_id ? tl->xdg_toplevel->app_id : "");
     lua_setfield(L, -2, "app_id");
 
     lua_pushboolean(L, tl->floating);
@@ -853,7 +914,8 @@ l_nnwm_current_window(lua_State *L)
     if (tl->output)
     {
         lua_pushstring(L, tl->output->wlr_output->name
-                              ? tl->output->wlr_output->name : "");
+                              ? tl->output->wlr_output->name
+                              : "");
         lua_setfield(L, -2, "output");
     }
     else
@@ -964,12 +1026,12 @@ l_nnwm_windows(lua_State *L)
     {
         lua_newtable(L);
 
-        lua_pushstring(L, tl->xdg_toplevel->title
-                              ? tl->xdg_toplevel->title : "");
+        lua_pushstring(L,
+                       tl->xdg_toplevel->title ? tl->xdg_toplevel->title : "");
         lua_setfield(L, -2, "title");
 
-        lua_pushstring(L, tl->xdg_toplevel->app_id
-                              ? tl->xdg_toplevel->app_id : "");
+        lua_pushstring(L, tl->xdg_toplevel->app_id ? tl->xdg_toplevel->app_id
+                                                   : "");
         lua_setfield(L, -2, "app_id");
 
         lua_pushboolean(L, tl->floating);
@@ -1005,7 +1067,8 @@ l_nnwm_windows(lua_State *L)
         if (tl->output)
         {
             lua_pushstring(L, tl->output->wlr_output->name
-                                  ? tl->output->wlr_output->name : "");
+                                  ? tl->output->wlr_output->name
+                                  : "");
             lua_setfield(L, -2, "output");
         }
         else
@@ -1219,7 +1282,7 @@ l_nnwm_toggle_float_layout(lua_State *L)
 static int
 l_nnwm_set_layout(lua_State *L)
 {
-    const char *name = luaL_checkstring(L, 1);
+    const char *name   = luaL_checkstring(L, 1);
     nnwm_layout_mode m = parse_layout_mode(name, nnwm_layout_mode::HTILE);
     nnwm::layout::set_layout(get_server(L), m);
     return 0;
@@ -1328,9 +1391,9 @@ l_nnwm_rule(lua_State *L)
     r.maximize        = -1;
     r.focused         = -1;
     r.sticky          = -1;
-    r.workspace  = -1;
-    r.opacity    = -1.0f;
-    r.blur       = -1;
+    r.workspace       = -1;
+    r.opacity         = -1.0f;
+    r.blur            = -1;
 #ifdef HAVE_SCENEFX
     r.anim_open_style  = -1;
     r.anim_close_style = -1;
@@ -1446,17 +1509,18 @@ struct nnwm_window_ud
     nnwm_toplevel *tl;
 };
 
-static nnwm_window_ud *check_window_ud(lua_State *L, int idx)
+static nnwm_window_ud *
+check_window_ud(lua_State *L, int idx)
 {
-    return static_cast<nnwm_window_ud *>(
-        luaL_checkudata(L, idx, WNDMT));
+    return static_cast<nnwm_window_ud *>(luaL_checkudata(L, idx, WNDMT));
 }
 
 static int
 l_wnd_set_floating(lua_State *L)
 {
     auto *ud = check_window_ud(L, 1);
-    if (!ud->tl) return 0;
+    if (!ud->tl)
+        return 0;
     ud->tl->floating = lua_toboolean(L, 2);
     return 0;
 }
@@ -1465,7 +1529,8 @@ static int
 l_wnd_set_fullscreen(lua_State *L)
 {
     auto *ud = check_window_ud(L, 1);
-    if (!ud->tl) return 0;
+    if (!ud->tl)
+        return 0;
     bool want = lua_toboolean(L, 2);
     if (want != ud->tl->fullscreen)
     {
@@ -1484,7 +1549,8 @@ static int
 l_wnd_set_maximize(lua_State *L)
 {
     auto *ud = check_window_ud(L, 1);
-    if (!ud->tl) return 0;
+    if (!ud->tl)
+        return 0;
     ud->tl->maximize = lua_toboolean(L, 2);
     return 0;
 }
@@ -1493,7 +1559,8 @@ static int
 l_wnd_set_sticky(lua_State *L)
 {
     auto *ud = check_window_ud(L, 1);
-    if (!ud->tl) return 0;
+    if (!ud->tl)
+        return 0;
     ud->tl->sticky = lua_toboolean(L, 2);
     return 0;
 }
@@ -1502,7 +1569,8 @@ static int
 l_wnd_set_opacity(lua_State *L)
 {
     auto *ud = check_window_ud(L, 1);
-    if (!ud->tl) return 0;
+    if (!ud->tl)
+        return 0;
     float v = (float)luaL_checknumber(L, 2);
     if (v >= 0.0f && v <= 1.0f)
         ud->tl->rule_opacity = v;
@@ -1513,7 +1581,8 @@ static int
 l_wnd_set_workspace(lua_State *L)
 {
     auto *ud = check_window_ud(L, 1);
-    if (!ud->tl) return 0;
+    if (!ud->tl)
+        return 0;
     int ws = (int)luaL_checkinteger(L, 2) - 1; /* Lua 1-N → internal 0-(N-1) */
     auto *server = ud->tl->server;
     if (ws >= 0 && ws < server->config->workspace_count)
@@ -1525,25 +1594,32 @@ static int
 l_wnd_close(lua_State *L)
 {
     auto *ud = check_window_ud(L, 1);
-    if (ud->tl) tl_send_close(ud->tl);
+    if (ud->tl)
+        tl_send_close(ud->tl);
     return 0;
 }
 
 static int
 l_wnd_index(lua_State *L)
 {
-    auto *ud = check_window_ud(L, 1);
+    auto *ud        = check_window_ud(L, 1);
     const char *key = luaL_checkstring(L, 2);
-    if (!ud->tl || !key) { lua_pushnil(L); return 1; }
+    if (!ud->tl || !key)
+    {
+        lua_pushnil(L);
+        return 1;
+    }
 
     auto *tl = ud->tl;
 
     if (std::strcmp(key, "title") == 0)
         lua_pushstring(L, tl->xdg_toplevel && tl->xdg_toplevel->title
-                              ? tl->xdg_toplevel->title : "");
+                              ? tl->xdg_toplevel->title
+                              : "");
     else if (std::strcmp(key, "app_id") == 0)
         lua_pushstring(L, tl->xdg_toplevel && tl->xdg_toplevel->app_id
-                              ? tl->xdg_toplevel->app_id : "");
+                              ? tl->xdg_toplevel->app_id
+                              : "");
     else if (std::strcmp(key, "floating") == 0)
         lua_pushboolean(L, tl->floating);
     else if (std::strcmp(key, "fullscreen") == 0)
@@ -1577,7 +1653,8 @@ l_wnd_index(lua_State *L)
     return 1;
 }
 
-static void push_window_ud(lua_State *L, nnwm_toplevel *tl)
+static void
+push_window_ud(lua_State *L, nnwm_toplevel *tl)
 {
     auto *ud = static_cast<nnwm_window_ud *>(
         lua_newuserdata(L, sizeof(nnwm_window_ud)));
@@ -1585,18 +1662,27 @@ static void push_window_ud(lua_State *L, nnwm_toplevel *tl)
     luaL_setmetatable(L, WNDMT);
 }
 
-static void ensure_window_metatable(lua_State *L)
+static void
+ensure_window_metatable(lua_State *L)
 {
     if (luaL_newmetatable(L, WNDMT))
     {
-        lua_pushcfunction(L, l_wnd_set_floating);   lua_setfield(L, -2, "set_floating");
-        lua_pushcfunction(L, l_wnd_set_fullscreen);  lua_setfield(L, -2, "set_fullscreen");
-        lua_pushcfunction(L, l_wnd_set_maximize);    lua_setfield(L, -2, "set_maximize");
-        lua_pushcfunction(L, l_wnd_set_sticky);      lua_setfield(L, -2, "set_sticky");
-        lua_pushcfunction(L, l_wnd_set_opacity);     lua_setfield(L, -2, "set_opacity");
-        lua_pushcfunction(L, l_wnd_set_workspace);   lua_setfield(L, -2, "set_workspace");
-        lua_pushcfunction(L, l_wnd_close);           lua_setfield(L, -2, "close");
-        lua_pushcfunction(L, l_wnd_index);           lua_setfield(L, -2, "__index");
+        lua_pushcfunction(L, l_wnd_set_floating);
+        lua_setfield(L, -2, "set_floating");
+        lua_pushcfunction(L, l_wnd_set_fullscreen);
+        lua_setfield(L, -2, "set_fullscreen");
+        lua_pushcfunction(L, l_wnd_set_maximize);
+        lua_setfield(L, -2, "set_maximize");
+        lua_pushcfunction(L, l_wnd_set_sticky);
+        lua_setfield(L, -2, "set_sticky");
+        lua_pushcfunction(L, l_wnd_set_opacity);
+        lua_setfield(L, -2, "set_opacity");
+        lua_pushcfunction(L, l_wnd_set_workspace);
+        lua_setfield(L, -2, "set_workspace");
+        lua_pushcfunction(L, l_wnd_close);
+        lua_setfield(L, -2, "close");
+        lua_pushcfunction(L, l_wnd_index);
+        lua_setfield(L, -2, "__index");
     }
     lua_pop(L, 1);
 }
@@ -1614,10 +1700,11 @@ l_nnwm_add_rule(lua_State *L)
     /* Grow runtime_rules array if needed */
     if (server->runtime_rule_count >= server->runtime_rule_cap)
     {
-        server->runtime_rule_cap = server->runtime_rule_cap ? server->runtime_rule_cap * 2 : 8;
+        server->runtime_rule_cap
+            = server->runtime_rule_cap ? server->runtime_rule_cap * 2 : 8;
         server->runtime_rules = static_cast<nnwm_runtime_rule *>(
-            realloc(server->runtime_rules,
-                    (size_t)server->runtime_rule_cap * sizeof(nnwm_runtime_rule)));
+            realloc(server->runtime_rules, (size_t)server->runtime_rule_cap
+                                               * sizeof(nnwm_runtime_rule)));
     }
 
     auto &r = server->runtime_rules[server->runtime_rule_count++];
@@ -1646,7 +1733,7 @@ l_nnwm_add_rule(lua_State *L)
 static int
 l_nnwm_remove_rule(lua_State *L)
 {
-    int id = (int)luaL_checkinteger(L, 1);
+    int id       = (int)luaL_checkinteger(L, 1);
     auto *server = get_server(L);
 
     for (int i = 0; i < server->runtime_rule_count; i++)
@@ -1659,7 +1746,8 @@ l_nnwm_remove_rule(lua_State *L)
             luaL_unref(server->lua, LUA_REGISTRYINDEX, r.func_ref);
 
             /* Swap with last and shrink */
-            server->runtime_rules[i] = server->runtime_rules[server->runtime_rule_count - 1];
+            server->runtime_rules[i]
+                = server->runtime_rules[server->runtime_rule_count - 1];
             server->runtime_rule_count--;
             lua_pushboolean(L, true);
             return 1;
@@ -1672,10 +1760,12 @@ l_nnwm_remove_rule(lua_State *L)
 
 /* Called from apply_window_rules — runs every matching runtime rule's
  * callback with a window userdata. */
-void apply_runtime_rules(nnwm_server *server, nnwm_toplevel *tl)
+void
+apply_runtime_rules(nnwm_server *server, nnwm_toplevel *tl)
 {
     lua_State *L = server->lua;
-    if (!L) return;
+    if (!L)
+        return;
 
     const char *app_id = tl_app_id(tl);
     const char *title  = tl_title(tl);
@@ -1695,8 +1785,10 @@ void apply_runtime_rules(nnwm_server *server, nnwm_toplevel *tl)
             if (!title || fnmatch(r.title, title, 0) != 0)
                 match = false;
         }
-        if (!r.app_id && !r.title) match = false;
-        if (!match) continue;
+        if (!r.app_id && !r.title)
+            match = false;
+        if (!match)
+            continue;
 
         /* Push the callback */
         lua_rawgeti(L, LUA_REGISTRYINDEX, r.func_ref);
@@ -1745,7 +1837,8 @@ push_window_table(lua_State *L, nnwm_server *server, nnwm_toplevel *tl)
     if (tl->output)
     {
         lua_pushstring(L, tl->output->wlr_output->name
-                              ? tl->output->wlr_output->name : "");
+                              ? tl->output->wlr_output->name
+                              : "");
         lua_setfield(L, -2, "output");
     }
     else
@@ -1804,16 +1897,17 @@ void
 fire_hook_plain(nnwm_server *server, const char *event)
 {
     lua_State *L = server->lua;
-    if (!L) return;
+    if (!L)
+        return;
     nnwm_hook *h;
     wl_list_for_each(h, &server->hooks, link)
     {
-        if (strcmp(h->event, event) != 0) continue;
+        if (strcmp(h->event, event) != 0)
+            continue;
         lua_rawgeti(L, LUA_REGISTRYINDEX, h->func_ref);
         if (lua_pcall(L, 0, 0, 0) != LUA_OK)
         {
-            wlr_log(WLR_ERROR, "hook '%s': %s", event,
-                    lua_tostring(L, -1));
+            wlr_log(WLR_ERROR, "hook '%s': %s", event, lua_tostring(L, -1));
             lua_pop(L, 1);
         }
     }
@@ -1823,17 +1917,18 @@ void
 fire_hook_window(nnwm_server *server, const char *event, nnwm_toplevel *tl)
 {
     lua_State *L = server->lua;
-    if (!L || !tl) return;
+    if (!L || !tl)
+        return;
     nnwm_hook *h;
     wl_list_for_each(h, &server->hooks, link)
     {
-        if (strcmp(h->event, event) != 0) continue;
+        if (strcmp(h->event, event) != 0)
+            continue;
         lua_rawgeti(L, LUA_REGISTRYINDEX, h->func_ref);
         push_window_table(L, server, tl);
         if (lua_pcall(L, 1, 0, 0) != LUA_OK)
         {
-            wlr_log(WLR_ERROR, "hook '%s': %s", event,
-                    lua_tostring(L, -1));
+            wlr_log(WLR_ERROR, "hook '%s': %s", event, lua_tostring(L, -1));
             lua_pop(L, 1);
         }
     }
@@ -1843,17 +1938,18 @@ void
 fire_hook_workspace(nnwm_server *server, const char *event, nnwm_output *out)
 {
     lua_State *L = server->lua;
-    if (!L || !out) return;
+    if (!L || !out)
+        return;
     nnwm_hook *h;
     wl_list_for_each(h, &server->hooks, link)
     {
-        if (strcmp(h->event, event) != 0) continue;
+        if (strcmp(h->event, event) != 0)
+            continue;
         lua_rawgeti(L, LUA_REGISTRYINDEX, h->func_ref);
         push_workspace_table(L, server, out);
         if (lua_pcall(L, 1, 0, 0) != LUA_OK)
         {
-            wlr_log(WLR_ERROR, "hook '%s': %s", event,
-                    lua_tostring(L, -1));
+            wlr_log(WLR_ERROR, "hook '%s': %s", event, lua_tostring(L, -1));
             lua_pop(L, 1);
         }
     }
@@ -1863,17 +1959,18 @@ void
 fire_hook_output(nnwm_server *server, const char *event, nnwm_output *out)
 {
     lua_State *L = server->lua;
-    if (!L || !out) return;
+    if (!L || !out)
+        return;
     nnwm_hook *h;
     wl_list_for_each(h, &server->hooks, link)
     {
-        if (strcmp(h->event, event) != 0) continue;
+        if (strcmp(h->event, event) != 0)
+            continue;
         lua_rawgeti(L, LUA_REGISTRYINDEX, h->func_ref);
         push_output_table(L, server, out);
         if (lua_pcall(L, 1, 0, 0) != LUA_OK)
         {
-            wlr_log(WLR_ERROR, "hook '%s': %s", event,
-                    lua_tostring(L, -1));
+            wlr_log(WLR_ERROR, "hook '%s': %s", event, lua_tostring(L, -1));
             lua_pop(L, 1);
         }
     }
@@ -1883,7 +1980,8 @@ fire_hook_output(nnwm_server *server, const char *event, nnwm_output *out)
 
 #define TIMERMT "nnwm.timer"
 
-static int64_t timer_monotonic_ms()
+static int64_t
+timer_monotonic_ms()
 {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -1891,7 +1989,8 @@ static int64_t timer_monotonic_ms()
 }
 
 /* Destroy an nnwm_timer from C — nulls the handle userdata if alive. */
-static void timer_destroy(nnwm_timer *t, lua_State *L)
+static void
+timer_destroy(nnwm_timer *t, lua_State *L)
 {
     if (t->handle_ref != LUA_NOREF)
     {
@@ -1908,13 +2007,16 @@ static void timer_destroy(nnwm_timer *t, lua_State *L)
     delete t;
 }
 
-static int timer_handle_cancel(lua_State *L)
+static int
+timer_handle_cancel(lua_State *L)
 {
     nnwm_timer *t = *(nnwm_timer **)luaL_checkudata(L, 1, TIMERMT);
-    if (!t || t->dead) return 0;
-    t->handle_ref = LUA_NOREF; /* don't try to null the userdata, we're inside it */
+    if (!t || t->dead)
+        return 0;
+    t->handle_ref
+        = LUA_NOREF; /* don't try to null the userdata, we're inside it */
     *(nnwm_timer **)lua_touserdata(L, 1) = nullptr;
-    t->dead = true;
+    t->dead                              = true;
     wl_list_remove(&t->link);
     luaL_unref(L, LUA_REGISTRYINDEX, t->func_ref);
     wl_event_source_remove(t->source);
@@ -1922,59 +2024,72 @@ static int timer_handle_cancel(lua_State *L)
     return 0;
 }
 
-static int timer_handle_pause(lua_State *L)
+static int
+timer_handle_pause(lua_State *L)
 {
     nnwm_timer *t = *(nnwm_timer **)luaL_checkudata(L, 1, TIMERMT);
-    if (!t || t->dead || t->paused) return 0;
-    int64_t rem = t->deadline_ms - timer_monotonic_ms();
+    if (!t || t->dead || t->paused)
+        return 0;
+    int64_t rem     = t->deadline_ms - timer_monotonic_ms();
     t->remaining_ms = (int)(rem > 0 ? rem : 0);
     wl_event_source_timer_update(t->source, 0); /* 0 disarms */
     t->paused = true;
     return 0;
 }
 
-static int timer_handle_resume(lua_State *L)
+static int
+timer_handle_resume(lua_State *L)
 {
     nnwm_timer *t = *(nnwm_timer **)luaL_checkudata(L, 1, TIMERMT);
-    if (!t || t->dead || !t->paused) return 0;
-    int ms = t->remaining_ms > 0 ? t->remaining_ms : 1;
+    if (!t || t->dead || !t->paused)
+        return 0;
+    int ms         = t->remaining_ms > 0 ? t->remaining_ms : 1;
     t->deadline_ms = timer_monotonic_ms() + ms;
     wl_event_source_timer_update(t->source, ms);
     t->paused = false;
     return 0;
 }
 
-static int timer_handle_gc(lua_State *L)
+static int
+timer_handle_gc(lua_State *L)
 {
     nnwm_timer *t = *(nnwm_timer **)lua_touserdata(L, 1);
-    /* Timer is still running — tell it not to try to null this (already collected) userdata. */
+    /* Timer is still running — tell it not to try to null this (already
+     * collected) userdata. */
     if (t && !t->dead)
         t->handle_ref = LUA_NOREF;
     return 0;
 }
 
-static void ensure_timer_metatable(lua_State *L)
+static void
+ensure_timer_metatable(lua_State *L)
 {
     if (luaL_newmetatable(L, TIMERMT))
     {
-        lua_pushcfunction(L, timer_handle_cancel); lua_setfield(L, -2, "cancel");
-        lua_pushcfunction(L, timer_handle_pause);  lua_setfield(L, -2, "pause");
-        lua_pushcfunction(L, timer_handle_resume); lua_setfield(L, -2, "resume");
-        lua_pushcfunction(L, timer_handle_gc);     lua_setfield(L, -2, "__gc");
-        lua_pushvalue(L, -1);                      lua_setfield(L, -2, "__index");
+        lua_pushcfunction(L, timer_handle_cancel);
+        lua_setfield(L, -2, "cancel");
+        lua_pushcfunction(L, timer_handle_pause);
+        lua_setfield(L, -2, "pause");
+        lua_pushcfunction(L, timer_handle_resume);
+        lua_setfield(L, -2, "resume");
+        lua_pushcfunction(L, timer_handle_gc);
+        lua_setfield(L, -2, "__gc");
+        lua_pushvalue(L, -1);
+        lua_setfield(L, -2, "__index");
     }
     lua_pop(L, 1);
 }
 
-static nnwm_timer *timer_alloc(lua_State *L, nnwm_server *server, int ms, int interval_ms)
+static nnwm_timer *
+timer_alloc(lua_State *L, nnwm_server *server, int ms, int interval_ms)
 {
     ensure_timer_metatable(L);
 
-    nnwm_timer *t = new nnwm_timer{};
-    t->server      = server;
-    t->interval_ms = interval_ms;
-    t->dead        = false;
-    t->paused      = false;
+    nnwm_timer *t   = new nnwm_timer{};
+    t->server       = server;
+    t->interval_ms  = interval_ms;
+    t->dead         = false;
+    t->paused       = false;
     t->remaining_ms = 0;
     t->deadline_ms  = timer_monotonic_ms() + ms;
 
@@ -1983,7 +2098,8 @@ static nnwm_timer *timer_alloc(lua_State *L, nnwm_server *server, int ms, int in
     wl_event_source_timer_update(t->source, ms);
     wl_list_insert(server->timers.prev, &t->link);
 
-    nnwm_timer **udata = (nnwm_timer **)lua_newuserdata(L, sizeof(nnwm_timer *));
+    nnwm_timer **udata
+        = (nnwm_timer **)lua_newuserdata(L, sizeof(nnwm_timer *));
     *udata = t;
     luaL_setmetatable(L, TIMERMT);
     lua_pushvalue(L, -1);
@@ -1995,9 +2111,10 @@ int
 nnwm_timer_cb(void *data)
 {
     nnwm_timer *t = static_cast<nnwm_timer *>(data);
-    if (t->dead || t->paused) return 0;
+    if (t->dead || t->paused)
+        return 0;
     nnwm_server *server = t->server;
-    lua_State *L = server->lua;
+    lua_State *L        = server->lua;
     lua_rawgeti(L, LUA_REGISTRYINDEX, t->func_ref);
     if (lua_pcall(L, 0, 0, 0) != LUA_OK)
     {
@@ -2018,34 +2135,49 @@ nnwm_timer_cb(void *data)
 
 /* ---- Idle detection ---- */
 
-int idle_timer_cb(void *data) {
+int
+idle_timer_cb(void *data)
+{
     nnwm_server *server = static_cast<nnwm_server *>(data);
-    if (server->is_idle) return 0;
+    if (server->is_idle)
+        return 0;
     server->is_idle = true;
     fire_hook_plain(server, "idle");
     return 0;
 }
 
-void nnwm_notify_activity(nnwm_server *server) {
+void
+nnwm_notify_activity(nnwm_server *server)
+{
     if (server->idle_notifier)
-        wlr_idle_notifier_v1_notify_activity(server->idle_notifier, server->seat);
-    if (!server->idle_source) return;
+        wlr_idle_notifier_v1_notify_activity(server->idle_notifier,
+                                             server->seat);
+    if (!server->idle_source)
+        return;
     int ms = server->config->idle_timeout_ms;
-    if (ms <= 0) return;
-    if (server->is_idle) {
+    if (ms <= 0)
+        return;
+    if (server->is_idle)
+    {
         server->is_idle = false;
         fire_hook_plain(server, "resume");
     }
     wl_event_source_timer_update(server->idle_source, ms);
 }
 
-void idle_apply_config(nnwm_server *server) {
+void
+idle_apply_config(nnwm_server *server)
+{
     int ms = server->config->idle_timeout_ms;
-    if (!server->idle_source) return;
-    if (ms > 0) {
+    if (!server->idle_source)
+        return;
+    if (ms > 0)
+    {
         server->is_idle = false;
         wl_event_source_timer_update(server->idle_source, ms);
-    } else {
+    }
+    else
+    {
         wl_event_source_timer_update(server->idle_source, 0); /* disarm */
     }
 }
@@ -2056,8 +2188,8 @@ l_nnwm_on(lua_State *L)
     const char *event = luaL_checkstring(L, 1);
     luaL_checktype(L, 2, LUA_TFUNCTION);
     nnwm_server *server = get_server(L);
-    nnwm_hook *h = new nnwm_hook{};
-    h->event    = strdup(event);
+    nnwm_hook *h        = new nnwm_hook{};
+    h->event            = strdup(event);
     lua_pushvalue(L, 2);
     h->func_ref = luaL_ref(L, LUA_REGISTRYINDEX);
     wl_list_insert(server->hooks.prev, &h->link);
@@ -2080,7 +2212,7 @@ l_nnwm_timer(lua_State *L)
     }
 
     nnwm_server *server = get_server(L);
-    nnwm_timer *t = timer_alloc(L, server, ms, once ? 0 : ms);
+    nnwm_timer *t       = timer_alloc(L, server, ms, once ? 0 : ms);
     lua_pushvalue(L, 2);
     t->func_ref = luaL_ref(L, LUA_REGISTRYINDEX);
     return 1;
@@ -2111,7 +2243,7 @@ l_nnwm_monitor(lua_State *L)
     nnwm_server *server = get_server(L);
     nnwm_config *cfg    = server->config;
 
-    int idx = cfg->monitor_config_count;
+    int idx              = cfg->monitor_config_count;
     cfg->monitor_configs = static_cast<nnwm_monitor_config *>(
         realloc(cfg->monitor_configs, (idx + 1) * sizeof(nnwm_monitor_config)));
     cfg->monitor_config_count = idx + 1;
@@ -2152,15 +2284,24 @@ l_nnwm_monitor(lua_State *L)
         char *ts = get_string_field(L, "transform", nullptr);
         if (ts)
         {
-            if (strcmp(ts, "none") == 0)             mc.transform = 0;
-            else if (strcmp(ts, "90") == 0)          mc.transform = 1;
-            else if (strcmp(ts, "180") == 0)         mc.transform = 2;
-            else if (strcmp(ts, "270") == 0)         mc.transform = 3;
-            else if (strcmp(ts, "flipped") == 0)     mc.transform = 4;
-            else if (strcmp(ts, "flipped-90") == 0)  mc.transform = 5;
-            else if (strcmp(ts, "flipped-180") == 0) mc.transform = 6;
-            else if (strcmp(ts, "flipped-270") == 0) mc.transform = 7;
-            else                                     mc.transform = -1;
+            if (strcmp(ts, "none") == 0)
+                mc.transform = 0;
+            else if (strcmp(ts, "90") == 0)
+                mc.transform = 1;
+            else if (strcmp(ts, "180") == 0)
+                mc.transform = 2;
+            else if (strcmp(ts, "270") == 0)
+                mc.transform = 3;
+            else if (strcmp(ts, "flipped") == 0)
+                mc.transform = 4;
+            else if (strcmp(ts, "flipped-90") == 0)
+                mc.transform = 5;
+            else if (strcmp(ts, "flipped-180") == 0)
+                mc.transform = 6;
+            else if (strcmp(ts, "flipped-270") == 0)
+                mc.transform = 7;
+            else
+                mc.transform = -1;
             free(ts);
         }
     }
@@ -2171,10 +2312,10 @@ l_nnwm_monitor(lua_State *L)
     lua_getfield(L, -1, "struts");
     if (lua_istable(L, -1))
     {
-        mc.strut_top    = get_int_field(L, "top",    0);
+        mc.strut_top    = get_int_field(L, "top", 0);
         mc.strut_bottom = get_int_field(L, "bottom", 0);
-        mc.strut_left   = get_int_field(L, "left",   0);
-        mc.strut_right  = get_int_field(L, "right",  0);
+        mc.strut_left   = get_int_field(L, "left", 0);
+        mc.strut_right  = get_int_field(L, "right", 0);
     }
     lua_pop(L, 1); /* pop struts */
 
@@ -2227,7 +2368,8 @@ l_nnwm_bar_update(lua_State *L)
     const char *name = lua_tostring(L, 1);
 
     nnwm_server *server = get_server(L);
-    if (!server) return 0;
+    if (!server)
+        return 0;
     bar_update_module(server, name);
     return 0;
 }
@@ -2239,19 +2381,21 @@ l_nnwm_bar_module(lua_State *L)
 {
     if (!lua_isstring(L, 1) || !lua_istable(L, 2))
         return luaL_error(L,
-            "nnwm.bar.module(name, def) expects (string, table)");
+                          "nnwm.bar.module(name, def) expects (string, table)");
 
     /* nnwm.bar._registered[name] = def */
     lua_getglobal(L, "nnwm");
     lua_getfield(L, -1, "bar");
-    if (!lua_istable(L, -1)) {
+    if (!lua_istable(L, -1))
+    {
         lua_pop(L, 1);
         lua_newtable(L);
         lua_pushvalue(L, -1);
         lua_setfield(L, -3, "bar");
     }
     lua_getfield(L, -1, "_registered");
-    if (!lua_istable(L, -1)) {
+    if (!lua_istable(L, -1))
+    {
         lua_pop(L, 1);
         lua_newtable(L);
         lua_pushvalue(L, -1);
@@ -2310,14 +2454,14 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"rule", l_nnwm_rule},
     {"add_rule", l_nnwm_add_rule},
     {"remove_rule", l_nnwm_remove_rule},
-    {"current_window",    l_nnwm_current_window},
+    {"current_window", l_nnwm_current_window},
     {"current_workspace", l_nnwm_current_workspace},
-    {"current_output",    l_nnwm_current_output},
-    {"windows",           l_nnwm_windows},
-    {"workspaces",        l_nnwm_workspaces},
-    {"outputs",           l_nnwm_outputs},
-    {"on",                l_nnwm_on},
-    {"timer",             l_nnwm_timer},
+    {"current_output", l_nnwm_current_output},
+    {"windows", l_nnwm_windows},
+    {"workspaces", l_nnwm_workspaces},
+    {"outputs", l_nnwm_outputs},
+    {"on", l_nnwm_on},
+    {"timer", l_nnwm_timer},
     {nullptr, nullptr},
 };
 
@@ -2363,12 +2507,18 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         lua_pushvalue(L, -1);
         lua_setfield(L, -3, "cursor");
     }
-    lua_pushcfunction(L, l_nnwm_cursor_set_pos); lua_setfield(L, -2, "set_pos");
-    lua_pushcfunction(L, l_nnwm_cursor_pos);     lua_setfield(L, -2, "pos");
-    lua_pushcfunction(L, l_nnwm_cursor_warp);    lua_setfield(L, -2, "warp");
-    lua_pushcfunction(L, l_nnwm_cursor_hide);    lua_setfield(L, -2, "hide");
-    lua_pushcfunction(L, l_nnwm_cursor_show);    lua_setfield(L, -2, "show");
-    lua_pushcfunction(L, l_nnwm_cursor_visible); lua_setfield(L, -2, "visible");
+    lua_pushcfunction(L, l_nnwm_cursor_set_pos);
+    lua_setfield(L, -2, "set_pos");
+    lua_pushcfunction(L, l_nnwm_cursor_pos);
+    lua_setfield(L, -2, "pos");
+    lua_pushcfunction(L, l_nnwm_cursor_warp);
+    lua_setfield(L, -2, "warp");
+    lua_pushcfunction(L, l_nnwm_cursor_hide);
+    lua_setfield(L, -2, "hide");
+    lua_pushcfunction(L, l_nnwm_cursor_show);
+    lua_setfield(L, -2, "show");
+    lua_pushcfunction(L, l_nnwm_cursor_visible);
+    lua_setfield(L, -2, "visible");
     lua_pop(L, 1); /* pop nnwm.cursor */
 
     /* nnwm.log = { info, warn, error, path } — file-based logger.
@@ -2382,10 +2532,14 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         lua_pushvalue(L, -1);
         lua_setfield(L, -3, "log");
     }
-    lua_pushcfunction(L, l_nnwm_log_info);  lua_setfield(L, -2, "info");
-    lua_pushcfunction(L, l_nnwm_log_warn);  lua_setfield(L, -2, "warn");
-    lua_pushcfunction(L, l_nnwm_log_error); lua_setfield(L, -2, "error");
-    lua_pushcfunction(L, l_nnwm_log_path);  lua_setfield(L, -2, "path");
+    lua_pushcfunction(L, l_nnwm_log_info);
+    lua_setfield(L, -2, "info");
+    lua_pushcfunction(L, l_nnwm_log_warn);
+    lua_setfield(L, -2, "warn");
+    lua_pushcfunction(L, l_nnwm_log_error);
+    lua_setfield(L, -2, "error");
+    lua_pushcfunction(L, l_nnwm_log_path);
+    lua_setfield(L, -2, "path");
     lua_pop(L, 1); /* pop nnwm.log */
 
     /* get or create nnwm.opt */
@@ -2420,16 +2574,24 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     /* layout.tabbed sub-table */
     lua_newtable(L);
     lua_pushstring(L, cfg->layout.tab_style == nnwm_tab_style::MINIMAL
-                          ? "minimal" : "normal");
+                          ? "minimal"
+                          : "normal");
     lua_setfield(L, -2, "tab_style");
     {
         const char *tp = "top";
         switch (cfg->layout.tab_position)
         {
-            case nnwm_tab_position::BOTTOM: tp = "bottom"; break;
-            case nnwm_tab_position::LEFT:   tp = "left";   break;
-            case nnwm_tab_position::RIGHT:  tp = "right";  break;
-            default: break;
+            case nnwm_tab_position::BOTTOM:
+                tp = "bottom";
+                break;
+            case nnwm_tab_position::LEFT:
+                tp = "left";
+                break;
+            case nnwm_tab_position::RIGHT:
+                tp = "right";
+                break;
+            default:
+                break;
         }
         lua_pushstring(L, tp);
         lua_setfield(L, -2, "tab_position");
@@ -2490,9 +2652,11 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "xkb_rules");
     lua_pushstring(L, cfg->keyboard.xkb_layout ? cfg->keyboard.xkb_layout : "");
     lua_setfield(L, -2, "xkb_layout");
-    lua_pushstring(L, cfg->keyboard.xkb_variant ? cfg->keyboard.xkb_variant : "");
+    lua_pushstring(L,
+                   cfg->keyboard.xkb_variant ? cfg->keyboard.xkb_variant : "");
     lua_setfield(L, -2, "xkb_variant");
-    lua_pushstring(L, cfg->keyboard.xkb_options ? cfg->keyboard.xkb_options : "");
+    lua_pushstring(L,
+                   cfg->keyboard.xkb_options ? cfg->keyboard.xkb_options : "");
     lua_setfield(L, -2, "xkb_options");
     lua_pushstring(L, cfg->keyboard.xkb_file ? cfg->keyboard.xkb_file : "");
     lua_setfield(L, -2, "xkb_file");
@@ -2521,10 +2685,17 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         const char *sm = "two_finger";
         switch (cfg->touchpad.scroll_method)
         {
-            case 0: sm = "no_scroll";      break;
-            case 2: sm = "edge";           break;
-            case 3: sm = "on_button_down"; break;
-            default: break;
+            case 0:
+                sm = "no_scroll";
+                break;
+            case 2:
+                sm = "edge";
+                break;
+            case 3:
+                sm = "on_button_down";
+                break;
+            default:
+                break;
         }
         lua_pushstring(L, sm);
         lua_setfield(L, -2, "scroll_method");
@@ -2549,9 +2720,14 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         const char *ap = "adaptive";
         switch (cfg->mouse.accel_profile)
         {
-            case 1: ap = "flat"; break;
-            case 2: ap = "none"; break;
-            default: break;
+            case 1:
+                ap = "flat";
+                break;
+            case 2:
+                ap = "none";
+                break;
+            default:
+                break;
         }
         lua_pushstring(L, ap);
         lua_setfield(L, -2, "accel_profile");
@@ -2590,13 +2766,15 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     for (int i = 0; i < cfg->workspace_count; i++)
     {
         int v = cfg->workspace_default_layouts[i];
-        nnwm_layout_mode m = (v >= 0) ? (nnwm_layout_mode)v : nnwm_layout_mode::HTILE;
+        nnwm_layout_mode m
+            = (v >= 0) ? (nnwm_layout_mode)v : nnwm_layout_mode::HTILE;
         lua_pushstring(L, layout_mode_str(m));
         lua_rawseti(L, -2, i + 1);
     }
     lua_setfield(L, -2, "workspace_layouts");
 
-    lua_pushstring(L, cfg->find_cursor_style ? cfg->find_cursor_style : "rings");
+    lua_pushstring(L,
+                   cfg->find_cursor_style ? cfg->find_cursor_style : "rings");
     lua_setfield(L, -2, "find_cursor_style");
 
     /* titlebar sub-table */
@@ -2711,7 +2889,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     {
         const char *easing_names[] = {"ease_out",    "linear", "ease_in",
                                       "ease_in_out", "bounce", "elastic"};
-        lua_pushstring(L, easing_names[static_cast<int>(cfg->fx.animation.easing)]);
+        lua_pushstring(
+            L, easing_names[static_cast<int>(cfg->fx.animation.easing)]);
         lua_setfield(L, -2, "easing");
     }
     /* open sub-table */
@@ -2720,7 +2899,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         const char *open_names[]
             = {"fade_scale", "fade",       "scale",       "slide_up",
                "slide_down", "slide_left", "slide_right", "none"};
-        lua_pushstring(L, open_names[static_cast<int>(cfg->fx.animation.open_style)]);
+        lua_pushstring(
+            L, open_names[static_cast<int>(cfg->fx.animation.open_style)]);
         lua_setfield(L, -2, "style");
     }
     lua_pushinteger(L, cfg->fx.animation.open_duration_ms);
@@ -2743,7 +2923,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
         const char *open_names[]
             = {"fade_scale", "fade",       "scale",       "slide_up",
                "slide_down", "slide_left", "slide_right", "none"};
-        lua_pushstring(L, open_names[static_cast<int>(cfg->fx.animation.close_style)]);
+        lua_pushstring(
+            L, open_names[static_cast<int>(cfg->fx.animation.close_style)]);
         lua_setfield(L, -2, "style");
     }
     lua_pushinteger(L, cfg->fx.animation.close_duration_ms);
@@ -2764,7 +2945,8 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_newtable(L);
     {
         const char *ws_names[] = {"slide", "fade", "none"};
-        lua_pushstring(L, ws_names[static_cast<int>(cfg->fx.animation.ws_style)]);
+        lua_pushstring(L,
+                       ws_names[static_cast<int>(cfg->fx.animation.ws_style)]);
         lua_setfield(L, -2, "style");
     }
     lua_pushinteger(L, cfg->fx.animation.ws_duration_ms);
@@ -2803,9 +2985,10 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "layout");
     /* focus sub-table */
     lua_newtable(L);
-    lua_pushstring(L, cfg->fx.animation.focus_style == nnwm_focus_style::CROSSFADE
-                          ? "crossfade"
-                          : "none");
+    lua_pushstring(L,
+                   cfg->fx.animation.focus_style == nnwm_focus_style::CROSSFADE
+                       ? "crossfade"
+                       : "none");
     lua_setfield(L, -2, "style");
     lua_pushinteger(L, cfg->fx.animation.focus_duration_ms);
     lua_setfield(L, -2, "duration");
@@ -2879,23 +3062,23 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                                   cfg->center_new_floating);
         cfg->layout.master_ratio
             = get_float_field(L, "master_ratio", cfg->layout.master_ratio);
-        cfg->layout.master_ratio_step
-            = get_float_field(L, "master_ratio_step", cfg->layout.master_ratio_step);
-        cfg->layout.master_ratio_min
-            = get_float_field(L, "master_ratio_min", cfg->layout.master_ratio_min);
-        cfg->layout.master_ratio_max
-            = get_float_field(L, "master_ratio_max", cfg->layout.master_ratio_max);
+        cfg->layout.master_ratio_step = get_float_field(
+            L, "master_ratio_step", cfg->layout.master_ratio_step);
+        cfg->layout.master_ratio_min = get_float_field(
+            L, "master_ratio_min", cfg->layout.master_ratio_min);
+        cfg->layout.master_ratio_max = get_float_field(
+            L, "master_ratio_max", cfg->layout.master_ratio_max);
         cfg->scroll_column_width = get_float_field(L, "scroll_column_width",
                                                    cfg->scroll_column_width);
-        cfg->scroll_row_height = get_float_field(L, "scroll_row_height",
-                                                 cfg->scroll_row_height);
+        cfg->scroll_row_height
+            = get_float_field(L, "scroll_row_height", cfg->scroll_row_height);
         lua_getfield(L, -1, "tabbed");
         if (lua_istable(L, -1))
         {
             lua_getfield(L, -1, "tab_style");
             if (lua_isstring(L, -1))
             {
-                const char *ts = lua_tostring(L, -1);
+                const char *ts        = lua_tostring(L, -1);
                 cfg->layout.tab_style = (std::strcmp(ts, "minimal") == 0)
                                             ? nnwm_tab_style::MINIMAL
                                             : nnwm_tab_style::NORMAL;
@@ -2931,31 +3114,40 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         if (lua_istable(L, -1))
         {
             free(cfg->layout.enabled_layouts);
-            cfg->layout.enabled_layouts = nullptr;
+            cfg->layout.enabled_layouts       = nullptr;
             cfg->layout.enabled_layouts_count = 0;
 
             int n = (int)lua_rawlen(L, -1);
-            if (n > 0) {
-                cfg->layout.enabled_layouts = static_cast<int *>(
-                    calloc(n, sizeof(int)));
+            if (n > 0)
+            {
+                cfg->layout.enabled_layouts
+                    = static_cast<int *>(calloc(n, sizeof(int)));
                 int k = 0;
-                for (int i = 1; i <= n; i++) {
+                for (int i = 1; i <= n; i++)
+                {
                     lua_rawgeti(L, -1, i);
-                    if (lua_isstring(L, -1)) {
+                    if (lua_isstring(L, -1))
+                    {
                         const char *s = lua_tostring(L, -1);
-                        nnwm_layout_mode m = parse_layout_mode(
-                            s, nnwm_layout_mode::COUNT);
-                        if (m == nnwm_layout_mode::COUNT) {
-                            wlr_log(WLR_ERROR,
-                                "layout.enabled_layouts: unknown layout '%s'", s);
-                        } else {
+                        nnwm_layout_mode m
+                            = parse_layout_mode(s, nnwm_layout_mode::COUNT);
+                        if (m == nnwm_layout_mode::COUNT)
+                        {
+                            wlr_log(
+                                WLR_ERROR,
+                                "layout.enabled_layouts: unknown layout '%s'",
+                                s);
+                        }
+                        else
+                        {
                             cfg->layout.enabled_layouts[k++] = (int)m;
                         }
                     }
                     lua_pop(L, 1);
                 }
                 cfg->layout.enabled_layouts_count = k;
-                if (k == 0) {
+                if (k == 0)
+                {
                     free(cfg->layout.enabled_layouts);
                     cfg->layout.enabled_layouts = nullptr;
                 }
@@ -2968,8 +3160,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     lua_getfield(L, -1, "gaps");
     if (lua_istable(L, -1))
     {
-        cfg->gap.inner  = get_int_field(L, "inner", cfg->gap.inner);
-        cfg->gap.outer  = get_int_field(L, "outer", cfg->gap.outer);
+        cfg->gap.inner = get_int_field(L, "inner", cfg->gap.inner);
+        cfg->gap.outer = get_int_field(L, "outer", cfg->gap.outer);
         cfg->gap.smart = get_bool_field(L, "smart", cfg->gap.smart);
     }
     lua_pop(L, 1);
@@ -2977,16 +3169,21 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     lua_getfield(L, -1, "border");
     if (lua_istable(L, -1))
     {
-        cfg->border.width  = get_int_field(L, "width", cfg->border.width);
+        cfg->border.width = get_int_field(L, "width", cfg->border.width);
         cfg->border.smart = get_bool_field(L, "smart", cfg->border.smart);
-        float dflt_foc[4]  = {cfg->border.focused_color[0], cfg->border.focused_color[1],
-                              cfg->border.focused_color[2], cfg->border.focused_color[3]};
-        get_color_field(L, "focused_color", cfg->border.focused_color, dflt_foc);
-        float dflt_unf[4] = {cfg->border.unfocused_color[0], cfg->border.unfocused_color[1],
-                             cfg->border.unfocused_color[2], cfg->border.unfocused_color[3]};
-        get_color_field(L, "unfocused_color", cfg->border.unfocused_color, dflt_unf);
-        float dflt_urg[4] = {cfg->border.urgent_color[0], cfg->border.urgent_color[1],
-                             cfg->border.urgent_color[2], cfg->border.urgent_color[3]};
+        float dflt_foc[4]
+            = {cfg->border.focused_color[0], cfg->border.focused_color[1],
+               cfg->border.focused_color[2], cfg->border.focused_color[3]};
+        get_color_field(L, "focused_color", cfg->border.focused_color,
+                        dflt_foc);
+        float dflt_unf[4]
+            = {cfg->border.unfocused_color[0], cfg->border.unfocused_color[1],
+               cfg->border.unfocused_color[2], cfg->border.unfocused_color[3]};
+        get_color_field(L, "unfocused_color", cfg->border.unfocused_color,
+                        dflt_unf);
+        float dflt_urg[4]
+            = {cfg->border.urgent_color[0], cfg->border.urgent_color[1],
+               cfg->border.urgent_color[2], cfg->border.urgent_color[3]};
         get_color_field(L, "urgent_color", cfg->border.urgent_color, dflt_urg);
     }
     lua_pop(L, 1);
@@ -3027,11 +3224,10 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
             = get_bool_field(L, "natural_scroll", cfg->touchpad.natural_scroll);
         cfg->touchpad.disable_while_typing = get_bool_field(
             L, "disable_while_typing", cfg->touchpad.disable_while_typing);
-        cfg->touchpad.disable_on_external_mouse = get_bool_field(
-            L, "disable_on_external_mouse",
-            cfg->touchpad.disable_on_external_mouse);
-        cfg->touchpad.drag
-            = get_bool_field(L, "drag", cfg->touchpad.drag);
+        cfg->touchpad.disable_on_external_mouse
+            = get_bool_field(L, "disable_on_external_mouse",
+                             cfg->touchpad.disable_on_external_mouse);
+        cfg->touchpad.drag = get_bool_field(L, "drag", cfg->touchpad.drag);
         cfg->touchpad.scroll_factor
             = get_float_field(L, "scroll_factor", cfg->touchpad.scroll_factor);
         lua_getfield(L, -1, "scroll_method");
@@ -3056,8 +3252,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     {
         cfg->focus_follows_mouse = get_bool_field(L, "focus_follows_mouse",
                                                   cfg->focus_follows_mouse);
-        cfg->focus_on_activate   = get_bool_field(L, "focus_on_activate",
-                                                  cfg->focus_on_activate);
+        cfg->focus_on_activate
+            = get_bool_field(L, "focus_on_activate", cfg->focus_on_activate);
         cfg->workspace_back_and_forth = get_bool_field(
             L, "workspace_back_and_forth", cfg->workspace_back_and_forth);
         cfg->show_config_error_overlay = get_bool_field(
@@ -3102,7 +3298,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         {
             int n = (int)lua_rawlen(L, -1);
             if (n < 1 || n > NNWM_NUM_WORKSPACES)
-                luaL_error(L, "workspace_names length must be 1–%d", NNWM_NUM_WORKSPACES);
+                luaL_error(L, "workspace_names length must be 1–%d",
+                           NNWM_NUM_WORKSPACES);
             cfg->workspace_count = n;
             for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
             {
@@ -3145,7 +3342,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     }
 
     {
-        char *s = get_string_field(L, "find_cursor_style", cfg->find_cursor_style);
+        char *s
+            = get_string_field(L, "find_cursor_style", cfg->find_cursor_style);
         free(cfg->find_cursor_style);
         cfg->find_cursor_style = s;
     }
@@ -3181,10 +3379,9 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                               cfg->titlebar.focused_bg_color[3]};
         get_color_field(L, "focused_bg_color", cfg->titlebar.focused_bg_color,
                         dflt_tfbg);
-        float dflt_tubg[4] = {cfg->titlebar.urgent_bg_color[0],
-                              cfg->titlebar.urgent_bg_color[1],
-                              cfg->titlebar.urgent_bg_color[2],
-                              cfg->titlebar.urgent_bg_color[3]};
+        float dflt_tubg[4] = {
+            cfg->titlebar.urgent_bg_color[0], cfg->titlebar.urgent_bg_color[1],
+            cfg->titlebar.urgent_bg_color[2], cfg->titlebar.urgent_bg_color[3]};
         get_color_field(L, "urgent_bg_color", cfg->titlebar.urgent_bg_color,
                         dflt_tubg);
         float dflt_ttc[4]
@@ -3203,7 +3400,6 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                               cfg->titlebar.urgent_text_color[3]};
         get_color_field(L, "urgent_text_color", cfg->titlebar.urgent_text_color,
                         dflt_tutc);
-
     }
     lua_pop(L, 1);
 
@@ -3211,16 +3407,17 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     lua_getfield(L, -1, "bar");
     if (lua_istable(L, -1))
     {
-        cfg->bar.enabled = get_bool_field(L, "enabled", cfg->bar.enabled);
-        cfg->bar.height = get_int_field(L, "height", cfg->bar.height);
-        char *pos = get_string_field(L, "position", "top");
+        cfg->bar.enabled      = get_bool_field(L, "enabled", cfg->bar.enabled);
+        cfg->bar.height       = get_int_field(L, "height", cfg->bar.height);
+        char *pos             = get_string_field(L, "position", "top");
         cfg->bar.position_top = (pos && strcmp(pos, "bottom") != 0);
         free(pos);
-        cfg->bar.per_output = get_bool_field(L, "per_output", cfg->bar.per_output);
+        cfg->bar.per_output
+            = get_bool_field(L, "per_output", cfg->bar.per_output);
         char *outn = get_string_field(L, "output", nullptr);
         free(cfg->bar.output_name);
         cfg->bar.output_name = outn;
-        char *font = get_string_field(L, "font", cfg->bar.font);
+        char *font           = get_string_field(L, "font", cfg->bar.font);
         free(cfg->bar.font);
         cfg->bar.font = font;
         /* padding: accepts a number (all sides), or a table 1–4 entries
@@ -3231,24 +3428,31 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
          *   {t,r,b,l}    → full explicit
          */
         lua_getfield(L, -1, "padding");
-        if (lua_isnumber(L, -1)) {
-            int v = (int)lua_tointeger(L, -1);
+        if (lua_isnumber(L, -1))
+        {
+            int v                   = (int)lua_tointeger(L, -1);
             cfg->bar.padding.top    = v;
             cfg->bar.padding.right  = v;
             cfg->bar.padding.bottom = v;
             cfg->bar.padding.left   = v;
-        } else if (lua_istable(L, -1)) {
-            int n = (int)lua_rawlen(L, -1);
+        }
+        else if (lua_istable(L, -1))
+        {
+            int n    = (int)lua_rawlen(L, -1);
             int v[4] = {0, 0, 0, 0};
-            for (int i = 0; i < 4 && i < n; i++) {
+            for (int i = 0; i < 4 && i < n; i++)
+            {
                 lua_rawgeti(L, -1, i + 1);
-                if (lua_isnumber(L, -1)) v[i] = (int)lua_tointeger(L, -1);
+                if (lua_isnumber(L, -1))
+                    v[i] = (int)lua_tointeger(L, -1);
                 lua_pop(L, 1);
             }
-            switch (n) {
+            switch (n)
+            {
                 case 1:
-                    cfg->bar.padding.top = cfg->bar.padding.right
-                        = cfg->bar.padding.bottom = cfg->bar.padding.left = v[0];
+                    cfg->bar.padding.top          = cfg->bar.padding.right
+                        = cfg->bar.padding.bottom = cfg->bar.padding.left
+                        = v[0];
                     break;
                 case 2:
                     cfg->bar.padding.top = cfg->bar.padding.bottom = v[0];
@@ -3276,8 +3480,10 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         /* Global opacity multiplier for the whole bar (0.0-1.0). Clamped
          * defensively; <0 falls back to 1.0. */
         float o = get_float_field(L, "opacity", cfg->bar.opacity);
-        if (o < 0.0f) o = 1.0f;
-        if (o > 1.0f) o = 1.0f;
+        if (o < 0.0f)
+            o = 1.0f;
+        if (o > 1.0f)
+            o = 1.0f;
         cfg->bar.opacity = o;
 
         /* Bar-level event handlers. Fired when the cursor is over the bar
@@ -3315,7 +3521,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
 
         /* Modules: { left = {...}, center = {...}, right = {...} } */
         /* Free any modules from a previous parse. */
-        for (int i = 0; i < cfg->bar.module_count; i++) {
+        for (int i = 0; i < cfg->bar.module_count; i++)
+        {
             free(cfg->bar.modules[i].name);
             free(cfg->bar.modules[i].format);
             free(cfg->bar.modules[i].cached_text);
@@ -3333,63 +3540,75 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                            cfg->bar.modules[i].lua_hover_ref);
         }
         free(cfg->bar.modules);
-        cfg->bar.modules = nullptr;
+        cfg->bar.modules      = nullptr;
         cfg->bar.module_count = 0;
 
         lua_getfield(L, -1, "modules");
-        if (lua_istable(L, -1)) {
+        if (lua_istable(L, -1))
+        {
             const char *keys[3] = {"left", "center", "right"};
-            nnwm_bar_align aligns[3] = {nnwm_bar_align::LEFT,
-                                        nnwm_bar_align::CENTER,
-                                        nnwm_bar_align::RIGHT};
+            nnwm_bar_align aligns[3]
+                = {nnwm_bar_align::LEFT, nnwm_bar_align::CENTER,
+                   nnwm_bar_align::RIGHT};
 
             /* First pass: count. */
             int total = 0;
-            for (int g = 0; g < 3; g++) {
+            for (int g = 0; g < 3; g++)
+            {
                 lua_getfield(L, -1, keys[g]);
                 if (lua_istable(L, -1))
                     total += (int)lua_rawlen(L, -1);
                 lua_pop(L, 1);
             }
 
-            if (total > 0) {
+            if (total > 0)
+            {
                 cfg->bar.modules = static_cast<nnwm_bar_module *>(
                     calloc(total, sizeof(nnwm_bar_module)));
                 int idx = 0;
 
-                for (int g = 0; g < 3; g++) {
+                for (int g = 0; g < 3; g++)
+                {
                     lua_getfield(L, -1, keys[g]);
-                    if (!lua_istable(L, -1)) { lua_pop(L, 1); continue; }
+                    if (!lua_istable(L, -1))
+                    {
+                        lua_pop(L, 1);
+                        continue;
+                    }
                     int n = (int)lua_rawlen(L, -1);
-                    for (int i = 1; i <= n; i++) {
+                    for (int i = 1; i <= n; i++)
+                    {
                         lua_rawgeti(L, -1, i);
                         nnwm_bar_module &m = cfg->bar.modules[idx];
-                        m.align = aligns[g];
-                        m.padding = -1;
-                        m.fg[0] = m.fg[1] = m.fg[2] = 0.0f; m.fg[3] = -1.0f;
-                        m.bg[0] = m.bg[1] = m.bg[2] = 0.0f; m.bg[3] = 0.0f;
-                        m.lua_update_ref = -1;
-                        m.lua_click_ref  = -1;
-                        m.lua_hover_ref  = -1;
-                        m.interval_ms = 1000;
-                        m.font = nullptr;
-                        m.style = nullptr;
-                        m.weight = nullptr;
-                        m.size = 0;
+                        m.align            = aligns[g];
+                        m.padding          = -1;
+                        m.fg[0] = m.fg[1] = m.fg[2] = 0.0f;
+                        m.fg[3]                     = -1.0f;
+                        m.bg[0] = m.bg[1] = m.bg[2] = 0.0f;
+                        m.bg[3]                     = 0.0f;
+                        m.lua_update_ref            = -1;
+                        m.lua_click_ref             = -1;
+                        m.lua_hover_ref             = -1;
+                        m.interval_ms               = 1000;
+                        m.font                      = nullptr;
+                        m.style                     = nullptr;
+                        m.weight                    = nullptr;
+                        m.size                      = 0;
 
                         /* If the entry is a string that isn't a built-in name,
                          * look it up in nnwm.bar._registered[name] and treat
                          * the stored value as the module definition table. */
                         bool needs_pop_registered = false;
-                        if (lua_isstring(L, -1)) {
+                        if (lua_isstring(L, -1))
+                        {
                             const char *name = lua_tostring(L, -1);
-                            bool is_builtin =
-                                !strcmp(name, "workspaces") ||
-                                !strcmp(name, "window_title") ||
-                                !strcmp(name, "clock") ||
-                                !strcmp(name, "layout") ||
-                                !strcmp(name, "tray");
-                            if (!is_builtin) {
+                            bool is_builtin  = !strcmp(name, "workspaces")
+                                               || !strcmp(name, "window_title")
+                                               || !strcmp(name, "clock")
+                                               || !strcmp(name, "layout")
+                                               || !strcmp(name, "tray");
+                            if (!is_builtin)
+                            {
                                 /* Remember the registered name so
                                  * nnwm.bar.update(name) can target it. */
                                 m.name = strdup(name);
@@ -3397,25 +3616,34 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                 lua_getfield(L, -1, "bar");
                                 lua_getfield(L, -1, "_registered");
                                 lua_getfield(L, -1, name);
-                                if (lua_istable(L, -1)) {
+                                if (lua_istable(L, -1))
+                                {
                                     /* Replace the string entry with the
                                      * registered table so the shared
                                      * table-parsing path below sees it. */
-                                    lua_replace(L, -5); /* into the module slot */
-                                    lua_pop(L, 3);      /* _registered, bar, nnwm */
+                                    lua_replace(L,
+                                                -5); /* into the module slot */
+                                    lua_pop(L, 3); /* _registered, bar, nnwm */
                                     needs_pop_registered = false;
-                                } else {
-                                    lua_pop(L, 4); /* def(nil), _registered, bar, nnwm */
+                                }
+                                else
+                                {
+                                    lua_pop(L, 4); /* def(nil), _registered,
+                                                      bar, nnwm */
                                     wlr_log(WLR_ERROR,
-                                        "bar: unknown module '%s' (not built-in and not registered via nnwm.bar.module)",
-                                        name);
-                                    lua_pop(L, 1); continue;
+                                            "bar: unknown module '%s' (not "
+                                            "built-in and not registered via "
+                                            "nnwm.bar.module)",
+                                            name);
+                                    lua_pop(L, 1);
+                                    continue;
                                 }
                             }
                         }
                         (void)needs_pop_registered;
 
-                        if (lua_isstring(L, -1)) {
+                        if (lua_isstring(L, -1))
+                        {
                             /* Built-in shorthand: "workspaces", "clock", ... */
                             const char *name = lua_tostring(L, -1);
                             if (!strcmp(name, "workspaces"))
@@ -3428,12 +3656,16 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                 m.type = nnwm_bar_module_type::LAYOUT;
                             else if (!strcmp(name, "tray"))
                                 m.type = nnwm_bar_module_type::TRAY;
-                        } else if (lua_istable(L, -1)) {
+                        }
+                        else if (lua_istable(L, -1))
+                        {
                             char *type = get_string_field(L, "type", nullptr);
-                            if (!type) {
+                            if (!type)
+                            {
                                 wlr_log(WLR_ERROR,
-                                    "bar: module table missing 'type'");
-                                lua_pop(L, 1); continue;
+                                        "bar: module table missing 'type'");
+                                lua_pop(L, 1);
+                                continue;
                             }
                             if (!strcmp(type, "workspaces"))
                                 m.type = nnwm_bar_module_type::WORKSPACES;
@@ -3447,10 +3679,13 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                 m.type = nnwm_bar_module_type::CUSTOM;
                             else if (!strcmp(type, "tray"))
                                 m.type = nnwm_bar_module_type::TRAY;
-                            else {
+                            else
+                            {
                                 wlr_log(WLR_ERROR,
-                                    "bar: unknown module type '%s'", type);
-                                free(type); lua_pop(L, 1); continue;
+                                        "bar: unknown module type '%s'", type);
+                                free(type);
+                                lua_pop(L, 1);
+                                continue;
                             }
                             free(type);
 
@@ -3458,15 +3693,15 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                              * targeting via nnwm.bar.update(name). If we got
                              * here via the registered-lookup path, m.name is
                              * already set — don't overwrite. */
-                            if (!m.name) {
+                            if (!m.name)
+                            {
                                 char *nm = get_string_field(L, "name", nullptr);
-                                m.name = nm;
+                                m.name   = nm;
                             }
                             char *fmt = get_string_field(L, "format", nullptr);
-                            m.format = fmt;
+                            m.format  = fmt;
                             m.padding = get_int_field(L, "padding", -1);
-                            m.interval_ms
-                                = get_int_field(L, "interval", 1000);
+                            m.interval_ms = get_int_field(L, "interval", 1000);
 
                             /* Font overrides. Any subset can be provided;
                              * unset fields inherit from cfg->bar.font.
@@ -3481,25 +3716,27 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                              * omitted inherits from the bar. Flat `fg`/`bg`
                              * on the module table are also accepted for
                              * backwards convenience. */
-                            float dinh[4] = {0,0,0,-1};
+                            float dinh[4] = {0, 0, 0, -1};
                             get_color_field(L, "fg", m.fg, dinh);
-                            float dtrans[4] = {0,0,0,0};
+                            float dtrans[4] = {0, 0, 0, 0};
                             get_color_field(L, "bg", m.bg, dtrans);
-                            for (int c = 0; c < 4; c++) {
+                            for (int c = 0; c < 4; c++)
+                            {
                                 m.ws_active_bg[c]     = -1.0f;
                                 m.ws_active_fg[c]     = -1.0f;
                                 m.ws_occupied_fg[c]   = -1.0f;
                                 m.ws_unoccupied_fg[c] = -1.0f;
                             }
                             lua_getfield(L, -1, "colors");
-                            if (lua_istable(L, -1)) {
+                            if (lua_istable(L, -1))
+                            {
                                 get_color_field(L, "fg", m.fg, m.fg);
                                 get_color_field(L, "bg", m.bg, m.bg);
-                                float sentinel[4] = {0,0,0,-1};
-                                get_color_field(L, "active_bg",
-                                                m.ws_active_bg, sentinel);
-                                get_color_field(L, "active_fg",
-                                                m.ws_active_fg, sentinel);
+                                float sentinel[4] = {0, 0, 0, -1};
+                                get_color_field(L, "active_bg", m.ws_active_bg,
+                                                sentinel);
+                                get_color_field(L, "active_fg", m.ws_active_fg,
+                                                sentinel);
                                 get_color_field(L, "occupied_fg",
                                                 m.ws_occupied_fg, sentinel);
                                 get_color_field(L, "unoccupied_fg",
@@ -3507,14 +3744,19 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                             }
                             lua_pop(L, 1); /* pop 'colors' */
 
-                            if (m.type == nnwm_bar_module_type::CUSTOM) {
+                            if (m.type == nnwm_bar_module_type::CUSTOM)
+                            {
                                 lua_getfield(L, -1, "update");
-                                if (lua_isfunction(L, -1)) {
+                                if (lua_isfunction(L, -1))
+                                {
                                     m.lua_update_ref
                                         = luaL_ref(L, LUA_REGISTRYINDEX);
-                                } else {
+                                }
+                                else
+                                {
                                     wlr_log(WLR_ERROR,
-                                        "bar: custom module missing 'update' function");
+                                            "bar: custom module missing "
+                                            "'update' function");
                                     lua_pop(L, 1);
                                 }
                             }
@@ -3522,12 +3764,14 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                             /* Event handlers (available on any module type). */
                             lua_getfield(L, -1, "on_click");
                             if (lua_isfunction(L, -1))
-                                m.lua_click_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+                                m.lua_click_ref
+                                    = luaL_ref(L, LUA_REGISTRYINDEX);
                             else
                                 lua_pop(L, 1);
                             lua_getfield(L, -1, "on_hover");
                             if (lua_isfunction(L, -1))
-                                m.lua_hover_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+                                m.lua_hover_ref
+                                    = luaL_ref(L, LUA_REGISTRYINDEX);
                             else
                                 lua_pop(L, 1);
                         }
@@ -3546,26 +3790,25 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         lua_getfield(L, -1, "fx");
         if (lua_istable(L, -1))
         {
-            cfg->bar.fx.corner_radius = get_int_field(
-                L, "corner_radius", cfg->bar.fx.corner_radius);
-            cfg->bar.fx.blur_enabled = get_bool_field(
-                L, "blur", cfg->bar.fx.blur_enabled);
+            cfg->bar.fx.corner_radius
+                = get_int_field(L, "corner_radius", cfg->bar.fx.corner_radius);
+            cfg->bar.fx.blur_enabled
+                = get_bool_field(L, "blur", cfg->bar.fx.blur_enabled);
 
             lua_getfield(L, -1, "shadow");
             if (lua_istable(L, -1))
             {
-                cfg->bar.fx.shadow_enabled = get_bool_field(
-                    L, "enabled", cfg->bar.fx.shadow_enabled);
+                cfg->bar.fx.shadow_enabled
+                    = get_bool_field(L, "enabled", cfg->bar.fx.shadow_enabled);
                 cfg->bar.fx.shadow_blur_sigma = get_float_field(
                     L, "blur_sigma", cfg->bar.fx.shadow_blur_sigma);
                 cfg->bar.fx.shadow_offset_x = get_float_field(
                     L, "offset_x", cfg->bar.fx.shadow_offset_x);
                 cfg->bar.fx.shadow_offset_y = get_float_field(
                     L, "offset_y", cfg->bar.fx.shadow_offset_y);
-                float dsc[4] = {cfg->bar.fx.shadow_color[0],
-                                cfg->bar.fx.shadow_color[1],
-                                cfg->bar.fx.shadow_color[2],
-                                cfg->bar.fx.shadow_color[3]};
+                float dsc[4] = {
+                    cfg->bar.fx.shadow_color[0], cfg->bar.fx.shadow_color[1],
+                    cfg->bar.fx.shadow_color[2], cfg->bar.fx.shadow_color[3]};
                 get_color_field(L, "color", cfg->bar.fx.shadow_color, dsc);
             }
             lua_pop(L, 1); /* pop 'shadow' */
@@ -3609,15 +3852,19 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         cfg->fx.opacity = get_float_field(L, "opacity", cfg->fx.opacity);
         cfg->fx.focused_opacity
             = get_float_field(L, "focused_opacity", cfg->fx.focused_opacity);
-        cfg->fx.unfocused_opacity
-            = get_float_field(L, "unfocused_opacity", cfg->fx.unfocused_opacity);
+        cfg->fx.unfocused_opacity = get_float_field(L, "unfocused_opacity",
+                                                    cfg->fx.unfocused_opacity);
         lua_getfield(L, -1, "blur");
         if (lua_istable(L, -1))
         {
-            cfg->fx.blur_enabled = get_bool_field(L, "enabled", cfg->fx.blur_enabled);
-            cfg->fx.blur_passes  = get_int_field(L, "passes", cfg->fx.blur_passes);
-            cfg->fx.blur_radius  = get_int_field(L, "radius", cfg->fx.blur_radius);
-            cfg->fx.blur_noise   = get_float_field(L, "noise", cfg->fx.blur_noise);
+            cfg->fx.blur_enabled
+                = get_bool_field(L, "enabled", cfg->fx.blur_enabled);
+            cfg->fx.blur_passes
+                = get_int_field(L, "passes", cfg->fx.blur_passes);
+            cfg->fx.blur_radius
+                = get_int_field(L, "radius", cfg->fx.blur_radius);
+            cfg->fx.blur_noise
+                = get_float_field(L, "noise", cfg->fx.blur_noise);
             cfg->fx.blur_brightness
                 = get_float_field(L, "brightness", cfg->fx.blur_brightness);
             cfg->fx.blur_contrast
@@ -3630,7 +3877,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         lua_getfield(L, -1, "animations");
         if (lua_istable(L, -1))
         {
-            cfg->fx.animation.enabled = get_bool_field(L, "enabled", cfg->fx.animation.enabled);
+            cfg->fx.animation.enabled
+                = get_bool_field(L, "enabled", cfg->fx.animation.enabled);
             cfg->fx.animation.duration_ms
                 = get_int_field(L, "duration", cfg->fx.animation.duration_ms);
             /* global easing */
@@ -3638,7 +3886,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 char *s = get_string_field(L, "easing", nullptr);
                 if (s)
                 {
-                    cfg->fx.animation.easing = parse_easing(s, cfg->fx.animation.easing);
+                    cfg->fx.animation.easing
+                        = parse_easing(s, cfg->fx.animation.easing);
                     free(s);
                 }
             }
@@ -3653,13 +3902,13 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                         = parse_open_style(s, cfg->fx.animation.open_style);
                     free(s);
                 }
-                cfg->fx.animation.open_duration_ms
-                    = get_int_field(L, "duration", cfg->fx.animation.open_duration_ms);
+                cfg->fx.animation.open_duration_ms = get_int_field(
+                    L, "duration", cfg->fx.animation.open_duration_ms);
                 char *e = get_string_field(L, "easing", nullptr);
                 if (e)
                 {
-                    cfg->fx.animation.open_easing
-                        = static_cast<int>(parse_easing(e, cfg->fx.animation.easing));
+                    cfg->fx.animation.open_easing = static_cast<int>(
+                        parse_easing(e, cfg->fx.animation.easing));
                     free(e);
                 }
             }
@@ -3675,13 +3924,13 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                         = parse_open_style(s, cfg->fx.animation.close_style);
                     free(s);
                 }
-                cfg->fx.animation.close_duration_ms
-                    = get_int_field(L, "duration", cfg->fx.animation.close_duration_ms);
+                cfg->fx.animation.close_duration_ms = get_int_field(
+                    L, "duration", cfg->fx.animation.close_duration_ms);
                 char *e = get_string_field(L, "easing", nullptr);
                 if (e)
                 {
-                    cfg->fx.animation.close_easing
-                        = static_cast<int>(parse_easing(e, cfg->fx.animation.easing));
+                    cfg->fx.animation.close_easing = static_cast<int>(
+                        parse_easing(e, cfg->fx.animation.easing));
                     free(e);
                 }
             }
@@ -3701,13 +3950,13 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                         cfg->fx.animation.ws_style = nnwm_ws_style::NONE;
                     free(s);
                 }
-                cfg->fx.animation.ws_duration_ms
-                    = get_int_field(L, "duration", cfg->fx.animation.ws_duration_ms);
+                cfg->fx.animation.ws_duration_ms = get_int_field(
+                    L, "duration", cfg->fx.animation.ws_duration_ms);
                 char *e = get_string_field(L, "easing", nullptr);
                 if (e)
                 {
-                    cfg->fx.animation.ws_easing
-                        = static_cast<int>(parse_easing(e, cfg->fx.animation.easing));
+                    cfg->fx.animation.ws_easing = static_cast<int>(
+                        parse_easing(e, cfg->fx.animation.easing));
                     free(e);
                 }
             }
@@ -3720,7 +3969,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 if (s)
                 {
                     if (strcmp(s, "tween") == 0)
-                        cfg->fx.animation.layout_style = nnwm_layout_anim::TWEEN;
+                        cfg->fx.animation.layout_style
+                            = nnwm_layout_anim::TWEEN;
                     else if (strcmp(s, "none") == 0)
                         cfg->fx.animation.layout_style = nnwm_layout_anim::NONE;
                     free(s);
@@ -3730,8 +3980,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 char *e = get_string_field(L, "easing", nullptr);
                 if (e)
                 {
-                    cfg->fx.animation.layout_easing
-                        = static_cast<int>(parse_easing(e, cfg->fx.animation.easing));
+                    cfg->fx.animation.layout_easing = static_cast<int>(
+                        parse_easing(e, cfg->fx.animation.easing));
                     free(e);
                 }
             }
@@ -3744,18 +3994,19 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                 if (s)
                 {
                     if (strcmp(s, "crossfade") == 0)
-                        cfg->fx.animation.focus_style = nnwm_focus_style::CROSSFADE;
+                        cfg->fx.animation.focus_style
+                            = nnwm_focus_style::CROSSFADE;
                     else if (strcmp(s, "none") == 0)
                         cfg->fx.animation.focus_style = nnwm_focus_style::NONE;
                     free(s);
                 }
-                cfg->fx.animation.focus_duration_ms
-                    = get_int_field(L, "duration", cfg->fx.animation.focus_duration_ms);
+                cfg->fx.animation.focus_duration_ms = get_int_field(
+                    L, "duration", cfg->fx.animation.focus_duration_ms);
                 char *e = get_string_field(L, "easing", nullptr);
                 if (e)
                 {
-                    cfg->fx.animation.focus_easing
-                        = static_cast<int>(parse_easing(e, cfg->fx.animation.easing));
+                    cfg->fx.animation.focus_easing = static_cast<int>(
+                        parse_easing(e, cfg->fx.animation.easing));
                     free(e);
                 }
             }
@@ -3773,23 +4024,26 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
 
     /* hot_corners parsing */
     lua_getfield(L, -1, "hot_corners");
-    if (lua_istable(L, -1)) {
-        static const char *corner_keys[4] = {
-            "top_left", "top_right", "bottom_left", "bottom_right"
-        };
+    if (lua_istable(L, -1))
+    {
+        static const char *corner_keys[4]
+            = {"top_left", "top_right", "bottom_left", "bottom_right"};
         lua_getfield(L, -1, "size");
         if (lua_isnumber(L, -1))
             cfg->hot_corner_size = (int)lua_tointeger(L, -1);
         lua_pop(L, 1);
 
         /* Parse global corner definitions */
-        for (int ci = 0; ci < 4; ci++) {
+        for (int ci = 0; ci < 4; ci++)
+        {
             lua_getfield(L, -1, corner_keys[ci]);
-            if (lua_istable(L, -1)) {
+            if (lua_istable(L, -1))
+            {
                 cfg->hot_corners[ci].func_ref = -1; /* clear first */
                 lua_getfield(L, -1, "action");
                 if (lua_isfunction(L, -1))
-                    cfg->hot_corners[ci].func_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+                    cfg->hot_corners[ci].func_ref
+                        = luaL_ref(L, LUA_REGISTRYINDEX);
                 else
                     lua_pop(L, 1);
                 lua_getfield(L, -1, "delay");
@@ -3802,7 +4056,8 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
 
         /* Parse per-monitor overrides */
         lua_getfield(L, -1, "monitors");
-        if (lua_istable(L, -1)) {
+        if (lua_istable(L, -1))
+        {
             /* Free old per-monitor data */
             for (int i = 0; i < cfg->monitor_hot_corner_count; i++)
                 free(cfg->monitor_hot_corners[i].name);
@@ -3813,31 +4068,43 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
             /* Count entries */
             int n = 0;
             lua_pushnil(L);
-            while (lua_next(L, -2)) { n++; lua_pop(L, 1); }
+            while (lua_next(L, -2))
+            {
+                n++;
+                lua_pop(L, 1);
+            }
 
-            if (n > 0) {
-                cfg->monitor_hot_corners = static_cast<nnwm_monitor_hot_corners *>(
-                    calloc(n, sizeof(nnwm_monitor_hot_corners)));
+            if (n > 0)
+            {
+                cfg->monitor_hot_corners
+                    = static_cast<nnwm_monitor_hot_corners *>(
+                        calloc(n, sizeof(nnwm_monitor_hot_corners)));
                 int idx = 0;
                 lua_pushnil(L);
-                while (lua_next(L, -2)) {
+                while (lua_next(L, -2))
+                {
                     /* key=-2, value=-1 */
-                    if (lua_isstring(L, -2) && lua_istable(L, -1)) {
+                    if (lua_isstring(L, -2) && lua_istable(L, -1))
+                    {
                         auto &mhc = cfg->monitor_hot_corners[idx];
-                        mhc.name = strdup(lua_tostring(L, -2));
-                        for (int ci = 0; ci < 4; ci++) {
+                        mhc.name  = strdup(lua_tostring(L, -2));
+                        for (int ci = 0; ci < 4; ci++)
+                        {
                             mhc.corners[ci].func_ref = -2; /* inherit */
                             mhc.corners[ci].delay_ms = -1; /* inherit */
                             lua_getfield(L, -1, corner_keys[ci]);
-                            if (lua_istable(L, -1)) {
+                            if (lua_istable(L, -1))
+                            {
                                 lua_getfield(L, -1, "action");
                                 if (lua_isfunction(L, -1))
-                                    mhc.corners[ci].func_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+                                    mhc.corners[ci].func_ref
+                                        = luaL_ref(L, LUA_REGISTRYINDEX);
                                 else
                                     lua_pop(L, 1);
                                 lua_getfield(L, -1, "delay");
                                 if (lua_isnumber(L, -1))
-                                    mhc.corners[ci].delay_ms = (int)lua_tointeger(L, -1);
+                                    mhc.corners[ci].delay_ms
+                                        = (int)lua_tointeger(L, -1);
                                 lua_pop(L, 1);
                             }
                             lua_pop(L, 1);
@@ -3998,9 +4265,9 @@ nnwm::lua_fini(struct nnwm_server *server)
         luaL_unref(server->lua, LUA_REGISTRYINDEX, r.func_ref);
     }
     std::free(server->runtime_rules);
-    server->runtime_rules       = nullptr;
-    server->runtime_rule_count  = 0;
-    server->runtime_rule_cap    = 0;
+    server->runtime_rules        = nullptr;
+    server->runtime_rule_count   = 0;
+    server->runtime_rule_cap     = 0;
     server->runtime_rule_next_id = 0;
 
     lua_close(server->lua);
@@ -4009,10 +4276,12 @@ nnwm::lua_fini(struct nnwm_server *server)
 
 /* Minimal keybindings loaded when the user config fails to parse/run.
  * Gives the user a way to open a terminal and fix the config. */
-static const char FALLBACK_KEYBINDS[] =
-    "nnwm.key({\"Super\",\"Return\"},  function() nnwm.spawn(\"kitty || foot || alacritty || xterm\") end)\n"
-    "nnwm.key({\"Super\",\"p\"},        function() nnwm.spawn(\"rofi -show drun\") end)\n"
-    "nnwm.key({\"Super\",\"Shift\",\"c\"}, function() nnwm.quit() end)\n";
+static const char FALLBACK_KEYBINDS[]
+    = "nnwm.key({\"Super\",\"Return\"},  function() nnwm.spawn(\"kitty\") "
+      "end)\n"
+      "nnwm.key({\"Super\",\"p\"},        function() nnwm.spawn(\"rofi -show "
+      "drun\") end)\n"
+      "nnwm.key({\"Super\",\"Shift\",\"c\"}, function() nnwm.quit() end)\n";
 
 void
 nnwm::lua_load_config(struct nnwm_server *server, struct nnwm_config *cfg,
@@ -4031,8 +4300,16 @@ nnwm::lua_load_config(struct nnwm_server *server, struct nnwm_config *cfg,
     {
         const char *err = lua_tostring(server->lua, -1);
         std::fprintf(stderr, "nnwm: config error: %s\n", err);
-        if (server->wayland_started && cfg->show_config_error_overlay)
-            show_config_error(server, err);
+        if (server->wayland_started)
+        {
+            if (cfg->show_config_error_overlay)
+                show_config_error(server, err);
+        }
+        else
+        {
+            free(server->pending_config_error);
+            server->pending_config_error = strdup(err);
+        }
         lua_pop(server->lua, 1);
         luaL_dostring(server->lua, FALLBACK_KEYBINDS);
     }
@@ -4101,7 +4378,7 @@ nnwm::lua_reload(struct nnwm_server *server, struct nnwm_config *cfg)
             for (int m = 0; m < cfg->monitor_config_count; m++)
             {
                 const auto &c = cfg->monitor_configs[m];
-                bool match = true;
+                bool match    = true;
                 if (c.name && strcmp(out->wlr_output->name, c.name) != 0)
                     match = false;
                 if (match)
@@ -4113,10 +4390,11 @@ nnwm::lua_reload(struct nnwm_server *server, struct nnwm_config *cfg)
             for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
             {
                 free(out->workspace_names[i]);
-                const char *mon_name = (mc && mc->workspace_names[i])
-                                           ? mc->workspace_names[i] : nullptr;
-                const char *glb_name = cfg->workspace_names[i];
-                const char *eff      = mon_name ? mon_name : glb_name;
+                const char *mon_name    = (mc && mc->workspace_names[i])
+                                              ? mc->workspace_names[i]
+                                              : nullptr;
+                const char *glb_name    = cfg->workspace_names[i];
+                const char *eff         = mon_name ? mon_name : glb_name;
                 out->workspace_names[i] = eff ? strdup(eff) : nullptr;
             }
         }
@@ -4177,8 +4455,8 @@ nnwm::lua_handle_keybinding(struct nnwm_server *server, uint32_t mods,
 }
 
 void
-nnwm::lua_handle_gesture(struct nnwm_server *server, int fingers,
-                         double dx, double dy)
+nnwm::lua_handle_gesture(struct nnwm_server *server, int fingers, double dx,
+                         double dy)
 {
     if (!server->lua || server->lua_gesture_count == 0)
         return;
@@ -4213,15 +4491,15 @@ nnwm::config_defaults(void)
 {
     auto *cfg = new nnwm_config{};
 
-    cfg->layout.master_ratio        = 0.55f;
-    cfg->layout.master_ratio_step   = 0.05f;
-    cfg->layout.master_ratio_min    = 0.1f;
-    cfg->layout.master_ratio_max    = 0.9f;
-    cfg->scroll_column_width = 0.5f;
-    cfg->scroll_row_height   = 0.5f;
+    cfg->layout.master_ratio      = 0.55f;
+    cfg->layout.master_ratio_step = 0.05f;
+    cfg->layout.master_ratio_min  = 0.1f;
+    cfg->layout.master_ratio_max  = 0.9f;
+    cfg->scroll_column_width      = 0.5f;
+    cfg->scroll_row_height        = 0.5f;
 
-    cfg->fx.rounding.radius = 0;
-    cfg->fx.rounding.smart  = false;
+    cfg->fx.rounding.radius   = 0;
+    cfg->fx.rounding.smart    = false;
     cfg->fx.shadow_enabled    = false;
     cfg->fx.shadow_blur_sigma = 10.0f;
     cfg->fx.shadow_color[0]   = 0.0f;
@@ -4241,12 +4519,12 @@ nnwm::config_defaults(void)
     cfg->fx.blur_contrast     = 1.0f;
     cfg->fx.blur_saturation   = 1.0f;
 
-    cfg->gap.inner     = 0;
-    cfg->gap.outer     = 0;
+    cfg->gap.inner    = 0;
+    cfg->gap.outer    = 0;
     cfg->gap.smart    = false;
     cfg->border.smart = false;
 
-    cfg->border.width       = 2;
+    cfg->border.width              = 2;
     cfg->border.focused_color[0]   = 0.3f;
     cfg->border.focused_color[1]   = 0.5f;
     cfg->border.focused_color[2]   = 0.8f;
@@ -4272,29 +4550,29 @@ nnwm::config_defaults(void)
     cfg->cursor_size  = 24;
     cfg->seat_name    = strdup("seat0");
 
-    cfg->touchpad.enabled              = true;
-    cfg->touchpad.tap_to_click         = true;
-    cfg->touchpad.natural_scroll       = true;
-    cfg->touchpad.disable_while_typing     = true;
+    cfg->touchpad.enabled                   = true;
+    cfg->touchpad.tap_to_click              = true;
+    cfg->touchpad.natural_scroll            = true;
+    cfg->touchpad.disable_while_typing      = true;
     cfg->touchpad.disable_on_external_mouse = false;
-    cfg->touchpad.drag                     = true;
-    cfg->touchpad.scroll_factor        = 1.0f;
-    cfg->touchpad.scroll_method        = 1; /* two_finger */
+    cfg->touchpad.drag                      = true;
+    cfg->touchpad.scroll_factor             = 1.0f;
+    cfg->touchpad.scroll_method             = 1; /* two_finger */
 
-    cfg->focus_follows_mouse              = false;
-    cfg->focus_on_activate                = false;
-    cfg->workspace_back_and_forth         = false;
-    cfg->show_config_error_overlay        = true;
-    cfg->mouse.accel_speed                = 0.0f;
-    cfg->mouse.accel_profile              = 0; /* adaptive */
-    cfg->mouse.natural_scroll             = false;
-    cfg->mouse.disable_while_typing       = false;
-    cfg->mouse.hide_cursor_when_typing    = false;
-    cfg->mouse.warp_to_focused_window     = false;
-    cfg->new_window_master   = true;
-    cfg->center_new_floating = true;
-    cfg->clipboard_enabled   = true;
-    cfg->client_decorations  = false;
+    cfg->focus_follows_mouse           = false;
+    cfg->focus_on_activate             = false;
+    cfg->workspace_back_and_forth      = false;
+    cfg->show_config_error_overlay     = true;
+    cfg->mouse.accel_speed             = 0.0f;
+    cfg->mouse.accel_profile           = 0; /* adaptive */
+    cfg->mouse.natural_scroll          = false;
+    cfg->mouse.disable_while_typing    = false;
+    cfg->mouse.hide_cursor_when_typing = false;
+    cfg->mouse.warp_to_focused_window  = false;
+    cfg->new_window_master             = true;
+    cfg->center_new_floating           = true;
+    cfg->clipboard_enabled             = true;
+    cfg->client_decorations            = false;
 
     cfg->titlebar.height                = 0;
     cfg->titlebar.font                  = strdup("Sans 10");
@@ -4323,12 +4601,12 @@ nnwm::config_defaults(void)
     cfg->titlebar.urgent_text_color[1]  = 1.0f;
     cfg->titlebar.urgent_text_color[2]  = 1.0f;
     cfg->titlebar.urgent_text_color[3]  = 1.0f;
-    cfg->layout.tab_style             = nnwm_tab_style::NORMAL;
-    cfg->layout.tab_position          = nnwm_tab_position::TOP;
-    cfg->layout.tab_bar_height        = 24;
-    cfg->layout.tab_smart             = false;
-    cfg->layout.enabled_layouts       = nullptr;
-    cfg->layout.enabled_layouts_count = 0;
+    cfg->layout.tab_style               = nnwm_tab_style::NORMAL;
+    cfg->layout.tab_position            = nnwm_tab_position::TOP;
+    cfg->layout.tab_bar_height          = 24;
+    cfg->layout.tab_smart               = false;
+    cfg->layout.enabled_layouts         = nullptr;
+    cfg->layout.enabled_layouts_count   = 0;
 
 #ifdef HAVE_SCENEFX
     cfg->fx.animation.enabled            = true;
@@ -4356,7 +4634,8 @@ nnwm::config_defaults(void)
 
     /* Hot corners — all disabled by default */
     cfg->hot_corner_size = 4;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++)
+    {
         cfg->hot_corners[i].func_ref = -1; /* -1 = disabled */
         cfg->hot_corners[i].delay_ms = 300;
     }
@@ -4367,7 +4646,8 @@ nnwm::config_defaults(void)
     cfg->window_rule_count = 0;
 
     cfg->workspace_count = NNWM_NUM_WORKSPACES;
-    for (int i = 0; i < NNWM_NUM_WORKSPACES; i++) {
+    for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
+    {
         cfg->workspace_names[i]           = nullptr;
         cfg->workspace_default_layouts[i] = -1; /* -1 = htile */
     }
@@ -4380,21 +4660,25 @@ nnwm::config_defaults(void)
     cfg->bar.height         = 28;
     cfg->bar.per_output     = true;
     cfg->bar.output_name    = nullptr;
-    cfg->bar.font              = strdup("monospace 11");
-    cfg->bar.padding.top       = 0;
-    cfg->bar.padding.right     = 0;
-    cfg->bar.padding.bottom    = 0;
-    cfg->bar.padding.left      = 0;
-    cfg->bar.module_spacing    = 8;
-    cfg->bar.opacity           = 1.0f;
-    cfg->bar.bg_color[0] = 0.08f; cfg->bar.bg_color[1] = 0.09f;
-    cfg->bar.bg_color[2] = 0.12f; cfg->bar.bg_color[3] = 0.95f;
-    cfg->bar.fg_color[0] = 0.85f; cfg->bar.fg_color[1] = 0.85f;
-    cfg->bar.fg_color[2] = 0.85f; cfg->bar.fg_color[3] = 1.0f;
-    cfg->bar.modules      = nullptr;
-    cfg->bar.module_count = 0;
-    cfg->bar.lua_click_ref = -1;
-    cfg->bar.lua_hover_ref = -1;
+    cfg->bar.font           = strdup("monospace 11");
+    cfg->bar.padding.top    = 0;
+    cfg->bar.padding.right  = 0;
+    cfg->bar.padding.bottom = 0;
+    cfg->bar.padding.left   = 0;
+    cfg->bar.module_spacing = 8;
+    cfg->bar.opacity        = 1.0f;
+    cfg->bar.bg_color[0]    = 0.08f;
+    cfg->bar.bg_color[1]    = 0.09f;
+    cfg->bar.bg_color[2]    = 0.12f;
+    cfg->bar.bg_color[3]    = 0.95f;
+    cfg->bar.fg_color[0]    = 0.85f;
+    cfg->bar.fg_color[1]    = 0.85f;
+    cfg->bar.fg_color[2]    = 0.85f;
+    cfg->bar.fg_color[3]    = 1.0f;
+    cfg->bar.modules        = nullptr;
+    cfg->bar.module_count   = 0;
+    cfg->bar.lua_click_ref  = -1;
+    cfg->bar.lua_hover_ref  = -1;
 
     cfg->bar.fx.corner_radius     = 0;
     cfg->bar.fx.shadow_enabled    = false;
@@ -4443,7 +4727,8 @@ nnwm::config_free(struct nnwm_config *cfg)
 
     free(cfg->bar.font);
     free(cfg->bar.output_name);
-    for (int i = 0; i < cfg->bar.module_count; i++) {
+    for (int i = 0; i < cfg->bar.module_count; i++)
+    {
         free(cfg->bar.modules[i].name);
         free(cfg->bar.modules[i].format);
         free(cfg->bar.modules[i].cached_text);

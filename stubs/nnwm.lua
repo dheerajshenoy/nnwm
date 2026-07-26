@@ -237,6 +237,7 @@ MOD = {}
 ---@field seat_name?                 string
 ---@field monitors?                  nnwm_monitor_config[]
 ---@field workspace_back_and_forth?  boolean   When true, switching to the active workspace jumps to the previously visited workspace instead of doing nothing (default: false)
+---@field focus_on_activate?         boolean   When true, switch to a window's workspace and focus it when an xdg-activation token is received (default: false)
 ---@field show_config_error_overlay? boolean   Show a red overlay when the Lua config fails to load. Dangerous to disable — errors will be silently ignored (default: true)
 ---@field workspace_names?           string[]  Workspace labels; the array length sets the workspace count (1–9, default: 9 unlabelled). Shown in the overview and sent via ext-workspace-v1. Empty strings fall back to the numeric index.
 ---@field find_cursor_style?         "rings"|"spotlight"|"zoom"  Animation style for `nnwm.find_cursor()`. "rings" = filled circle shrinking to cursor (default); "spotlight" = full-screen dim with circular cutout at cursor; "zoom" = temporarily enlarges the system cursor.
@@ -476,7 +477,7 @@ function nnwm.current_output() end
 
 --- Return a snapshot table of every mapped window. The array is in internal
 --- tiling-list order. Each entry has the same fields as `nnwm.current_window()`
---- plus `urgent` and `is_xwayland`.
+--- plus `urgent`.
 ---@return nnwm.Window[]
 function nnwm.windows() end
 
@@ -724,7 +725,16 @@ function nnwm.toggle_keybind_overlay() end
 --- and supports tiling layouts. The window is removed from its current
 --- workspace and placed in the scratchpad tree. If the scratchpad is currently
 --- visible, the window is immediately tiled into it.
-function nnwm.move_to_scratchpad() end
+---
+--- Pass a `name` to use a *named* scratchpad — a per-name scratchpad that is
+--- independent of the global one. Named scratchpads are created lazily.
+---
+--- ```lua
+--- nnwm.move_to_scratchpad()          -- global scratchpad
+--- nnwm.move_to_scratchpad("notes")   -- named scratchpad
+--- ```
+---@param name string?  Named scratchpad identifier. Omit for the global scratchpad.
+function nnwm.move_to_scratchpad(name) end
 
 --- Toggle the scratchpad overlay on or off.
 --- When shown, the scratchpad appears on top of the focused output with a
@@ -732,7 +742,15 @@ function nnwm.move_to_scratchpad() end
 --- previously focused workspace window. While the scratchpad is visible,
 --- layout toggle functions (e.g. `toggle_vertical_tile`, `layout_next`)
 --- affect the scratchpad layout (HTILE/VTILE) instead of the active workspace.
-function nnwm.scratchpad_toggle() end
+---
+--- Pass a `name` to toggle a *named* scratchpad — independent of the global one.
+---
+--- ```lua
+--- nnwm.scratchpad_toggle()          -- global scratchpad
+--- nnwm.scratchpad_toggle("notes")   -- named scratchpad
+--- ```
+---@param name string?  Named scratchpad identifier. Omit for the global scratchpad.
+function nnwm.scratchpad_toggle(name) end
 
 --- Toggle the focused window between floating and tiled mode.
 --- When made floating the window is centered on screen; when returned to tiled

@@ -76,7 +76,8 @@ main(int argc, char *argv[])
 #endif
 
     /* Initialize Lua state for config and keybinding callbacks */
-    server.config_inotify_fd = -1;
+    server.config_inotify_fd    = -1;
+    server.pending_config_error = nullptr;
     nnwm::lua_init(&server);
 
     /* Load config: explicit -c path, then ~/.config/nnwm/init.lua, then defaults */
@@ -643,6 +644,16 @@ main(int argc, char *argv[])
         system(cmd);
     }
     server.wayland_started = true;
+
+    /* Show any config error that occurred before Wayland was ready */
+    if (server.pending_config_error)
+    {
+        if (server.config->show_config_error_overlay)
+            show_config_error(&server, server.pending_config_error);
+        free(server.pending_config_error);
+        server.pending_config_error = nullptr;
+    }
+
     nnwm::flush_autostart(&server);
     /* Unset DISPLAY so clients don't try to connect to a non-existent X server.
      * Without this, toolkits like GLFW/SDL that support both X11 and Wayland
