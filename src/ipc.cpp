@@ -193,7 +193,20 @@ static void handle_client_data(ipc_client *cl)
                      sizeof(cl->read_buf) - cl->read_len - 1);
     if (n <= 0)
     {
-        /* Disconnect or error */
+        /* Flush any pending response before closing (client did shutdown(SHUT_WR)
+         * so the write source may not have fired yet) */
+        if (n == 0 && cl->write_len > cl->write_off)
+        {
+            while (cl->write_off < cl->write_len)
+            {
+                ssize_t w = write(cl->fd, cl->write_buf + cl->write_off,
+                                  cl->write_len - cl->write_off);
+                if (w < 0 && errno == EINTR) continue;
+                if (w <= 0) break;
+                cl->write_off += (int)w;
+            }
+        }
+
         wl_event_source_remove(cl->read_source);
         cl->read_source = nullptr;
         if (cl->write_source)

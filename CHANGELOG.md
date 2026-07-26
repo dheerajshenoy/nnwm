@@ -1,5 +1,46 @@
 # nnwm CHANGELOG
 
+## Unreleased
+
+### Features
+
+- **`nnwm.windows()`**: new Lua API that returns an array of all mapped
+  toplevels. Each entry includes `title`, `app_id`, `workspace`, `output`,
+  `x`, `y`, `width`, `height`, `floating`, `fullscreen`, `maximized`,
+  `sticky`, `urgent`, and `is_xwayland`.
+- **`nnwm.workspaces()`**: new Lua API that returns an array of all
+  `NNWM_NUM_WORKSPACES` workspaces for the focused output. Each entry
+  includes `index`, `active`, `layout`, `master_ratio`, `window_count`,
+  and `name`.
+- **`nnwm.outputs()`**: new Lua API that returns an array of all connected
+  outputs. Each entry includes `name`, `description`, `width`, `height`,
+  `scale`, `x`, `y`, `active_workspace`, and `focused`.
+- **`nnwmctl get windows/workspaces/outputs`**: the three new query
+  subcommands are now backed by the new Lua APIs above and return
+  pretty-printed JSON.
+- **`nnwm.current_window()` and `nnwm.windows()` gain `is_xwayland`**:
+  both APIs now include a boolean `is_xwayland` field so callers can
+  distinguish XWayland windows from native Wayland clients.
+
+### Bug Fixes
+
+- **nnwmctl commands froze the compositor**: `exec_lua` called
+  `lua_pcall(L, 1, 1, 0)` but only the chunk function was on the stack —
+  no argument. Lua treated the function itself as the argument and called
+  whatever was below it on the stack, causing undefined behavior. Fixed by
+  using `lua_pcall(L, 0, 1, 0)`.
+- **nnwmctl get commands returned nothing**: nnwmctl sends the command then
+  calls `shutdown(SHUT_WR)`. The server processed the command and scheduled
+  a deferred write via `wl_event_loop_add_fd`, but the EOF from the
+  shutdown arrived first, causing the disconnect handler to tear down the
+  write source before it fired. Fixed by flushing any pending write
+  synchronously when a clean EOF is received.
+- **IPC response JSON was unusable for table results**: the server
+  serialized Lua tables via `tostring()`, producing pointer strings like
+  `"table: 0x..."`. Replaced with a recursive `lua_to_json` converter
+  (backed by nlohmann/json) that properly serializes nil, boolean, number,
+  string, and nested tables as JSON arrays or objects.
+
 ## 0.1.3
 
 ### Features

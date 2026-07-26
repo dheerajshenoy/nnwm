@@ -821,6 +821,9 @@ l_nnwm_current_window(lua_State *L)
     lua_pushboolean(L, tl->sticky);
     lua_setfield(L, -2, "sticky");
 
+    lua_pushboolean(L, tl->is_xwayland);
+    lua_setfield(L, -2, "is_xwayland");
+
     lua_pushinteger(L, tl->workspace + 1);
     lua_setfield(L, -2, "workspace");
 
@@ -969,6 +972,9 @@ l_nnwm_windows(lua_State *L)
 
         lua_pushboolean(L, tl->urgent);
         lua_setfield(L, -2, "urgent");
+
+        lua_pushboolean(L, tl->is_xwayland);
+        lua_setfield(L, -2, "is_xwayland");
 
         lua_pushinteger(L, tl->workspace + 1);
         lua_setfield(L, -2, "workspace");
