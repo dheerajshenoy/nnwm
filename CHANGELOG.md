@@ -1,6 +1,6 @@
 # nnwm CHANGELOG
 
-## Unreleased
+## 0.1.3
 
 ### Features
 
@@ -40,54 +40,6 @@
 - **`nnwm.current_window()` and `nnwm.windows()` gain `is_xwayland`**:
   both APIs now include a boolean `is_xwayland` field so callers can
   distinguish XWayland windows from native Wayland clients.
-
-### Bug Fixes
-
-- **Crash on window close (heap-use-after-free in `decoration_handle_destroy`)**:
-  closing any window with server-side decoration caused a crash detected by
-  AddressSanitizer. `decoration_handle_destroy` called `toplevel_from_deco`,
-  which dereferenced `wlr_deco->toplevel->base->data` (the `wlr_scene_tree`) to
-  find the `nnwm_toplevel`. However, `handle_xdg_toplevel_destroy` fires earlier
-  in the same signal emission chain and calls `wlr_scene_node_destroy`, freeing
-  that scene tree. The subsequent dereference in `toplevel_from_deco` was a
-  use-after-free. Fixed by storing a direct `toplevel` back-pointer in
-  `nnwm_decoration` (resolved once at decoration creation time, while the scene
-  tree is still alive) and nulling it in `handle_xdg_toplevel_destroy` before
-  the scene tree is freed.
-
-- **Workspace indicator not updating immediately when switching to empty
-  workspaces**: `bar_notify_workspace_change` marked the bar dirty but did not
-  schedule an output frame. If the workspace switch produced no scene-graph
-  damage (both old and new workspaces empty), wlroots would not fire an
-  `output_frame` event on its own, leaving the workspace pills stale until the
-  next user-driven damage. Fixed by calling `wlr_output_schedule_frame` in
-  `redraw_if_cares` whenever a bar is marked dirty, guaranteeing a frame fires
-  within the next vsync interval regardless of scene-graph state.
-
-- **AddressSanitizer / LeakSanitizer not active in Debug builds**: the CMake
-  Debug config lacked the sanitizer flags. Added `-fsanitize=address,leak` to
-  both `target_compile_options` and `target_link_options` for `$<CONFIG:Debug>`.
-
-- **nnwmctl commands froze the compositor**: `exec_lua` called
-  `lua_pcall(L, 1, 1, 0)` but only the chunk function was on the stack —
-  no argument. Lua treated the function itself as the argument and called
-  whatever was below it on the stack, causing undefined behavior. Fixed by
-  using `lua_pcall(L, 0, 1, 0)`.
-- **nnwmctl get commands returned nothing**: nnwmctl sends the command then
-  calls `shutdown(SHUT_WR)`. The server processed the command and scheduled
-  a deferred write via `wl_event_loop_add_fd`, but the EOF from the
-  shutdown arrived first, causing the disconnect handler to tear down the
-  write source before it fired. Fixed by flushing any pending write
-  synchronously when a clean EOF is received.
-- **IPC response JSON was unusable for table results**: the server
-  serialized Lua tables via `tostring()`, producing pointer strings like
-  `"table: 0x..."`. Replaced with a recursive `lua_to_json` converter
-  (backed by nlohmann/json) that properly serializes nil, boolean, number,
-  string, and nested tables as JSON arrays or objects.
-
-## 0.1.3
-
-### Features
 
 - **nnwmctl IPC**: a companion CLI tool (`nnwmctl`) communicates with the
   running compositor over a Unix socket (`$XDG_RUNTIME_DIR/nnwm-ipc.sock`).
@@ -246,6 +198,48 @@
   ```
 
 ### Bug Fixes
+
+- **Crash on window close (heap-use-after-free in `decoration_handle_destroy`)**:
+  closing any window with server-side decoration caused a crash detected by
+  AddressSanitizer. `decoration_handle_destroy` called `toplevel_from_deco`,
+  which dereferenced `wlr_deco->toplevel->base->data` (the `wlr_scene_tree`) to
+  find the `nnwm_toplevel`. However, `handle_xdg_toplevel_destroy` fires earlier
+  in the same signal emission chain and calls `wlr_scene_node_destroy`, freeing
+  that scene tree. The subsequent dereference in `toplevel_from_deco` was a
+  use-after-free. Fixed by storing a direct `toplevel` back-pointer in
+  `nnwm_decoration` (resolved once at decoration creation time, while the scene
+  tree is still alive) and nulling it in `handle_xdg_toplevel_destroy` before
+  the scene tree is freed.
+
+- **Workspace indicator not updating immediately when switching to empty
+  workspaces**: `bar_notify_workspace_change` marked the bar dirty but did not
+  schedule an output frame. If the workspace switch produced no scene-graph
+  damage (both old and new workspaces empty), wlroots would not fire an
+  `output_frame` event on its own, leaving the workspace pills stale until the
+  next user-driven damage. Fixed by calling `wlr_output_schedule_frame` in
+  `redraw_if_cares` whenever a bar is marked dirty, guaranteeing a frame fires
+  within the next vsync interval regardless of scene-graph state.
+
+- **AddressSanitizer / LeakSanitizer not active in Debug builds**: the CMake
+  Debug config lacked the sanitizer flags. Added `-fsanitize=address,leak` to
+  both `target_compile_options` and `target_link_options` for `$<CONFIG:Debug>`.
+
+- **nnwmctl commands froze the compositor**: `exec_lua` called
+  `lua_pcall(L, 1, 1, 0)` but only the chunk function was on the stack —
+  no argument. Lua treated the function itself as the argument and called
+  whatever was below it on the stack, causing undefined behavior. Fixed by
+  using `lua_pcall(L, 0, 1, 0)`.
+- **nnwmctl get commands returned nothing**: nnwmctl sends the command then
+  calls `shutdown(SHUT_WR)`. The server processed the command and scheduled
+  a deferred write via `wl_event_loop_add_fd`, but the EOF from the
+  shutdown arrived first, causing the disconnect handler to tear down the
+  write source before it fired. Fixed by flushing any pending write
+  synchronously when a clean EOF is received.
+- **IPC response JSON was unusable for table results**: the server
+  serialized Lua tables via `tostring()`, producing pointer strings like
+  `"table: 0x..."`. Replaced with a recursive `lua_to_json` converter
+  (backed by nlohmann/json) that properly serializes nil, boolean, number,
+  string, and nested tables as JSON arrays or objects.
 
 - **Xwayland windows didn't resize** after `master_ratio_grow/shrink` or
   layout changes (only the borders resized). Two related bugs:
