@@ -40,6 +40,9 @@
 - **`nnwm.current_window()` and `nnwm.windows()` gain `is_xwayland`**:
   both APIs now include a boolean `is_xwayland` field so callers can
   distinguish XWayland windows from native Wayland clients.
+- **`output_disconnect` event hook**: `nnwm.on("output_disconnect", fn)` fires
+  when a monitor is disconnected, before the output is torn down. The callback
+  receives an `nnwm.Output` snapshot with the output's final state.
 
 - **nnwmctl IPC**: a companion CLI tool (`nnwmctl`) communicates with the
   running compositor over a Unix socket (`$XDG_RUNTIME_DIR/nnwm-ipc.sock`).

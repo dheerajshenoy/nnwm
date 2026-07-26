@@ -250,7 +250,6 @@
     - [ ] window_fullscreen_change
     - [ ] window_floating_change
     - [ ] workspace_focus (per output)
-    - [ ] output_disconnect
     - [ ] output_layout_change
     - [ ] session_lock/unlock
     - [ ] idle/resume.

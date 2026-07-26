@@ -514,7 +514,8 @@ function nnwm.remove_rule(id) end
 ---| "window_close"     # Fired when a window is unmapped (closes). Callback receives `nnwm.Window`.
 ---| "window_urgent"    # Fired when a window requests attention (urgency hint or xdg-activation). Callback receives `nnwm.Window`. The window's `urgent` field will be `true`. Not fired if the window is already focused.
 ---| "workspace_switch" # Fired when the active workspace changes. Callback receives `nnwm.Workspace`.
----| "output_connect"   # Fired when a new output (monitor) is connected. Callback receives `nnwm.Output`.
+---| "output_connect"      # Fired when a new output (monitor) is connected. Callback receives `nnwm.Output`.
+---| "output_disconnect"   # Fired when an output (monitor) is disconnected. Callback receives `nnwm.Output`.
 ---| "lid_close"        # Fired when the laptop lid is closed. No argument.
 ---| "lid_open"         # Fired when the laptop lid is opened. No argument.
 ---| "tablet_mode_on"   # Fired when the device enters tablet mode. No argument.

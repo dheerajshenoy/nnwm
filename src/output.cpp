@@ -187,6 +187,8 @@ output_destroy(wl_listener *listener, void * /*data*/)
         }
     }
 
+    fire_hook_output(server, "output_disconnect", output);
+
     wl_list_remove(&output->frame.link);
     wl_list_remove(&output->request_state.link);
     wl_list_remove(&output->destroy.link);
