@@ -4,6 +4,17 @@
 
 ### Bug Fixes
 
+- **`focus_dir` / `move_dir` "down" jumps to master instead of next stack
+  window**: directional navigation used a pure center-to-center distance metric
+  with no angular filter. In HTILE layout, the master window's vertical center
+  can be closer to a stack window's center than the stack window directly below
+  it, causing "down" to incorrectly select the master. Fixed with a two-pass
+  search: pass 1 prefers candidates that overlap the focused window on the
+  perpendicular axis (e.g. for up/down: horizontal x-range overlap), ensuring
+  stack windows stay within their column; pass 2 falls back to a ~63° angular
+  cone (`pri * 2 > sec`) only when no overlapping candidate exists. Both
+  `focus_dir` and `move_dir` share the new `find_dir_target` helper.
+
 - **Window briefly reappears after `move_to_workspace` when animations are
   enabled**: moving a window to an inactive workspace disabled its scene node,
   but `animate_step` unconditionally re-enabled it on the next frame if the
