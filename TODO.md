@@ -145,6 +145,7 @@
             - [x] Focus change
             - [x] Fullscreen
             - [x] Workspace change
+            - [x] window_urgent
         - [x] Startup
         - [x] Shutdown
         - [x] On monitor connect
@@ -212,6 +213,8 @@
 - [x] Don't show panel in fullscreen mode
 - [x] Fullscreen panel hidden on all workspaces/monitor, not the required behavior
 - [x] nnwmctl - a command line tool to control nnwm from shell scripts, waybar, rofi, etc.
+- [x] Runtime rules. nnwm.add_rule({app_id="firefox"}, function(w) w:set_floating(true) end) and nnwm.remove_rule(id). Right now rules are static config only.
+- [x] nnwm.timer cancel/pause/resume handle (if not already returned).
 
 ## TODO
 
@@ -246,17 +249,13 @@
     - [ ] window_geometry_change
     - [ ] window_fullscreen_change
     - [ ] window_floating_change
-    - [ ] window_urgent
     - [ ] workspace_focus (per output)
     - [ ] output_disconnect
     - [ ] output_layout_change
     - [ ] session_lock/unlock
     - [ ] idle/resume.
     - [ ] Also pass the affected object into the callback, not just a bare event.
-- [ ] Runtime rules. nnwm.add_rule({app_id="firefox"}, function(w) w:set_floating(true) end) and nnwm.remove_rule(id). Right now rules are static config only.
 - [ ] Per-output / per-workspace config scopes. nnwm.output("HDMI-1").opt.gaps = 20, nnwm.workspace(3).layout = "tabbed". Currently most things are global.
-- [ ] Input runtime control: switch xkb layout, per-device settings (touchpad tap-to-click, natural scroll) at runtime, not just via monitor config.
 - [ ] Scratchpad introspection: nnwm.scratchpad("term"):windows(), :visible().
-- [ ] nnwm.timer cancel/pause/resume handle (if not already returned).
 - [ ] tile drag window, add sway like center and directional blocks on the dropping window
 - [ ] nnwm.notify(msg, {level, timeout}) — for on handlers to surface state; today users must shell out to notify-send.
