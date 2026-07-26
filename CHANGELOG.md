@@ -15,6 +15,19 @@
   when a monitor is disconnected, before the output is torn down. The callback
   receives an `nnwm.Output` snapshot with the output's final state.
 
+- **`nnwm.key` per-binding repeat control**: `nnwm.key` now accepts a table as
+  its optional third argument in addition to a plain description string:
+  ```lua
+  nnwm.key({"Super", "Tab"}, function() nnwm.layout.next() end, { repeat = false })
+  nnwm.key({"Super", "Tab"}, function() nnwm.layout.next() end, { repeat = false, description = "Cycle layout" })
+  ```
+  Setting `repeat = false` prevents the binding from being re-fired by the
+  compositor's key-repeat timer. Useful for actions where a single press is
+  always sufficient (layout cycling, workspace switching, toggle fullscreen)
+  and rapid repeat would produce unintended multi-step jumps. The default
+  remains `true` (repeat enabled), preserving existing behaviour for bindings
+  that rely on it (volume keys, directional focus, resize).
+
 ## 0.1.3
 
 ### Features
