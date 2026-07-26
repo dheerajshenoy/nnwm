@@ -537,15 +537,33 @@ function nnwm.remove_rule(id) end
 ---@param callback fun(data: nnwm.Window|nnwm.Workspace|nnwm.Output)
 function nnwm.on(event, callback) end
 
---- Run `callback` once after `ms` milliseconds.
----@param ms       integer  Delay in milliseconds
----@param callback fun()    Function to call
-function nnwm.timer(ms, callback) end
+--- A handle returned by `nnwm.timer` and `nnwm.interval`.
+--- All methods are safe to call on an already-cancelled or expired handle (no-op).
+---@class nnwm.TimerHandle
+---@field cancel  fun(self: nnwm.TimerHandle)  Stop the timer permanently. No further callbacks fire.
+---@field pause   fun(self: nnwm.TimerHandle)  Suspend the timer, saving the remaining time. No-op if already paused.
+---@field resume  fun(self: nnwm.TimerHandle)  Resume from the saved remaining time (or 1 ms minimum). No-op if not paused.
 
---- Run `callback` every `ms` milliseconds, repeating indefinitely.
----@param ms       integer  Interval in milliseconds
----@param callback fun()    Function to call
-function nnwm.interval(ms, callback) end
+--- Schedule a callback every `ms` milliseconds, repeating indefinitely by default.
+--- Pass `{ once = true }` to fire only once.
+--- Returns a handle to cancel or pause/resume the timer.
+--- Dropping the handle without calling `:cancel()` has no effect — the timer keeps running.
+---
+--- ```lua
+--- -- repeating (default)
+--- local t = nnwm.timer(1000, function() print("tick") end)
+--- t:pause()
+--- t:resume()
+--- t:cancel()
+---
+--- -- one-shot
+--- nnwm.timer(500, function() nnwm.spawn("notify-send hi") end, { once = true })
+--- ```
+---@param ms       integer         Interval in milliseconds
+---@param callback fun()           Function to call on each tick
+---@param opts?    { once?: boolean }  `once = false` (default): repeat indefinitely. `once = true`: fire once then stop.
+---@return nnwm.TimerHandle
+function nnwm.timer(ms, callback, opts) end
 
 --- Close the focused window.
 function nnwm.close() end

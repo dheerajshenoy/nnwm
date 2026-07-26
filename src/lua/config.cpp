@@ -1858,11 +1858,123 @@ fire_hook_output(nnwm_server *server, const char *event, nnwm_output *out)
     }
 }
 
+/* ---- Timer handle userdata ---- */
+
+#define TIMERMT "nnwm.timer"
+
+static int64_t timer_monotonic_ms()
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+
+/* Destroy an nnwm_timer from C — nulls the handle userdata if alive. */
+static void timer_destroy(nnwm_timer *t, lua_State *L)
+{
+    if (t->handle_ref != LUA_NOREF)
+    {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, t->handle_ref);
+        *(nnwm_timer **)lua_touserdata(L, -1) = nullptr;
+        lua_pop(L, 1);
+        luaL_unref(L, LUA_REGISTRYINDEX, t->handle_ref);
+        t->handle_ref = LUA_NOREF;
+    }
+    t->dead = true;
+    wl_list_remove(&t->link);
+    luaL_unref(L, LUA_REGISTRYINDEX, t->func_ref);
+    wl_event_source_remove(t->source);
+    delete t;
+}
+
+static int timer_handle_cancel(lua_State *L)
+{
+    nnwm_timer *t = *(nnwm_timer **)luaL_checkudata(L, 1, TIMERMT);
+    if (!t || t->dead) return 0;
+    t->handle_ref = LUA_NOREF; /* don't try to null the userdata, we're inside it */
+    *(nnwm_timer **)lua_touserdata(L, 1) = nullptr;
+    t->dead = true;
+    wl_list_remove(&t->link);
+    luaL_unref(L, LUA_REGISTRYINDEX, t->func_ref);
+    wl_event_source_remove(t->source);
+    delete t;
+    return 0;
+}
+
+static int timer_handle_pause(lua_State *L)
+{
+    nnwm_timer *t = *(nnwm_timer **)luaL_checkudata(L, 1, TIMERMT);
+    if (!t || t->dead || t->paused) return 0;
+    int64_t rem = t->deadline_ms - timer_monotonic_ms();
+    t->remaining_ms = (int)(rem > 0 ? rem : 0);
+    wl_event_source_timer_update(t->source, 0); /* 0 disarms */
+    t->paused = true;
+    return 0;
+}
+
+static int timer_handle_resume(lua_State *L)
+{
+    nnwm_timer *t = *(nnwm_timer **)luaL_checkudata(L, 1, TIMERMT);
+    if (!t || t->dead || !t->paused) return 0;
+    int ms = t->remaining_ms > 0 ? t->remaining_ms : 1;
+    t->deadline_ms = timer_monotonic_ms() + ms;
+    wl_event_source_timer_update(t->source, ms);
+    t->paused = false;
+    return 0;
+}
+
+static int timer_handle_gc(lua_State *L)
+{
+    nnwm_timer *t = *(nnwm_timer **)lua_touserdata(L, 1);
+    /* Timer is still running — tell it not to try to null this (already collected) userdata. */
+    if (t && !t->dead)
+        t->handle_ref = LUA_NOREF;
+    return 0;
+}
+
+static void ensure_timer_metatable(lua_State *L)
+{
+    if (luaL_newmetatable(L, TIMERMT))
+    {
+        lua_pushcfunction(L, timer_handle_cancel); lua_setfield(L, -2, "cancel");
+        lua_pushcfunction(L, timer_handle_pause);  lua_setfield(L, -2, "pause");
+        lua_pushcfunction(L, timer_handle_resume); lua_setfield(L, -2, "resume");
+        lua_pushcfunction(L, timer_handle_gc);     lua_setfield(L, -2, "__gc");
+        lua_pushvalue(L, -1);                      lua_setfield(L, -2, "__index");
+    }
+    lua_pop(L, 1);
+}
+
+static nnwm_timer *timer_alloc(lua_State *L, nnwm_server *server, int ms, int interval_ms)
+{
+    ensure_timer_metatable(L);
+
+    nnwm_timer *t = new nnwm_timer{};
+    t->server      = server;
+    t->interval_ms = interval_ms;
+    t->dead        = false;
+    t->paused      = false;
+    t->remaining_ms = 0;
+    t->deadline_ms  = timer_monotonic_ms() + ms;
+
+    struct wl_event_loop *loop = wl_display_get_event_loop(server->wl_display);
+    t->source = wl_event_loop_add_timer(loop, nnwm_timer_cb, t);
+    wl_event_source_timer_update(t->source, ms);
+    wl_list_insert(server->timers.prev, &t->link);
+
+    nnwm_timer **udata = (nnwm_timer **)lua_newuserdata(L, sizeof(nnwm_timer *));
+    *udata = t;
+    luaL_setmetatable(L, TIMERMT);
+    lua_pushvalue(L, -1);
+    t->handle_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+    return t;
+}
+
 int
 nnwm_timer_cb(void *data)
 {
     nnwm_timer *t = static_cast<nnwm_timer *>(data);
-    if (t->dead) return 0;
+    if (t->dead || t->paused) return 0;
     nnwm_server *server = t->server;
     lua_State *L = server->lua;
     lua_rawgeti(L, LUA_REGISTRYINDEX, t->func_ref);
@@ -1873,15 +1985,12 @@ nnwm_timer_cb(void *data)
     }
     if (t->interval_ms > 0)
     {
+        t->deadline_ms = timer_monotonic_ms() + t->interval_ms;
         wl_event_source_timer_update(t->source, t->interval_ms);
     }
     else
     {
-        t->dead = true;
-        wl_list_remove(&t->link);
-        luaL_unref(L, LUA_REGISTRYINDEX, t->func_ref);
-        wl_event_source_remove(t->source);
-        delete t;
+        timer_destroy(t, L);
     }
     return 0;
 }
@@ -1905,37 +2014,21 @@ l_nnwm_timer(lua_State *L)
 {
     int ms = (int)luaL_checkinteger(L, 1);
     luaL_checktype(L, 2, LUA_TFUNCTION);
-    nnwm_server *server = get_server(L);
-    nnwm_timer *t = new nnwm_timer{};
-    t->server      = server;
-    t->interval_ms = 0;
-    t->dead        = false;
-    lua_pushvalue(L, 2);
-    t->func_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-    struct wl_event_loop *loop = wl_display_get_event_loop(server->wl_display);
-    t->source = wl_event_loop_add_timer(loop, nnwm_timer_cb, t);
-    wl_event_source_timer_update(t->source, ms);
-    wl_list_insert(server->timers.prev, &t->link);
-    return 0;
-}
 
-static int
-l_nnwm_interval(lua_State *L)
-{
-    int ms = (int)luaL_checkinteger(L, 1);
-    luaL_checktype(L, 2, LUA_TFUNCTION);
+    bool once = false;
+    if (lua_istable(L, 3))
+    {
+        lua_getfield(L, 3, "once");
+        if (lua_isboolean(L, -1))
+            once = (bool)lua_toboolean(L, -1);
+        lua_pop(L, 1);
+    }
+
     nnwm_server *server = get_server(L);
-    nnwm_timer *t = new nnwm_timer{};
-    t->server      = server;
-    t->interval_ms = ms;
-    t->dead        = false;
+    nnwm_timer *t = timer_alloc(L, server, ms, once ? 0 : ms);
     lua_pushvalue(L, 2);
     t->func_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-    struct wl_event_loop *loop = wl_display_get_event_loop(server->wl_display);
-    t->source = wl_event_loop_add_timer(loop, nnwm_timer_cb, t);
-    wl_event_source_timer_update(t->source, ms);
-    wl_list_insert(server->timers.prev, &t->link);
-    return 0;
+    return 1;
 }
 
 /* ---- monitor configuration ---- */
@@ -2169,7 +2262,6 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"outputs",           l_nnwm_outputs},
     {"on",                l_nnwm_on},
     {"timer",             l_nnwm_timer},
-    {"interval",          l_nnwm_interval},
     {nullptr, nullptr},
 };
 
@@ -3732,6 +3824,13 @@ nnwm::lua_fini(struct nnwm_server *server)
         {
             if (!t->dead)
             {
+                if (t->handle_ref != LUA_NOREF)
+                {
+                    lua_rawgeti(server->lua, LUA_REGISTRYINDEX, t->handle_ref);
+                    *(nnwm_timer **)lua_touserdata(server->lua, -1) = nullptr;
+                    lua_pop(server->lua, 1);
+                    luaL_unref(server->lua, LUA_REGISTRYINDEX, t->handle_ref);
+                }
                 wl_event_source_remove(t->source);
                 luaL_unref(server->lua, LUA_REGISTRYINDEX, t->func_ref);
             }

@@ -498,8 +498,12 @@ struct nnwm_timer
     struct nnwm_server *server;
     struct wl_event_source *source;
     int func_ref;
-    int interval_ms; /* 0 → one-shot */
+    int handle_ref;      /* Lua registry ref to the userdata handle; LUA_NOREF if GC'd or none */
+    int interval_ms;     /* 0 = one-shot */
+    int64_t deadline_ms; /* CLOCK_MONOTONIC ms at which the timer will next fire */
+    int remaining_ms;    /* saved remaining time when paused */
     bool dead;
+    bool paused;
 };
 
 struct nnwm_output
