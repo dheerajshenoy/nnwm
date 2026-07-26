@@ -219,6 +219,8 @@ struct wl_signal    *nnwm_xw_events_request_move(struct wlr_xwayland_surface *s)
 struct wl_signal    *nnwm_xw_events_request_resize(struct wlr_xwayland_surface *s);
 struct wl_signal    *nnwm_xw_events_request_maximize(struct wlr_xwayland_surface *s);
 struct wl_signal    *nnwm_xw_events_request_fullscreen(struct wlr_xwayland_surface *s);
+struct wl_signal    *nnwm_xw_events_set_hints(struct wlr_xwayland_surface *s);
+int                  nnwm_xw_is_urgent(const struct wlr_xwayland_surface *s);
 
 /* Surface actions */
 void                 nnwm_xw_close(struct wlr_xwayland_surface *s);

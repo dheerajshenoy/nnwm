@@ -386,6 +386,7 @@ main(int argc, char *argv[])
                 && tl->output->layout_mode[tl->workspace]
                        == nnwm_layout_mode::TABBED)
                 rerender_tab_bar(server, tl->output);
+            fire_hook_window(server, "window_urgent", tl);
             return;
         }
     };

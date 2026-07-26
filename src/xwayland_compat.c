@@ -1,4 +1,5 @@
 #include <wlr/xwayland/xwayland.h>
+#include <xcb/xcb_icccm.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server-core.h>
@@ -26,6 +27,12 @@ uint16_t nnwm_xw_width(const struct wlr_xwayland_surface *s) { return s->width; 
 uint16_t nnwm_xw_height(const struct wlr_xwayland_surface *s) { return s->height; }
 int nnwm_xw_has_parent(const struct wlr_xwayland_surface *s) { return s->parent != NULL; }
 int nnwm_xw_override_redirect(const struct wlr_xwayland_surface *s) { return s->override_redirect; }
+
+int nnwm_xw_is_urgent(const struct wlr_xwayland_surface *s)
+{
+    if (!s->hints) return 0;
+    return (s->hints->flags & XCB_ICCCM_WM_HINT_X_URGENCY) ? 1 : 0;
+}
 
 /* ---- wlr_xwayland_surface event signals ---- */
 
@@ -72,6 +79,11 @@ struct wl_signal *nnwm_xw_events_request_maximize(struct wlr_xwayland_surface *s
 struct wl_signal *nnwm_xw_events_request_fullscreen(struct wlr_xwayland_surface *s)
 {
     return &s->events.request_fullscreen;
+}
+
+struct wl_signal *nnwm_xw_events_set_hints(struct wlr_xwayland_surface *s)
+{
+    return &s->events.set_hints;
 }
 
 /* ---- wlr_xwayland_surface actions ---- */

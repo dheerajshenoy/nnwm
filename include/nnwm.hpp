@@ -628,6 +628,9 @@ struct nnwm_toplevel
     struct wl_listener request_resize;
     struct wl_listener request_maximize;
     struct wl_listener request_fullscreen;
+#ifdef HAVE_XWAYLAND
+    struct wl_listener set_hints;
+#endif
 };
 
 #ifdef HAVE_XWAYLAND

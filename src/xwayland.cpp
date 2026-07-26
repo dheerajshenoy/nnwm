@@ -314,6 +314,7 @@ xwayland_surface_destroy(wl_listener *listener, void * /*data*/)
     wl_list_remove(&toplevel->request_resize.link);
     wl_list_remove(&toplevel->request_maximize.link);
     wl_list_remove(&toplevel->request_fullscreen.link);
+    wl_list_remove(&toplevel->set_hints.link);
 
     /* Destroy scene tree if unmap didn't already */
     if (toplevel->scene_tree)
@@ -387,6 +388,38 @@ xwayland_surface_request_fullscreen(wl_listener *listener, void * /*data*/)
 {
     nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, request_fullscreen);
     do_toggle_fullscreen(toplevel);
+}
+
+static void
+xwayland_surface_set_hints(wl_listener *listener, void * /*data*/)
+{
+    nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, set_hints);
+    nnwm_server *server     = toplevel->server;
+
+    if (!nnwm_xw_is_urgent(toplevel->xwayland_surface))
+        return;
+
+    wlr_surface *focused = server->seat->keyboard_state.focused_surface;
+    if (tl_wlr_surface(toplevel) == focused)
+        return;
+
+    nnwm_config *cfg  = server->config;
+    toplevel->urgent  = true;
+
+#ifdef HAVE_SCENEFX
+    tl_start_border_color(toplevel, cfg->border.urgent_color);
+#else
+    for (int b = 0; b < 4; b++)
+        wlr_scene_rect_set_color(toplevel->border[b], cfg->border.urgent_color);
+#endif
+    if (cfg->titlebar.height > 0 && toplevel->titlebar_width > 0)
+        render_titlebar(toplevel, toplevel->titlebar_width, false);
+    if (toplevel->output && !toplevel->floating
+        && toplevel->output->layout_mode[toplevel->workspace]
+               == nnwm_layout_mode::TABBED)
+        rerender_tab_bar(server, toplevel->output);
+
+    fire_hook_window(server, "window_urgent", toplevel);
 }
 
 static void
@@ -513,6 +546,9 @@ server_new_xwayland_surface(wl_listener *listener, void *data)
 
     toplevel->request_fullscreen.notify = xwayland_surface_request_fullscreen;
     wl_signal_add(nnwm_xw_events_request_fullscreen(xw), &toplevel->request_fullscreen);
+
+    toplevel->set_hints.notify = xwayland_surface_set_hints;
+    wl_signal_add(nnwm_xw_events_set_hints(xw), &toplevel->set_hints);
 }
 
 /* ---- XWayland init / fini (called from main.cpp) ---- */
