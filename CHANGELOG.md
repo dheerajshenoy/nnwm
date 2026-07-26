@@ -4,6 +4,25 @@
 
 ### Features
 
+- **`nnwm.timer` cancel/pause/resume handle**: `nnwm.timer(ms, fn[, opts])` now
+  returns a `TimerHandle` userdata with three methods:
+  - `handle:cancel()` — stops the timer permanently.
+  - `handle:pause()` — suspends the timer, recording how much time remains.
+  - `handle:resume()` — restarts it from where it left off.
+  Dropping the handle without calling `cancel` does **not** stop the timer, so
+  existing code that ignores the return value continues to work unchanged.
+  The `once` option (default `false`) makes the timer fire once and
+  self-destruct; omitting it produces a repeating interval. The separate
+  `nnwm.interval` function has been removed — use `nnwm.timer(ms, fn)` (fires
+  every `ms` ms) or `nnwm.timer(ms, fn, { once = true })` (fires once).
+
+- **`window_urgent` event hook**: `nnwm.on("window_urgent", fn)` fires when a
+  window requests user attention. For native Wayland clients the trigger is an
+  `xdg-activation-v1` request with `focus_on_activate = false`; for XWayland
+  clients it is the `WM_HINTS` urgency bit (`set_hints` signal). The callback
+  receives an `nnwm.Window` snapshot. The urgent state is cleared automatically
+  when the window next receives keyboard focus.
+
 - **`nnwm.windows()`**: new Lua API that returns an array of all mapped
   toplevels. Each entry includes `title`, `app_id`, `workspace`, `output`,
   `x`, `y`, `width`, `height`, `floating`, `fullscreen`, `maximized`,
@@ -23,6 +42,31 @@
   distinguish XWayland windows from native Wayland clients.
 
 ### Bug Fixes
+
+- **Crash on window close (heap-use-after-free in `decoration_handle_destroy`)**:
+  closing any window with server-side decoration caused a crash detected by
+  AddressSanitizer. `decoration_handle_destroy` called `toplevel_from_deco`,
+  which dereferenced `wlr_deco->toplevel->base->data` (the `wlr_scene_tree`) to
+  find the `nnwm_toplevel`. However, `handle_xdg_toplevel_destroy` fires earlier
+  in the same signal emission chain and calls `wlr_scene_node_destroy`, freeing
+  that scene tree. The subsequent dereference in `toplevel_from_deco` was a
+  use-after-free. Fixed by storing a direct `toplevel` back-pointer in
+  `nnwm_decoration` (resolved once at decoration creation time, while the scene
+  tree is still alive) and nulling it in `handle_xdg_toplevel_destroy` before
+  the scene tree is freed.
+
+- **Workspace indicator not updating immediately when switching to empty
+  workspaces**: `bar_notify_workspace_change` marked the bar dirty but did not
+  schedule an output frame. If the workspace switch produced no scene-graph
+  damage (both old and new workspaces empty), wlroots would not fire an
+  `output_frame` event on its own, leaving the workspace pills stale until the
+  next user-driven damage. Fixed by calling `wlr_output_schedule_frame` in
+  `redraw_if_cares` whenever a bar is marked dirty, guaranteeing a frame fires
+  within the next vsync interval regardless of scene-graph state.
+
+- **AddressSanitizer / LeakSanitizer not active in Debug builds**: the CMake
+  Debug config lacked the sanitizer flags. Added `-fsanitize=address,leak` to
+  both `target_compile_options` and `target_link_options` for `$<CONFIG:Debug>`.
 
 - **nnwmctl commands froze the compositor**: `exec_lua` called
   `lua_pcall(L, 1, 1, 0)` but only the chunk function was on the stack —

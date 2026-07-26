@@ -708,6 +708,7 @@ struct nnwm_switch
 struct nnwm_decoration
 {
     struct wlr_xdg_toplevel_decoration_v1 *wlr_deco;
+    struct nnwm_toplevel *toplevel; /* back-pointer; NULL if toplevel already destroyed */
     struct wl_listener request_mode;
     struct wl_listener destroy;
 };

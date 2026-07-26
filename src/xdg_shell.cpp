@@ -282,11 +282,7 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
 nnwm_toplevel *
 toplevel_from_deco(nnwm_decoration *deco)
 {
-    auto *tree
-        = static_cast<wlr_scene_tree *>(deco->wlr_deco->toplevel->base->data);
-    if (tree && tree->node.data)
-        return static_cast<nnwm_toplevel *>(tree->node.data);
-    return nullptr;
+    return deco->toplevel;
 }
 
 void
@@ -387,6 +383,12 @@ handle_xdg_toplevel_destroy(wl_listener *listener, void * /*data*/)
     wl_list_remove(&toplevel->request_resize.link);
     wl_list_remove(&toplevel->request_maximize.link);
     wl_list_remove(&toplevel->request_fullscreen.link);
+
+    /* Null out the back-pointer so decoration_handle_destroy (which fires
+     * after this, in the same signal chain) does not dereference a freed
+     * scene tree when looking up the toplevel. */
+    if (toplevel->decoration)
+        toplevel->decoration->toplevel = nullptr;
 
     wlr_scene_node_destroy(&toplevel->scene_tree->node);
     delete toplevel;
@@ -780,17 +782,21 @@ server_new_decoration(wl_listener *listener, void *data)
     auto *deco     = new nnwm_decoration{};
     deco->wlr_deco = wlr_deco;
 
+    /* Resolve the toplevel once via the scene tree while it is still alive.
+     * Later (in decoration_handle_destroy) the scene tree may already be freed,
+     * so we must not dereference base->data there. */
+    auto *tree = static_cast<wlr_scene_tree *>(wlr_deco->toplevel->base->data);
+    deco->toplevel = (tree && tree->node.data)
+                         ? static_cast<nnwm_toplevel *>(tree->node.data)
+                         : nullptr;
+
     deco->request_mode.notify = decoration_handle_request_mode;
     wl_signal_add(&wlr_deco->events.request_mode, &deco->request_mode);
 
     deco->destroy.notify = decoration_handle_destroy;
     wl_signal_add(&wlr_deco->events.destroy, &deco->destroy);
 
-    /* Eagerly push our preferred mode so clients that never send request_mode
-     * (e.g. Emacs/GTK) still receive the correct decoration setting.
-     * If the surface isn't initialized yet, store the deco reference so the
-     * initial_commit handler can apply it when schedule_configure is safe. */
-    nnwm_toplevel *tl = toplevel_from_deco(deco);
+    nnwm_toplevel *tl = deco->toplevel;
     if (tl)
         tl->decoration = deco;
     bool csd = server->config->client_decorations;
