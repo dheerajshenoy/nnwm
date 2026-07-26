@@ -220,20 +220,19 @@
 
 ## TODO
 
+- [ ] Monitor hot-corners
 - Window Rules
     - [ ] blur
     - [ ] animation
+    - [ ] layer z-order
     - [ ] border
+    - [ ] opacity
 - [ ] Don't allow resizing of tiled windows
 - Layouts
     - [ ] Sway like h/v choosable layout
     - [ ] Dwindle
 - [ ] Jump label support (like MangoWM)
-- Layer rules
-    - [ ] layer z-order
-    - [ ] opacity
 - [ ] possibly use xwayland-satellite for XWayland?
-- [ ] Monitor hot-corners
 - [ ] Keybinding overlay
 - [ ] Keyboard-driven resize — you can move windows with keys but resizing tiled windows (adjusting split ratio) via keyboard seems absent
 - [ ] Iteration + window handles (biggest missing piece). Right now every action targets the focused window. Real config power needs "for every window matching X, do Y".
@@ -243,7 +242,6 @@
             w:set_opacity(0.9); w:move_to_workspace(3)
         end
     ```
-
 - [ ] Custom layouts in Lua. Expose nnwm.register_layout("mylayout", function(area, windows) return {{x,y,w,h}, ...} end). This turns the compositor into a platform — users write dwm-style layouts without touching C++.
 - Event coverage.
     - [ ] window_unfocus
