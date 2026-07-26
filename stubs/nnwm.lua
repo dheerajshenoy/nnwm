@@ -22,15 +22,16 @@ MOD = {}
 ---@field smart?        boolean                       Hide the tab bar when only one tiled window is present (default: false)
 
 ---@class nnwm.layout
----@field new_window_master?   boolean            When true new windows become master; when false they append to the stack (default: true)
----@field master_ratio?        number             Fraction of screen width/height for the master pane (default: 0.55)
----@field master_ratio_step?   number             Step size for master ratio adjustments (default: 0.05)
----@field master_ratio_min?    number             Minimum master ratio (default: 0.1)
----@field master_ratio_max?    number             Maximum master ratio (default: 0.9)
----@field scroll_column_width? number             Fraction of output width per column in hscroll layout: 0.0–1.0 (default: 0.5)
----@field scroll_row_height?   number             Fraction of output height per row in vscroll layout: 0.0–1.0 (default: 0.5)
----@field tabbed?              nnwm.layout.tabbed
----@field enabled_layouts?     ("htile"|"vtile"|"tabbed"|"hscroll"|"vscroll"|"float")[]  Order (and subset) of layouts that `nnwm.layout.next()`/`.prev()` cycles through. Unknown names are skipped with a warning. `nnwm.set_layout(name)` still works for any layout regardless. Nil/empty = all six in enum order.
+---@field new_window_master?    boolean            When true new windows become master; when false they append to the stack (default: true)
+---@field center_new_floating?  boolean            When true, new floating windows are centered on the output (default: false)
+---@field master_ratio?         number             Fraction of screen width/height for the master pane (default: 0.55)
+---@field master_ratio_step?    number             Step size for master ratio adjustments (default: 0.05)
+---@field master_ratio_min?     number             Minimum master ratio (default: 0.1)
+---@field master_ratio_max?     number             Maximum master ratio (default: 0.9)
+---@field scroll_column_width?  number             Fraction of output width per column in hscroll layout: 0.0–1.0 (default: 0.5)
+---@field scroll_row_height?    number             Fraction of output height per row in vscroll layout: 0.0–1.0 (default: 0.5)
+---@field tabbed?               nnwm.layout.tabbed
+---@field enabled_layouts?      ("htile"|"vtile"|"tabbed"|"hscroll"|"vscroll"|"float")[]  Order (and subset) of layouts that `nnwm.layout.next()`/`.prev()` cycles through. Unknown names are skipped with a warning. `nnwm.layout.set(name)` still works for any layout regardless. Nil/empty = all six in enum order.
 
 ---@class nnwm.gaps
 ---@field inner?  integer  Gap in pixels between adjacent windows (default: 0)
@@ -245,26 +246,41 @@ MOD = {}
 
 --- Monitor configuration (array of tables). First match wins.
 ---@class nnwm.Window
----@field title         string   Window title (empty string if unset)
----@field app_id        string   Application ID (empty string if unset)
----@field floating      boolean  True if the window is floating
----@field fullscreen    boolean  True if the window is fullscreen
----@field fake_fullscreen boolean True if the window is fake-fullscreen
----@field maximized     boolean  True if the window is maximized
----@field sticky        boolean  True if the window is sticky
----@field workspace     integer  Workspace index (1–9)
----@field x             integer  Scene X position in pixels
----@field y             integer  Scene Y position in pixels
----@field width         integer  Current width in pixels
----@field height        integer  Current height in pixels
----@field output        string?  Name of the output the window is on (e.g. `"DP-1"`), or nil
+---@field title           string   Window title (empty string if unset)
+---@field app_id          string   Application ID (empty string if unset)
+---@field floating        boolean  True if the window is floating
+---@field fullscreen      boolean  True if the window is fullscreen
+---@field fake_fullscreen boolean  True if the window is fake-fullscreen
+---@field maximized       boolean  True if the window is maximized
+---@field sticky          boolean  True if the window is sticky
+---@field urgent          boolean  True if the window has the urgent/attention hint set
+---@field is_xwayland     boolean  True if the window is an XWayland (X11) client
+---@field workspace       integer  Workspace index (1–9)
+---@field x               integer  Scene X position in pixels
+---@field y               integer  Scene Y position in pixels
+---@field width           integer  Current width in pixels
+---@field height          integer  Current height in pixels
+---@field output          string?  Name of the output the window is on (e.g. `"DP-1"`), or nil
+
+--- A live window handle passed to `nnwm.add_rule` callbacks.
+--- Has all the same read fields as `nnwm.Window` plus mutating methods.
+---@class nnwm.WindowHandle : nnwm.Window
+---@field set_floating   fun(self: nnwm.WindowHandle, floating: boolean)    Make the window floating or tiled.
+---@field set_fullscreen fun(self: nnwm.WindowHandle, fullscreen: boolean)  Make the window fullscreen or restore it.
+---@field set_maximize   fun(self: nnwm.WindowHandle, maximize: boolean)    Maximize or un-maximize the window.
+---@field set_sticky     fun(self: nnwm.WindowHandle, sticky: boolean)      Stick or unstick the window across all workspaces.
+---@field set_opacity    fun(self: nnwm.WindowHandle, opacity: number)      Override the window opacity (0.0–1.0). Requires `USE_SCENEFX=ON`.
+---@field set_workspace  fun(self: nnwm.WindowHandle, n: integer)           Move the window to workspace `n` (1–9).
+---@field close          fun(self: nnwm.WindowHandle)                       Request the window to close.
 
 ---@class nnwm.Workspace
----@field index         integer  Workspace index (1–9)
+---@field index         integer       Workspace index (1–9)
+---@field active        boolean?      True if this is the currently active workspace on its output. Only present in `nnwm.workspaces()` results; absent from `nnwm.current_workspace()`.
 ---@field layout        "htile"|"vtile"|"tabbed"|"hscroll"|"vscroll"|"unknown"  Active layout
----@field master_ratio  number   Current master ratio for this workspace
----@field window_count  integer  Number of tiled windows on this workspace
----@field output        string   Name of the output this workspace belongs to
+---@field master_ratio  number        Current master ratio for this workspace
+---@field window_count  integer       Number of tiled windows on this workspace
+---@field name          string?       Effective workspace label (monitor override → global `workspace_names` → `nil`)
+---@field output        string        Name of the output this workspace belongs to
 
 ---@class nnwm.Output
 ---@field name              string   Connector name (e.g. `"DP-1"`)
@@ -275,6 +291,7 @@ MOD = {}
 ---@field x                 integer  X position in the output layout
 ---@field y                 integer  Y position in the output layout
 ---@field active_workspace  integer  Active workspace index (1–9)
+---@field focused           boolean? True if this is the currently focused output. Only present in `nnwm.outputs()` results; absent from `nnwm.current_output()`.
 
 ---@class nnwm_window_rule_match
 ---@field app_id string? fnmatch glob matched against the window's app_id (e.g. `"firefox"`, `"foot*"`)
@@ -441,6 +458,53 @@ function nnwm.current_workspace() end
 --- Return a snapshot of the currently focused output, or `nil` if no output is focused.
 ---@return nnwm.Output?
 function nnwm.current_output() end
+
+--- Return a snapshot table of every mapped window. The array is in internal
+--- tiling-list order. Each entry has the same fields as `nnwm.current_window()`
+--- plus `urgent` and `is_xwayland`.
+---@return nnwm.Window[]
+function nnwm.windows() end
+
+--- Return a snapshot of all workspaces on the focused output (indices 1–9).
+--- Returns `nil` if no output is focused.
+--- Each entry has the same fields as `nnwm.current_workspace()` plus an
+--- `active` boolean that is `true` for the currently visible workspace.
+---@return nnwm.Workspace[]?
+function nnwm.workspaces() end
+
+--- Return a snapshot of every connected output.
+--- Each entry has the same fields as `nnwm.current_output()` plus a `focused`
+--- boolean that is `true` for the output that currently has keyboard focus.
+---@return nnwm.Output[]
+function nnwm.outputs() end
+
+--- Register a dynamic window rule with a Lua callback.
+--- The callback is invoked for every new window that maps and matches `match`.
+--- Unlike `nnwm.rule`, the action is a full Lua function that receives a live
+--- `nnwm.WindowHandle` and can call methods on it.
+---
+--- Returns an integer rule ID that can be passed to `nnwm.remove_rule` to
+--- unregister the rule at runtime.
+---
+--- ```lua
+--- local id = nnwm.add_rule({ app_id = "foot" }, function(win)
+---     win:set_workspace(2)
+---     win:set_floating(true)
+--- end)
+---
+--- -- Later, remove it:
+--- nnwm.remove_rule(id)
+--- ```
+---@param match    nnwm_window_rule_match          Fields to match (AND logic; fnmatch globs).
+---@param callback fun(win: nnwm.WindowHandle)     Called for each matching window when it maps.
+---@return integer  Rule ID (pass to `nnwm.remove_rule` to cancel).
+function nnwm.add_rule(match, callback) end
+
+--- Remove a dynamic rule previously registered with `nnwm.add_rule`.
+--- Returns `true` if the rule was found and removed, `false` if the ID was not found.
+---@param id integer  Rule ID returned by `nnwm.add_rule`.
+---@return boolean
+function nnwm.remove_rule(id) end
 
 ---@alias nnwm.EventName
 ---| "startup"          # Fired once on the first event-loop tick. No argument.
