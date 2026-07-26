@@ -1,5 +1,20 @@
 # nnwm CHANGELOG
 
+## 0.1.4
+
+### Features
+
+- **`idle` / `resume` event hooks**: `nnwm.on("idle", fn)` fires when there
+  has been no keyboard, pointer, or scroll input for `nnwm.opt.idle_timeout`
+  seconds. `nnwm.on("resume", fn)` fires on the first input event after the
+  system was idle. Set `nnwm.opt.idle_timeout = 0` (default) to disable the
+  timer entirely. nnwm also advertises the `ext-idle-notify-v1` protocol so
+  idle daemons such as `hypridle` receive activity notifications directly.
+
+- **`output_disconnect` event hook**: `nnwm.on("output_disconnect", fn)` fires
+  when a monitor is disconnected, before the output is torn down. The callback
+  receives an `nnwm.Output` snapshot with the output's final state.
+
 ## 0.1.3
 
 ### Features
@@ -40,10 +55,6 @@
 - **`nnwm.current_window()` and `nnwm.windows()` gain `is_xwayland`**:
   both APIs now include a boolean `is_xwayland` field so callers can
   distinguish XWayland windows from native Wayland clients.
-- **`output_disconnect` event hook**: `nnwm.on("output_disconnect", fn)` fires
-  when a monitor is disconnected, before the output is torn down. The callback
-  receives an `nnwm.Output` snapshot with the output's final state.
-
 - **nnwmctl IPC**: a companion CLI tool (`nnwmctl`) communicates with the
   running compositor over a Unix socket (`$XDG_RUNTIME_DIR/nnwm-ipc.sock`).
   Commands map to the underlying Lua API:
