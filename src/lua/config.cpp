@@ -4007,6 +4007,13 @@ nnwm::lua_fini(struct nnwm_server *server)
     server->lua = nullptr;
 }
 
+/* Minimal keybindings loaded when the user config fails to parse/run.
+ * Gives the user a way to open a terminal and fix the config. */
+static const char FALLBACK_KEYBINDS[] =
+    "nnwm.key({\"Super\",\"Return\"},  function() nnwm.spawn(\"kitty || foot || alacritty || xterm\") end)\n"
+    "nnwm.key({\"Super\",\"p\"},        function() nnwm.spawn(\"rofi -show drun\") end)\n"
+    "nnwm.key({\"Super\",\"Shift\",\"c\"}, function() nnwm.quit() end)\n";
+
 void
 nnwm::lua_load_config(struct nnwm_server *server, struct nnwm_config *cfg,
                       const char *path)
@@ -4027,6 +4034,7 @@ nnwm::lua_load_config(struct nnwm_server *server, struct nnwm_config *cfg,
         if (server->wayland_started && cfg->show_config_error_overlay)
             show_config_error(server, err);
         lua_pop(server->lua, 1);
+        luaL_dostring(server->lua, FALLBACK_KEYBINDS);
     }
     else if (server->wayland_started)
     {
@@ -4074,6 +4082,7 @@ nnwm::lua_reload(struct nnwm_server *server, struct nnwm_config *cfg)
         if (cfg->show_config_error_overlay)
             show_config_error(server, err);
         lua_pop(server->lua, 1);
+        luaL_dostring(server->lua, FALLBACK_KEYBINDS);
     }
     else
     {
