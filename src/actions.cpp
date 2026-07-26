@@ -1849,16 +1849,20 @@ keyboard_handle_key(wl_listener *listener, void *data)
         const xkb_keysym_t *base_syms;
         int n_base = xkb_keymap_key_get_syms_by_level(
             keyboard->wlr_keyboard->keymap, keycode, layout, 0, &base_syms);
-        for (int i = 0; i < n_base; i++)
-            handled
-                = handle_keybinding(server, modifiers, base_syms[i]) || handled;
-        if (handled && n_base > 0)
+        int match = 0;
+        for (int i = 0; i < n_base; i++) {
+            int r = handle_keybinding(server, modifiers, base_syms[i]);
+            if (r == 2) match = 2;
+            else if (r == 1 && match == 0) match = 1;
+        }
+        handled = handled || (match > 0);
+        if (match > 0 && n_base > 0)
         {
-            nnwm_config *cfg         = server->config;
+            nnwm_config *cfg           = server->config;
             keyboard->repeat_modifiers = modifiers;
             keyboard->repeat_sym       = base_syms[0];
             keyboard->repeat_started   = false;
-            if (cfg->keyboard.repeat_delay > 0)
+            if (match != 2 && cfg->keyboard.repeat_delay > 0)
                 wl_event_source_timer_update(keyboard->repeat_timer,
                                              cfg->keyboard.repeat_delay);
         }
@@ -1868,15 +1872,20 @@ keyboard_handle_key(wl_listener *listener, void *data)
         && !(modifiers & (WLR_MODIFIER_ALT | WLR_MODIFIER_LOGO))
         && event->state == WL_KEYBOARD_KEY_STATE_PRESSED)
     {
-        for (int i = 0; i < nsyms; i++)
-            handled = handle_keybinding(server, modifiers, syms[i]) || handled;
-        if (handled && nsyms > 0)
+        int match = 0;
+        for (int i = 0; i < nsyms; i++) {
+            int r = handle_keybinding(server, modifiers, syms[i]);
+            if (r == 2) match = 2;
+            else if (r == 1 && match == 0) match = 1;
+        }
+        handled = handled || (match > 0);
+        if (match > 0 && nsyms > 0)
         {
-            nnwm_config *cfg         = server->config;
+            nnwm_config *cfg           = server->config;
             keyboard->repeat_modifiers = modifiers;
             keyboard->repeat_sym       = syms[0];
             keyboard->repeat_started   = false;
-            if (cfg->keyboard.repeat_delay > 0)
+            if (match != 2 && cfg->keyboard.repeat_delay > 0)
                 wl_event_source_timer_update(keyboard->repeat_timer,
                                              cfg->keyboard.repeat_delay);
         }

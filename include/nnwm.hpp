@@ -192,6 +192,7 @@ struct nnwm_lua_keybinding
     xkb_keysym_t keysym;
     int func_ref;        /* Lua registry reference */
     char *description;   /* optional human-readable label, or nullptr */
+    bool no_repeat;      /* true = don't fire on key repeat events */
 };
 
 enum class nnwm_gesture_dir { UP, DOWN, LEFT, RIGHT };

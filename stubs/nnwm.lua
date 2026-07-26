@@ -386,11 +386,12 @@ function nnwm.bar.update(name) end
 ---```lua
 ---nnwm.key({"Super", "Return"}, function() nnwm.spawn("kitty") end, "Launch terminal")
 ---nnwm.key({"Super", "Shift", "q"}, function() nnwm.close() end, "Close window")
+---nnwm.key({"Super", "Tab"}, function() nnwm.layout.next() end, { repeat = false })
 ---```
----@param combo       string[]  Array of modifier names and exactly one key name
----@param callback    fun()     Function to call when the combo is pressed
----@param description string?   Optional human-readable label for the keybindings overlay
-function nnwm.key(combo, callback, description) end
+---@param combo    string[]         Array of modifier names and exactly one key name
+---@param callback fun()            Function to call when the combo is pressed
+---@param opts     string|{repeat?: boolean, description?: string}?  String = description; table = options (`repeat` defaults to `true`)
+function nnwm.key(combo, callback, opts) end
 
 ---Register a touchpad swipe gesture binding. The callback is fired when a
 ---swipe with the given number of fingers ends in the given direction.

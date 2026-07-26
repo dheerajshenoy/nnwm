@@ -279,9 +279,9 @@ l_nnwm_key(lua_State *L)
 {
     int argc = lua_gettop(L);
     if (argc < 2 || argc > 3 || !lua_istable(L, 1) || !lua_isfunction(L, 2))
-        return luaL_error(L, "nnwm.key(combo_table, callback[, description]) expected");
-    if (argc == 3 && !lua_isstring(L, 3))
-        return luaL_error(L, "nnwm.key: description must be a string");
+        return luaL_error(L, "nnwm.key(combo_table, callback[, opts]) expected");
+    if (argc == 3 && !lua_isstring(L, 3) && !lua_istable(L, 3))
+        return luaL_error(L, "nnwm.key: third arg must be a string (description) or table (opts)");
 
     struct nnwm_server *server = get_server(L);
 
@@ -344,7 +344,21 @@ l_nnwm_key(lua_State *L)
     kb.mods         = mods;
     kb.keysym       = keysym;
     kb.func_ref     = func_ref;
-    kb.description  = (argc == 3) ? strdup(lua_tostring(L, 3)) : nullptr;
+    kb.no_repeat    = false;
+    kb.description  = nullptr;
+
+    if (argc == 3) {
+        if (lua_isstring(L, 3)) {
+            kb.description = strdup(lua_tostring(L, 3));
+        } else if (lua_istable(L, 3)) {
+            lua_getfield(L, 3, "description");
+            if (lua_isstring(L, -1)) kb.description = strdup(lua_tostring(L, -1));
+            lua_pop(L, 1);
+            lua_getfield(L, 3, "repeat");
+            if (lua_isboolean(L, -1)) kb.no_repeat = !lua_toboolean(L, -1);
+            lua_pop(L, 1);
+        }
+    }
 
     return 0;
 }
@@ -4053,7 +4067,7 @@ nnwm::lua_handle_keybinding(struct nnwm_server *server, uint32_t mods,
                              lua_tostring(server->lua, -1));
                 lua_pop(server->lua, 1);
             }
-            return 1;
+            return kb.no_repeat ? 2 : 1;
         }
     }
     return 0;
