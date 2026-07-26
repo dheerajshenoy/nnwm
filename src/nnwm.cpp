@@ -777,15 +777,21 @@ animate_step_one(nnwm_server * /*server*/, nnwm_toplevel *tl, double now)
         tl->cur_h = ch;
 
         /* Hide when the animated rect leaves the home output entirely.
+         * Also hide if the window has been moved to an inactive workspace —
+         * animate_step must not re-enable a node that workspace::move_to
+         * explicitly disabled.
          * Per-output bleed prevention (partial overlap) is handled in
          * output_frame before each output's commit. */
         if (tl->output)
         {
+            bool on_active = (tl->workspace == tl->output->active_workspace
+                              || tl->sticky);
             wlr_box ob;
             wlr_output_layout_get_box(tl->server->output_layout,
                                       tl->output->wlr_output, &ob);
-            bool inside = (cx + cw > ob.x && cx < ob.x + ob.width &&
-                           cy + ch > ob.y && cy < ob.y + ob.height);
+            bool inside = on_active
+                          && (cx + cw > ob.x && cx < ob.x + ob.width &&
+                              cy + ch > ob.y && cy < ob.y + ob.height);
             wlr_scene_node_set_enabled(&tl->scene_tree->node, inside);
         }
 

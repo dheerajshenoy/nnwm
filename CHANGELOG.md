@@ -2,6 +2,17 @@
 
 ## 0.1.4
 
+### Bug Fixes
+
+- **Window briefly reappears after `move_to_workspace` when animations are
+  enabled**: moving a window to an inactive workspace disabled its scene node,
+  but `animate_step` unconditionally re-enabled it on the next frame if the
+  animation position was still within the output bounds. The window would
+  ghost-render on the current workspace for the remainder of its layout
+  animation. Fixed by adding a workspace-active check in `animate_step_one`:
+  a window is only re-enabled by the animation system if its workspace matches
+  the output's active workspace (or the window is sticky).
+
 ### Features
 
 - **`idle` / `resume` event hooks**: `nnwm.on("idle", fn)` fires when there
