@@ -317,7 +317,7 @@ struct nnwm_server
     uint32_t resize_edges;
     struct nnwm_toplevel *tile_drag_target;        /* hovered tiled window drop target */
     struct nnwm_output   *tile_drag_target_output; /* hovered output when no window target */
-    struct wlr_scene_rect *tile_drop_border[4]; /* outline preview at drop site */
+    struct wlr_scene_rect *tile_drop_overlay; /* translucent overlay at drop site */
 
     struct wl_listener
         session_active; /* VT switch resume → re-tile all outputs */

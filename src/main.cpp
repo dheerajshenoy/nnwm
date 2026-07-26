@@ -216,15 +216,12 @@ main(int argc, char *argv[])
             &server.scene->tree, 0, 0, dim_color);
         wlr_scene_node_set_enabled(&server.scene_scratch_dim->node, false);
     }
-    /* Tile drag drop preview: 4 rects forming an outline at the drop site */
+    /* Tile drag drop preview: translucent overlay covering the drop target */
     {
-        const float dc[4] = {0.35f, 0.75f, 1.0f, 0.85f};
-        for (int i = 0; i < 4; i++)
-        {
-            server.tile_drop_border[i]
-                = wlr_scene_rect_create(&server.scene->tree, 0, 0, dc);
-            wlr_scene_node_set_enabled(&server.tile_drop_border[i]->node, false);
-        }
+        const float dc[4] = {0.35f, 0.75f, 1.0f, 0.30f};
+        server.tile_drop_overlay
+            = wlr_scene_rect_create(&server.scene->tree, 0, 0, dc);
+        wlr_scene_node_set_enabled(&server.tile_drop_overlay->node, false);
     }
     server.tile_drag_target        = nullptr;
     server.tile_drag_target_output = nullptr;

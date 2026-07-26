@@ -145,8 +145,7 @@ tab_toplevel_at(nnwm_server *server, double lx, double ly)
 static void
 tile_drop_border_hide(nnwm_server *server)
 {
-    for (int i = 0; i < 4; i++)
-        wlr_scene_node_set_enabled(&server->tile_drop_border[i]->node, false);
+    wlr_scene_node_set_enabled(&server->tile_drop_overlay->node, false);
     server->tile_drag_target        = nullptr;
     server->tile_drag_target_output = nullptr;
 }
@@ -154,19 +153,10 @@ tile_drop_border_hide(nnwm_server *server)
 static void
 tile_drop_border_show(nnwm_server *server, int x, int y, int w, int h)
 {
-    int bw = std::max(2, server->config->border.width);
-    /* top, bottom, left, right */
-    int lx[4] = { x,          x,          x,          x + w - bw };
-    int ly[4] = { y,          y + h - bw, y,          y          };
-    int lw[4] = { w,          w,          bw,         bw         };
-    int lh[4] = { bw,         bw,         h,          h          };
-    for (int i = 0; i < 4; i++)
-    {
-        wlr_scene_rect_set_size(server->tile_drop_border[i], lw[i], lh[i]);
-        wlr_scene_node_set_position(&server->tile_drop_border[i]->node, lx[i], ly[i]);
-        wlr_scene_node_set_enabled(&server->tile_drop_border[i]->node, true);
-        wlr_scene_node_raise_to_top(&server->tile_drop_border[i]->node);
-    }
+    wlr_scene_rect_set_size(server->tile_drop_overlay, w, h);
+    wlr_scene_node_set_position(&server->tile_drop_overlay->node, x, y);
+    wlr_scene_node_set_enabled(&server->tile_drop_overlay->node, true);
+    wlr_scene_node_raise_to_top(&server->tile_drop_overlay->node);
 }
 
 void
@@ -221,13 +211,32 @@ static void
 process_tile_drag_motion(nnwm_server *server)
 {
     nnwm_toplevel *grabbed = server->grabbed_toplevel;
-    double sx, sy;
-    wlr_surface *surface    = nullptr;
-    nnwm_toplevel *under    = desktop_toplevel_at(
-        server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+    double cx = server->cursor->x;
+    double cy = server->cursor->y;
 
-    if (under && under != grabbed && !under->floating)
+    /* Use geometry-based hit test instead of scene-node hit test.
+     * The overlay rect sits above windows in the scene tree and would block
+     * wlr_scene_node_at, making desktop_toplevel_at return nullptr and causing
+     * the overlay to flicker (hide → hit test succeeds → show → repeat). */
+    nnwm_toplevel *under = nullptr;
     {
+        nnwm_toplevel *tl;
+        wl_list_for_each(tl, &server->toplevels, link)
+        {
+            if (tl == grabbed || tl->floating || tl->in_scratchpad) continue;
+            if (!tl->scene_tree->node.enabled) continue;
+            if (cx >= tl->cur_x && cx < tl->cur_x + tl->cur_w &&
+                cy >= tl->cur_y && cy < tl->cur_y + tl->cur_h)
+            {
+                under = tl;
+                break;
+            }
+        }
+    }
+
+    if (under)
+    {
+        if (under == server->tile_drag_target) return; /* same target — no update */
         server->tile_drag_target        = under;
         server->tile_drag_target_output = nullptr;
         tile_drop_border_show(server, under->cur_x, under->cur_y,
@@ -240,6 +249,7 @@ process_tile_drag_motion(nnwm_server *server)
         nnwm_output *hover_out = output_at_cursor(server);
         if (hover_out && hover_out != grabbed->output)
         {
+            if (server->tile_drag_target_output == hover_out) return; /* same — no update */
             server->tile_drag_target        = nullptr;
             server->tile_drag_target_output = hover_out;
             const wlr_box &ua = hover_out->usable_area;
