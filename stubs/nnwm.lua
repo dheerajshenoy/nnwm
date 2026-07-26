@@ -240,6 +240,7 @@ MOD = {}
 ---@field show_config_error_overlay? boolean   Show a red overlay when the Lua config fails to load. Dangerous to disable — errors will be silently ignored (default: true)
 ---@field workspace_names?           string[]  Workspace labels; the array length sets the workspace count (1–9, default: 9 unlabelled). Shown in the overview and sent via ext-workspace-v1. Empty strings fall back to the numeric index.
 ---@field find_cursor_style?         "rings"|"spotlight"|"zoom"  Animation style for `nnwm.find_cursor()`. "rings" = filled circle shrinking to cursor (default); "spotlight" = full-screen dim with circular cutout at cursor; "zoom" = temporarily enlarges the system cursor.
+---@field idle_timeout?              number  Seconds of inactivity before the "idle" hook fires. 0 disables idle detection (default: 0).
 
 ---@class nnwm
 ---@field opt nnwm_opts
@@ -520,6 +521,8 @@ function nnwm.remove_rule(id) end
 ---| "lid_open"         # Fired when the laptop lid is opened. No argument.
 ---| "tablet_mode_on"   # Fired when the device enters tablet mode. No argument.
 ---| "tablet_mode_off"  # Fired when the device leaves tablet mode. No argument.
+---| "idle"             # Fired when the compositor has been idle for `nnwm.opt.idle_timeout` seconds. No argument.
+---| "resume"           # Fired when input activity is detected after the compositor was idle. No argument.
 
 --- Register a callback for a compositor event.
 ---

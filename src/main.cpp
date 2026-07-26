@@ -35,6 +35,7 @@ config_file_changed(int /*fd*/, uint32_t /*mask*/, void *data)
     std::fprintf(stderr, "nnwm: reloading config\n");
     nnwm::lua_reload(server, server->config);
     server_apply_config(server);
+    idle_apply_config(server);
     return 0;
 }
 
@@ -557,6 +558,14 @@ main(int argc, char *argv[])
     wl_signal_add(&server.idle_inhibit_manager->events.new_inhibitor,
                   &server.new_idle_inhibitor);
 
+    /* ext-idle-notify-v1: notifies clients (hypridle, swayidle) when the seat
+     * is idle. Activity is reported from input event handlers via
+     * nnwm_notify_activity(). */
+    server.idle_notifier = wlr_idle_notifier_v1_create(server.wl_display);
+    server.is_idle       = false;
+    server.idle_source   = wl_event_loop_add_timer(loop, idle_timer_cb, &server);
+    idle_apply_config(&server);
+
     /* relative-pointer-v1: exposes unaccelerated relative motion to clients
      * (games, remote-desktop tools). Must be created before pointer constraints
      * so it is ready when the first constraint activates. */
@@ -688,6 +697,7 @@ main(int argc, char *argv[])
      * server. */
     wl_display_destroy_clients(server.wl_display);
 
+    if (server.idle_source) wl_event_source_remove(server.idle_source);
     wl_list_remove(&server.new_idle_inhibitor.link);
     wl_list_remove(&server.new_pointer_constraint.link);
     if (server.active_constraint)

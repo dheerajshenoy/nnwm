@@ -332,6 +332,9 @@ struct nnwm_config
     /* Config error overlay (dangerous to disable — you won't see load errors) */
     bool show_config_error_overlay;
 
+    /* Idle detection — 0 disables the hook-based idle timer entirely */
+    int idle_timeout_ms;
+
     /* find_cursor animation style: "rings" (concentric shrinking rings) or
      * "spotlight" (full-screen dim with circular cutout) */
     char *find_cursor_style;

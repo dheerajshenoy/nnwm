@@ -1995,6 +1995,40 @@ nnwm_timer_cb(void *data)
     return 0;
 }
 
+/* ---- Idle detection ---- */
+
+int idle_timer_cb(void *data) {
+    nnwm_server *server = static_cast<nnwm_server *>(data);
+    if (server->is_idle) return 0;
+    server->is_idle = true;
+    fire_hook_plain(server, "idle");
+    return 0;
+}
+
+void nnwm_notify_activity(nnwm_server *server) {
+    if (server->idle_notifier)
+        wlr_idle_notifier_v1_notify_activity(server->idle_notifier, server->seat);
+    if (!server->idle_source) return;
+    int ms = server->config->idle_timeout_ms;
+    if (ms <= 0) return;
+    if (server->is_idle) {
+        server->is_idle = false;
+        fire_hook_plain(server, "resume");
+    }
+    wl_event_source_timer_update(server->idle_source, ms);
+}
+
+void idle_apply_config(nnwm_server *server) {
+    int ms = server->config->idle_timeout_ms;
+    if (!server->idle_source) return;
+    if (ms > 0) {
+        server->is_idle = false;
+        wl_event_source_timer_update(server->idle_source, ms);
+    } else {
+        wl_event_source_timer_update(server->idle_source, 0); /* disarm */
+    }
+}
+
 static int
 l_nnwm_on(lua_State *L)
 {
@@ -2768,6 +2802,9 @@ push_config_defaults(lua_State *L, struct nnwm_config *cfg)
     lua_setfield(L, -2, "animations");
 #endif /* HAVE_SCENEFX */
     lua_setfield(L, -2, "fx");
+
+    lua_pushnumber(L, cfg->idle_timeout_ms / 1000.0);
+    lua_setfield(L, -2, "idle_timeout");
 
     lua_pop(L, 2); /* pop opt and nnwm */
 }
@@ -3702,6 +3739,11 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
 #endif                 /* HAVE_SCENEFX */
     }
     lua_pop(L, 1); /* pop fx or nil */
+
+    lua_getfield(L, -1, "idle_timeout");
+    if (lua_isnumber(L, -1))
+        cfg->idle_timeout_ms = (int)(lua_tonumber(L, -1) * 1000.0);
+    lua_pop(L, 1);
 
     lua_pop(L, 2); /* pop opt and nnwm */
 }

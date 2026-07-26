@@ -337,6 +337,8 @@ process_cursor_resize(nnwm_server *server)
 void
 process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
 {
+    if (real_motion) nnwm_notify_activity(server);
+
     if (server->drag_icon_tree)
     {
         wlr_scene_node_set_position(&server->drag_icon_tree->node,
@@ -756,6 +758,7 @@ server_cursor_button(wl_listener *listener, void *data)
 {
     nnwm_server *server = wl_container_of(listener, server, cursor_button);
     auto *event         = static_cast<wlr_pointer_button_event *>(data);
+    nnwm_notify_activity(server);
 
     /* Overview mode: intercept all button events */
     if (!server->session_lock)
@@ -1028,6 +1031,7 @@ server_cursor_axis(wl_listener *listener, void *data)
 {
     nnwm_server *server = wl_container_of(listener, server, cursor_axis);
     auto *event         = static_cast<wlr_pointer_axis_event *>(data);
+    nnwm_notify_activity(server);
     float factor        = server->config->touchpad.scroll_factor;
     wlr_seat_pointer_notify_axis(
         server->seat, event->time_msec, event->orientation,

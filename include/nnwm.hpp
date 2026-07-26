@@ -89,6 +89,7 @@ struct wlr_xwayland_surface;
 #include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/types/wlr_session_lock_v1.h>
 #include <wlr/types/wlr_idle_inhibit_v1.h>
+#include <wlr/types/wlr_idle_notify_v1.h>
 #include <wlr/types/wlr_pointer_constraints_v1.h>
 #include <wlr/types/wlr_relative_pointer_v1.h>
 #include <wlr/util/edges.h>
@@ -354,6 +355,10 @@ struct nnwm_server
 
     struct wlr_idle_inhibit_manager_v1 *idle_inhibit_manager;
     struct wl_listener new_idle_inhibitor;
+
+    struct wlr_idle_notifier_v1 *idle_notifier;
+    struct wl_event_source *idle_source; /* wl_event_loop timer for idle hook */
+    bool is_idle;                        /* true between "idle" and "resume" fires */
 
     struct wlr_pointer_constraints_v1 *pointer_constraints;
     struct wl_listener new_pointer_constraint;

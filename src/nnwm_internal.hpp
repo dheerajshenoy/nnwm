@@ -185,6 +185,14 @@ void apply_window_rules(struct nnwm_server *server,
 void apply_runtime_rules(struct nnwm_server *server,
                          struct nnwm_toplevel *toplevel);
 
+/* ---- Idle detection ---- */
+/* Call on any real user input (motion, button, key, axis). Resets the idle
+ * timer; fires "resume" if the compositor was idle. */
+void nnwm_notify_activity(struct nnwm_server *server);
+/* (Re)arm the idle timer from current config. Call after config reload. */
+void idle_apply_config(struct nnwm_server *server);
+int  idle_timer_cb(void *data);
+
 /* ---- Event hooks ---- */
 void fire_hook_plain(struct nnwm_server *server, const char *event);
 void fire_hook_window(struct nnwm_server *server, const char *event,

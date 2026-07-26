@@ -139,23 +139,23 @@
 - [x] nnwm.current_window() returning nil when no window is focused, else return nnwm.Window object
 - [x] nnwm.current_monitor() returning nil when no monitor is focused else return nnwm.Monitor object
 - [x] nnwm.current_workspace() returning nil when no workspace is focused else return nnwm.Workspace object
-- Lua config
-    - Hooks
-        - Window
-            - [x] New
-            - [x] Close
-            - [x] Focus change
-            - [x] Fullscreen
-            - [x] Workspace change
-            - [x] window_urgent
-        - [x] Startup
-        - [x] Shutdown
-        - [x] On monitor connect
-        - [x] On monitor disconnect
-        - [x] On lid close
-        - [x] On lid open
-        - [x] On tablet mode
-        - [x] On tablet mode off
+- Hooks
+    - Window
+        - [x] New
+        - [x] Close
+        - [x] Focus change
+        - [x] Fullscreen
+        - [x] Workspace change
+        - [x] window_urgent
+    - [x] idle/resume.
+    - [x] Startup
+    - [x] Shutdown
+    - [x] On monitor connect
+    - [x] On monitor disconnect
+    - [x] On lid close
+    - [x] On lid open
+    - [x] On tablet mode
+    - [x] On tablet mode off
 - [x] Scratchpad windows disappear after changing workspaces
 - [x] Change cursor shape when window resizing
 - [x] workspace-auto-back-and-forth
@@ -254,7 +254,6 @@
     - [ ] workspace_focus (per output)
     - [ ] output_layout_change
     - [ ] session_lock/unlock
-    - [ ] idle/resume.
     - [ ] Also pass the affected object into the callback, not just a bare event.
 - [ ] Per-output / per-workspace config scopes. nnwm.output("HDMI-1").opt.gaps = 20, nnwm.workspace(3).layout = "tabbed". Currently most things are global.
 - [ ] Scratchpad introspection: nnwm.scratchpad("term"):windows(), :visible().

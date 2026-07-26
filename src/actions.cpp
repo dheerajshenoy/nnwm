@@ -1797,6 +1797,8 @@ keyboard_handle_key(wl_listener *listener, void *data)
     auto *event             = static_cast<wlr_keyboard_key_event *>(data);
     wlr_seat *seat          = server->seat;
 
+    nnwm_notify_activity(server);
+
     uint32_t keycode = event->keycode + 8;
     const xkb_keysym_t *syms;
     int nsyms = xkb_state_key_get_syms(keyboard->wlr_keyboard->xkb_state,
