@@ -218,6 +218,7 @@
 - [x] Runtime rules. nnwm.add_rule({app_id="firefox"}, function(w) w:set_floating(true) end) and nnwm.remove_rule(id). Right now rules are static config only.
 - [x] nnwm.timer cancel/pause/resume handle (if not already returned).
 - [x] Monitor hot-corners (global + per-monitor overrides, dwell timer, cooldown)
+- [x] Keybinding overlay
 
 ## TODO
 
@@ -233,7 +234,6 @@
     - [ ] Dwindle
 - [ ] Jump label support (like MangoWM)
 - [ ] possibly use xwayland-satellite for XWayland?
-- [ ] Keybinding overlay
 - [ ] Keyboard-driven resize — you can move windows with keys but resizing tiled windows (adjusting split ratio) via keyboard seems absent
 - [ ] Iteration + window handles (biggest missing piece). Right now every action targets the focused window. Real config power needs "for every window matching X, do Y".
 

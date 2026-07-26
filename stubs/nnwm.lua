@@ -399,11 +399,11 @@ function nnwm.bar.update(name) end
 ---```lua
 ---nnwm.key({"Super", "Return"}, function() nnwm.spawn("kitty") end, "Launch terminal")
 ---nnwm.key({"Super", "Shift", "q"}, function() nnwm.close() end, "Close window")
----nnwm.key({"Super", "Tab"}, function() nnwm.layout.next() end, { repeat = false })
+---nnwm.key({"Super", "Tab"}, function() nnwm.layout.next() end, { no_repeat = true })
 ---```
 ---@param combo    string[]         Array of modifier names and exactly one key name
 ---@param callback fun()            Function to call when the combo is pressed
----@param opts     string|{repeat?: boolean, description?: string}?  String = description; table = options (`repeat` defaults to `true`)
+---@param opts     string|{no_repeat?: boolean, description?: string}?  String = description; table = options (`no_repeat = true` disables key repeat for this binding)
 function nnwm.key(combo, callback, opts) end
 
 ---Register a touchpad swipe gesture binding. The callback is fired when a
@@ -709,6 +709,15 @@ function nnwm.toggle_sticky() end
 --- nnwm.key({"Super"}, "w", function() nnwm.toggle_overview() end)
 --- ```
 function nnwm.toggle_overview() end
+
+--- Toggle the keybinding overlay popup.
+--- Shows a scrollable panel listing all keybindings registered with `nnwm.key`.
+--- Bindings with a `description` field appear alongside their key combo.
+--- Scroll with the mouse wheel; press Escape to close.
+--- ```lua
+--- nnwm.key({"Super", "Shift"}, "slash", function() nnwm.toggle_keybind_overlay() end, { description = "Show keybindings" })
+--- ```
+function nnwm.toggle_keybind_overlay() end
 
 --- Move the focused window into the scratchpad.
 --- The scratchpad is a global overlay workspace that can hold multiple windows

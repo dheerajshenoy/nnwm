@@ -50,6 +50,16 @@
   remains `true` (repeat enabled), preserving existing behaviour for bindings
   that rely on it (volume keys, directional focus, resize).
 
+- **Keybinding overlay**: `nnwm.toggle_keybind_overlay()` opens a scrollable
+  popup panel listing all keybindings registered via `nnwm.key`. Each row shows
+  the modifier+key combo on the left and the `description` (from the opts table)
+  on the right. Scroll with the mouse wheel; press Escape to close. Typical use:
+  ```lua
+  nnwm.key({"Super", "Shift"}, "slash",
+    function() nnwm.toggle_keybind_overlay() end,
+    { description = "Show keybindings" })
+  ```
+
 - **Hot corners**: moving the cursor into any screen corner can trigger a Lua
   callback after a configurable dwell time. Supports global defaults and
   per-monitor overrides:

@@ -1855,6 +1855,21 @@ keyboard_handle_key(wl_listener *listener, void *data)
         }
     }
 
+    /* Escape closes the keybinding overlay */
+    if (!handled && event->state == WL_KEYBOARD_KEY_STATE_PRESSED
+        && server->keybind_ov_tree && server->keybind_ov_tree->node.enabled)
+    {
+        for (int i = 0; i < nsyms; i++)
+        {
+            if (syms[i] == XKB_KEY_Escape)
+            {
+                hide_keybind_overlay(server);
+                handled = true;
+                break;
+            }
+        }
+    }
+
     if (!handled && !server->session_lock
         && (modifiers & (WLR_MODIFIER_ALT | WLR_MODIFIER_LOGO))
         && event->state == WL_KEYBOARD_KEY_STATE_PRESSED)

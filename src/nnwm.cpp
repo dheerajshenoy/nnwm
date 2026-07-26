@@ -2,10 +2,13 @@
 
 #include "nnwm_internal.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <string>
+#include <vector>
 #include <drm_fourcc.h>
 #include <pango/pangocairo.h>
 extern "C"
@@ -13,6 +16,7 @@ extern "C"
 #include <wlr/interfaces/wlr_buffer.h>
 #include <wlr/render/drm_format_set.h>
 #include <wlr/render/pass.h>
+#include <xkbcommon/xkbcommon.h>
 }
 
 namespace
@@ -3468,4 +3472,242 @@ hide_config_error(nnwm_server *server)
     {
         wl_event_source_timer_update(server->error_dismiss_timer, 0);
     }
+}
+
+/* ---- Keybinding overlay ---- */
+
+static std::string
+keybind_combo_string(uint32_t mods, xkb_keysym_t keysym)
+{
+    std::string s;
+    if (mods & WLR_MODIFIER_LOGO)  { s += "Super+"; }
+    if (mods & WLR_MODIFIER_CTRL)  { s += "Ctrl+"; }
+    if (mods & WLR_MODIFIER_ALT)   { s += "Alt+"; }
+    if (mods & WLR_MODIFIER_SHIFT) { s += "Shift+"; }
+    if (mods & WLR_MODIFIER_CAPS)  { s += "Caps+"; }
+    if (mods & WLR_MODIFIER_MOD2)  { s += "Mod2+"; }
+    if (mods & WLR_MODIFIER_MOD3)  { s += "Mod3+"; }
+    if (mods & WLR_MODIFIER_MOD5)  { s += "Mod5+"; }
+    char keybuf[64];
+    xkb_keysym_get_name(keysym, keybuf, sizeof(keybuf));
+    /* Prettify common names */
+    if (strcmp(keybuf, "Return") == 0)      s += "Enter";
+    else if (strcmp(keybuf, "BackSpace") == 0) s += "Backspace";
+    else if (strcmp(keybuf, "Prior") == 0)  s += "PageUp";
+    else if (strcmp(keybuf, "Next") == 0)   s += "PageDown";
+    else                                     s += keybuf;
+    return s;
+}
+
+/* Render the full keybinding list into keybind_ov_buf at the given output
+ * scale.  Stores content/viewport sizes so scroll clamping works. */
+static void
+keybind_overlay_render(nnwm_server *server)
+{
+    if (!server->focused_output) return;
+    nnwm_output *out = server->focused_output;
+
+    wlr_box ob;
+    wlr_output_layout_get_box(server->output_layout, out->wlr_output, &ob);
+    if (ob.width <= 0 || ob.height <= 0) return;
+
+    float scale = out->wlr_output->scale;
+
+    /* Collect bindings */
+    struct KbRow { std::string combo; std::string desc; };
+    std::vector<KbRow> rows;
+    for (int i = 0; i < server->lua_keybinding_count; i++) {
+        const auto &kb = server->lua_keybindings[i];
+        rows.push_back({
+            keybind_combo_string(kb.mods, kb.keysym),
+            kb.description ? kb.description : ""
+        });
+    }
+    std::sort(rows.begin(), rows.end(),
+        [](const KbRow &a, const KbRow &b){ return a.combo < b.combo; });
+
+    /* Layout constants (logical pixels) */
+    const int PAD       = 18;
+    const int ROW_H     = 26;
+    const int TITLE_H   = 36;
+    const int SEP_H     = 1;
+    const int CORNER_R  = 10;
+    const int OV_W      = std::min(700, (int)(ob.width * 0.85));
+    const int MAX_VP_H  = (int)(ob.height * 0.78);
+
+    int content_h = TITLE_H + SEP_H + PAD/2
+                    + (int)rows.size() * ROW_H + PAD;
+    int viewport_h = std::min(content_h, MAX_VP_H);
+
+    server->keybind_ov_width    = OV_W;
+    server->keybind_ov_content_h  = content_h;
+    server->keybind_ov_viewport_h = viewport_h;
+
+    /* Clamp scroll */
+    int max_scroll = std::max(0, content_h - viewport_h);
+    if (server->keybind_ov_scroll < 0) server->keybind_ov_scroll = 0;
+    if (server->keybind_ov_scroll > max_scroll) server->keybind_ov_scroll = max_scroll;
+
+    /* Render full content into a texture (content_h tall) */
+    int pw = (int)(OV_W * scale);
+    int ph = (int)(content_h * scale);
+    if (pw <= 0 || ph <= 0) return;
+
+    nnwm_tbuf *tb = tbuf_create(pw, ph);
+    cairo_surface_t *surf = cairo_image_surface_create_for_data(
+        tb->data, CAIRO_FORMAT_ARGB32, pw, ph, tb->stride);
+    cairo_t *cr = cairo_create(surf);
+    cairo_scale(cr, scale, scale);
+
+    /* Background (transparent — we use the scene_rect for the bg so FX works) */
+    cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
+    cairo_set_source_rgba(cr, 0, 0, 0, 0);
+    cairo_paint(cr);
+    cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
+
+    const char *font_name = server->config->titlebar.font
+                            ? server->config->titlebar.font : "Sans 10";
+    PangoFontDescription *fd = pango_font_description_from_string(font_name);
+    PangoFontDescription *fd_bold = pango_font_description_copy(fd);
+    pango_font_description_set_weight(fd_bold, PANGO_WEIGHT_BOLD);
+    /* Scale up slightly for the title */
+    double base_sz = pango_font_description_get_size(fd) / (double)PANGO_SCALE;
+    PangoFontDescription *fd_title = pango_font_description_copy(fd_bold);
+    pango_font_description_set_size(fd_title, (int)((base_sz + 2) * PANGO_SCALE));
+
+    /* Title */
+    {
+        PangoLayout *pl = pango_cairo_create_layout(cr);
+        pango_layout_set_font_description(pl, fd_title);
+        pango_layout_set_text(pl, "Keybindings", -1);
+        int tw, th; pango_layout_get_pixel_size(pl, &tw, &th);
+        double ty = (TITLE_H - th) / 2.0;
+        cairo_set_source_rgba(cr, 0.9, 0.9, 1.0, 1.0);
+        cairo_move_to(cr, PAD, ty);
+        pango_cairo_show_layout(cr, pl);
+        g_object_unref(pl);
+    }
+
+    /* Separator line */
+    cairo_set_source_rgba(cr, 0.4, 0.4, 0.6, 0.7);
+    cairo_rectangle(cr, PAD, TITLE_H, OV_W - 2 * PAD, SEP_H);
+    cairo_fill(cr);
+
+    /* Rows */
+    const int col1_w = (int)(OV_W * 0.42); /* combo column width */
+    int y = TITLE_H + SEP_H + PAD / 2;
+
+    for (size_t i = 0; i < rows.size(); i++) {
+        /* Alternating row tint */
+        if (i % 2 == 0) {
+            cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.04);
+            cairo_rectangle(cr, 0, y, OV_W, ROW_H);
+            cairo_fill(cr);
+        }
+
+        double text_y = y + (ROW_H - base_sz * 1.2) / 2.0;
+
+        /* Combo column — bold, accent colour */
+        {
+            PangoLayout *pl = pango_cairo_create_layout(cr);
+            pango_layout_set_font_description(pl, fd_bold);
+            pango_layout_set_text(pl, rows[i].combo.c_str(), -1);
+            pango_layout_set_width(pl, (col1_w - PAD) * PANGO_SCALE);
+            pango_layout_set_ellipsize(pl, PANGO_ELLIPSIZE_END);
+            int tw, th; pango_layout_get_pixel_size(pl, &tw, &th);
+            cairo_set_source_rgba(cr, 0.55, 0.85, 1.0, 1.0);
+            cairo_move_to(cr, PAD, y + (ROW_H - th) / 2.0);
+            pango_cairo_show_layout(cr, pl);
+            g_object_unref(pl);
+        }
+
+        /* Description column */
+        if (!rows[i].desc.empty()) {
+            PangoLayout *pl = pango_cairo_create_layout(cr);
+            pango_layout_set_font_description(pl, fd);
+            pango_layout_set_text(pl, rows[i].desc.c_str(), -1);
+            pango_layout_set_width(pl, (OV_W - col1_w - PAD) * PANGO_SCALE);
+            pango_layout_set_ellipsize(pl, PANGO_ELLIPSIZE_END);
+            int tw, th; pango_layout_get_pixel_size(pl, &tw, &th);
+            cairo_set_source_rgba(cr, 0.82, 0.82, 0.82, 1.0);
+            cairo_move_to(cr, col1_w, y + (ROW_H - th) / 2.0);
+            pango_cairo_show_layout(cr, pl);
+            g_object_unref(pl);
+        }
+
+        y += ROW_H;
+    }
+
+    pango_font_description_free(fd);
+    pango_font_description_free(fd_bold);
+    pango_font_description_free(fd_title);
+    cairo_destroy(cr);
+    cairo_surface_destroy(surf);
+
+    wlr_scene_buffer_set_buffer(server->keybind_ov_buf, &tb->base);
+    wlr_buffer_drop(&tb->base);
+
+    /* Dest size = viewport (logical pixels) */
+    wlr_scene_buffer_set_dest_size(server->keybind_ov_buf, OV_W, viewport_h);
+
+    /* Position overlay centred on output */
+    int ov_x = ob.x + (ob.width  - OV_W)    / 2;
+    int ov_y = ob.y + (ob.height - viewport_h) / 2;
+    wlr_scene_node_set_position(&server->keybind_ov_tree->node, ov_x, ov_y);
+
+    /* Resize background rect to match visible area */
+    wlr_scene_rect_set_size(server->keybind_ov_bg, OV_W, viewport_h);
+
+    /* Round corners on the buffer (if scenefx) */
+#ifdef HAVE_SCENEFX
+    wlr_scene_buffer_set_corner_radius(server->keybind_ov_buf, CORNER_R);
+#else
+    (void)CORNER_R;
+#endif
+
+    /* Apply scroll via source box */
+    wlr_fbox src = {0, (double)(server->keybind_ov_scroll * scale),
+                    (double)pw, (double)(viewport_h * scale)};
+    wlr_scene_buffer_set_source_box(server->keybind_ov_buf, &src);
+}
+
+void
+show_keybind_overlay(nnwm_server *server)
+{
+    server->keybind_ov_scroll = 0;
+    keybind_overlay_render(server);
+    wlr_scene_node_set_enabled(&server->keybind_ov_tree->node, true);
+    wlr_scene_node_raise_to_top(&server->keybind_ov_tree->node);
+}
+
+void
+hide_keybind_overlay(nnwm_server *server)
+{
+    wlr_scene_node_set_enabled(&server->keybind_ov_tree->node, false);
+}
+
+void
+toggle_keybind_overlay(nnwm_server *server)
+{
+    if (server->keybind_ov_tree->node.enabled)
+        hide_keybind_overlay(server);
+    else
+        show_keybind_overlay(server);
+}
+
+void
+keybind_overlay_scroll_by(nnwm_server *server, double delta)
+{
+    server->keybind_ov_scroll += (int)delta;
+    int max_scroll = std::max(0, server->keybind_ov_content_h - server->keybind_ov_viewport_h);
+    if (server->keybind_ov_scroll < 0)          server->keybind_ov_scroll = 0;
+    if (server->keybind_ov_scroll > max_scroll) server->keybind_ov_scroll = max_scroll;
+
+    /* Update source box only — no re-render needed */
+    float scale = server->focused_output ? server->focused_output->wlr_output->scale : 1.0f;
+    int pw = (int)(server->keybind_ov_width * scale);
+    int ph_vp = (int)(server->keybind_ov_viewport_h * scale);
+    wlr_fbox src = {0, (double)(server->keybind_ov_scroll * scale),
+                    (double)pw, (double)ph_vp};
+    wlr_scene_buffer_set_source_box(server->keybind_ov_buf, &src);
 }

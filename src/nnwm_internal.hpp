@@ -197,6 +197,12 @@ int  idle_timer_cb(void *data);
 int  hot_corner_timer_cb(void *data);
 void process_hot_corners(struct nnwm_server *server);
 
+/* ---- Keybinding overlay ---- */
+void show_keybind_overlay(struct nnwm_server *server);
+void hide_keybind_overlay(struct nnwm_server *server);
+void toggle_keybind_overlay(struct nnwm_server *server);
+void keybind_overlay_scroll_by(struct nnwm_server *server, double delta);
+
 /* ---- Event hooks ---- */
 void fire_hook_plain(struct nnwm_server *server, const char *event);
 void fire_hook_window(struct nnwm_server *server, const char *event,

@@ -238,6 +238,19 @@ main(int argc, char *argv[])
     server.scene_locks
         = wlr_scene_tree_create(&server.scene->tree);
 
+    /* Keybinding overlay — sits above session lock surfaces */
+    server.keybind_ov_tree = wlr_scene_tree_create(&server.scene->tree);
+    wlr_scene_node_set_enabled(&server.keybind_ov_tree->node, false);
+    {
+        const float ov_bg[4] = {0.08f, 0.09f, 0.14f, 0.93f};
+        server.keybind_ov_bg  = wlr_scene_rect_create(server.keybind_ov_tree, 1, 1, ov_bg);
+        server.keybind_ov_buf = wlr_scene_buffer_create(server.keybind_ov_tree, nullptr);
+        server.keybind_ov_scroll     = 0;
+        server.keybind_ov_content_h  = 0;
+        server.keybind_ov_viewport_h = 0;
+        server.keybind_ov_width      = 0;
+    }
+
     /* Layer shell (needed by rofi, waybar, etc.) */
     server.layer_shell               = wlr_layer_shell_v1_create(server.wl_display, 4);
     server.new_layer_surface.notify  = server_new_layer_surface;

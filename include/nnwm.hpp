@@ -444,6 +444,15 @@ struct nnwm_server
     float cursor_zoom_scale;   /* current scale factor, updated each tick */
     int   cursor_zoom_img_w, cursor_zoom_img_h;
     int   cursor_zoom_hot_x, cursor_zoom_hot_y;
+
+    /* Keybinding overlay popup */
+    struct wlr_scene_tree   *keybind_ov_tree;   /* subtree — disable node to hide */
+    struct wlr_scene_rect   *keybind_ov_bg;
+    struct wlr_scene_buffer *keybind_ov_buf;
+    int keybind_ov_scroll;       /* scroll offset in logical px */
+    int keybind_ov_content_h;   /* total rendered content height in logical px */
+    int keybind_ov_viewport_h;  /* visible area height in logical px */
+    int keybind_ov_width;        /* overlay logical width */
 };
 
 struct nnwm_hook

@@ -354,8 +354,8 @@ l_nnwm_key(lua_State *L)
             lua_getfield(L, 3, "description");
             if (lua_isstring(L, -1)) kb.description = strdup(lua_tostring(L, -1));
             lua_pop(L, 1);
-            lua_getfield(L, 3, "repeat");
-            if (lua_isboolean(L, -1)) kb.no_repeat = !lua_toboolean(L, -1);
+            lua_getfield(L, 3, "no_repeat");
+            if (lua_isboolean(L, -1)) kb.no_repeat = lua_toboolean(L, -1);
             lua_pop(L, 1);
         }
     }
@@ -1236,6 +1236,13 @@ static int
 l_nnwm_toggle_overview(lua_State *L)
 {
     nnwm::toggle_overview(get_server(L));
+    return 0;
+}
+
+static int
+l_nnwm_toggle_keybind_overlay(lua_State *L)
+{
+    toggle_keybind_overlay(get_server(L));
     return 0;
 }
 
@@ -2291,6 +2298,7 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"toggle_maximize", l_nnwm_toggle_maximize},
     {"toggle_sticky", l_nnwm_toggle_sticky},
     {"toggle_overview", l_nnwm_toggle_overview},
+    {"toggle_keybind_overlay", l_nnwm_toggle_keybind_overlay},
     {"move_to_scratchpad", l_nnwm_move_to_scratchpad},
     {"scratchpad_toggle", l_nnwm_scratchpad_toggle},
     {"focus_monitor_next", l_nnwm_focus_monitor_next},

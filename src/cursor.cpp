@@ -1159,7 +1159,16 @@ server_cursor_axis(wl_listener *listener, void *data)
     nnwm_server *server = wl_container_of(listener, server, cursor_axis);
     auto *event         = static_cast<wlr_pointer_axis_event *>(data);
     nnwm_notify_activity(server);
-    float factor        = server->config->touchpad.scroll_factor;
+
+    /* If the keybinding overlay is open, consume scroll to scroll it */
+    if (server->keybind_ov_tree && server->keybind_ov_tree->node.enabled
+        && event->orientation == WL_POINTER_AXIS_VERTICAL_SCROLL)
+    {
+        keybind_overlay_scroll_by(server, event->delta * 2.0);
+        return;
+    }
+
+    float factor = server->config->touchpad.scroll_factor;
     wlr_seat_pointer_notify_axis(
         server->seat, event->time_msec, event->orientation,
         event->delta * factor,
