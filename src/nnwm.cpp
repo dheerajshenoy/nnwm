@@ -1339,6 +1339,61 @@ ov_surface_iter(wlr_surface *surface, int sx, int sy, void *ud)
 static void
 render_overview_buffers(nnwm_server *server, nnwm_output *out);
 
+struct ov_geom
+{
+    wlr_box out_box;
+    int W, H, buf_w, buf_h, num_ws;
+    int ov_cols, ov_rows;
+    double dpi, slot_w, slot_h, s, cx_off, cy_off;
+    double row_y0; /* top of the first row (vertical center offset) */
+};
+
+static ov_geom
+ov_geom_compute(nnwm_server *server, nnwm_output *out)
+{
+    ov_geom g{};
+    wlr_output_layout_get_box(server->output_layout, out->wlr_output,
+                              &g.out_box);
+    g.W         = g.out_box.width;
+    g.H         = g.out_box.height;
+    g.dpi       = out->wlr_output->scale;
+    g.buf_w     = (int)(g.W * g.dpi);
+    g.buf_h     = (int)(g.H * g.dpi);
+    g.num_ws = server->config->workspace_count;
+    /* Even: split into 2 equal rows. Odd: single horizontal row. */
+    if (g.num_ws > 0 && g.num_ws % 2 == 0)
+    {
+        g.ov_rows = 2;
+        g.ov_cols = g.num_ws / 2;
+    }
+    else
+    {
+        g.ov_rows = 1;
+        g.ov_cols = g.num_ws;
+    }
+    int ov_rows = g.ov_rows, ov_cols = g.ov_cols;
+    g.slot_w
+        = (g.W - 2.0 * OVERVIEW_OUTER - (ov_cols - 1) * OVERVIEW_INNER)
+          / ov_cols;
+    const wlr_box &ua = out->usable_area;
+    double ua_w       = ua.width > 0 ? (double)ua.width : (double)g.W;
+    double ua_h       = ua.height > 0 ? (double)ua.height : (double)g.H;
+    /* Cap slot height to the aspect ratio of the usable area so slots are
+     * never stretched taller than wide (e.g. 3 workspaces → 1 row). */
+    double avail_slot_h
+        = (g.H - 2.0 * OVERVIEW_OUTER - (ov_rows - 1) * OVERVIEW_INNER)
+          / ov_rows;
+    double ar_slot_h = g.slot_w * ua_h / ua_w;
+    g.slot_h         = std::min(avail_slot_h, ar_slot_h);
+    /* Vertically center the grid within the output */
+    double total_grid_h = ov_rows * g.slot_h + (ov_rows - 1) * OVERVIEW_INNER;
+    g.row_y0            = (g.H - total_grid_h) / 2.0;
+    g.s      = std::min(g.slot_w / ua_w, g.slot_h / ua_h);
+    g.cx_off = (g.slot_w - ua_w * g.s) / 2.0;
+    g.cy_off = (g.slot_h - ua_h * g.s) / 2.0;
+    return g;
+}
+
 /* Hit-test the overview to find which toplevel (if any) is under output-local
  * cursor position (cx, cy).  Returns null if over empty space.  If a toplevel
  * is found, *out_ws is set to its workspace index. */
@@ -1346,37 +1401,25 @@ nnwm_toplevel *
 overview_toplevel_at(nnwm_server *server, nnwm_output *out, double cx,
                      double cy, int *out_ws)
 {
-    wlr_box ob;
-    wlr_output_layout_get_box(server->output_layout, out->wlr_output, &ob);
-    double W = ob.width, H = ob.height;
-    if (W <= 0 || H <= 0)
+    ov_geom g = ov_geom_compute(server, out);
+    if (g.W <= 0 || g.H <= 0)
         return nullptr;
 
-    int num_ws  = server->config->workspace_count;
-    int ov_rows = (num_ws + OVERVIEW_COLS - 1) / OVERVIEW_COLS;
-    double slot_w
-        = (W - 2.0 * OVERVIEW_OUTER - (OVERVIEW_COLS - 1) * OVERVIEW_INNER)
-          / OVERVIEW_COLS;
-    double slot_h
-        = (H - 2.0 * OVERVIEW_OUTER - (ov_rows - 1) * OVERVIEW_INNER) / ov_rows;
+    double slot_w = g.slot_w, slot_h = g.slot_h;
+    double s = g.s, cx_off = g.cx_off, cy_off = g.cy_off;
+    int ov_cols = g.ov_cols;
 
     const wlr_box &ua = out->usable_area;
-    double ua_w       = ua.width > 0 ? (double)ua.width : W;
-    double ua_h       = ua.height > 0 ? (double)ua.height : H;
-    double s          = std::min(slot_w / ua_w, slot_h / ua_h);
-    double cx_off     = (slot_w - ua_w * s) / 2.0;
-    double cy_off     = (slot_h - ua_h * s) / 2.0;
+    nnwm_config *cfg  = server->config;
+    int bw            = cfg->border.width;
+    int th            = cfg->titlebar.height;
 
-    nnwm_config *cfg = server->config;
-    int bw           = cfg->border.width;
-    int th           = cfg->titlebar.height;
-
-    for (int ws = 0; ws < num_ws; ws++)
+    for (int ws = 0; ws < g.num_ws; ws++)
     {
-        int col   = ws % OVERVIEW_COLS;
-        int row   = ws / OVERVIEW_COLS;
+        int col   = ws % ov_cols;
+        int row   = ws / ov_cols;
         double sx = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
-        double sy = OVERVIEW_OUTER + row * (slot_h + OVERVIEW_INNER);
+        double sy = g.row_y0 + row * (slot_h + OVERVIEW_INNER);
 
         /* Skip if cursor is outside this slot */
         if (cx < sx || cx >= sx + slot_w || cy < sy || cy >= sy + slot_h)
@@ -1505,40 +1548,6 @@ overview_frame_update(nnwm_server *server, nnwm_output *out)
     render_overview_buffers(server, out);
 }
 
-struct ov_geom
-{
-    wlr_box out_box;
-    int W, H, buf_w, buf_h, num_ws;
-    double dpi, slot_w, slot_h, s, cx_off, cy_off;
-};
-
-static ov_geom
-ov_geom_compute(nnwm_server *server, nnwm_output *out)
-{
-    ov_geom g{};
-    wlr_output_layout_get_box(server->output_layout, out->wlr_output,
-                              &g.out_box);
-    g.W         = g.out_box.width;
-    g.H         = g.out_box.height;
-    g.dpi       = out->wlr_output->scale;
-    g.buf_w     = (int)(g.W * g.dpi);
-    g.buf_h     = (int)(g.H * g.dpi);
-    g.num_ws    = server->config->workspace_count;
-    int ov_rows = (g.num_ws + OVERVIEW_COLS - 1) / OVERVIEW_COLS;
-    g.slot_w
-        = (g.W - 2.0 * OVERVIEW_OUTER - (OVERVIEW_COLS - 1) * OVERVIEW_INNER)
-          / OVERVIEW_COLS;
-    g.slot_h = (g.H - 2.0 * OVERVIEW_OUTER - (ov_rows - 1) * OVERVIEW_INNER)
-               / ov_rows;
-    const wlr_box &ua = out->usable_area;
-    double ua_w       = ua.width > 0 ? (double)ua.width : (double)g.W;
-    double ua_h       = ua.height > 0 ? (double)ua.height : (double)g.H;
-    g.s               = std::min(g.slot_w / ua_w, g.slot_h / ua_h);
-    g.cx_off          = (g.slot_w - ua_w * g.s) / 2.0;
-    g.cy_off          = (g.slot_h - ua_h * g.s) / 2.0;
-    return g;
-}
-
 static void
 render_overview_labels(nnwm_server *server, nnwm_output *out, const ov_geom &g,
                        bool gpu_ok);
@@ -1552,8 +1561,10 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
         return;
     int buf_w = g.buf_w, buf_h = g.buf_h;
     int num_ws = g.num_ws;
+    int ov_cols = g.ov_cols;
     double dpi = g.dpi, slot_w = g.slot_w, slot_h = g.slot_h;
     double s = g.s, cx_off = g.cx_off, cy_off = g.cy_off;
+    double row_y0 = g.row_y0;
     wlr_box out_box = g.out_box;
 
     const wlr_box &ua = out->usable_area;
@@ -1613,10 +1624,10 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
 
         for (int ws = 0; ws < num_ws; ws++)
         {
-            int col     = ws % OVERVIEW_COLS;
-            int row     = ws / OVERVIEW_COLS;
+            int col     = ws % ov_cols;
+            int row     = ws / ov_cols;
             double sx   = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
-            double sy   = OVERVIEW_OUTER + row * (slot_h + OVERVIEW_INNER);
+            double sy   = row_y0 + row * (slot_h + OVERVIEW_INNER);
             bool active = (ws == out->active_workspace);
 
             int psx = (int)(sx * dpi), psy = (int)(sy * dpi);
@@ -1712,8 +1723,10 @@ render_overview_labels(nnwm_server *server, nnwm_output *out, const ov_geom &g,
         return;
     int buf_w = g.buf_w, buf_h = g.buf_h;
     int num_ws = g.num_ws;
+    int ov_cols = g.ov_cols;
     double dpi = g.dpi, slot_w = g.slot_w, slot_h = g.slot_h;
     double s = g.s, cx_off = g.cx_off, cy_off = g.cy_off;
+    double row_y0 = g.row_y0;
     wlr_box out_box   = g.out_box;
     const wlr_box &ua = out->usable_area;
     nnwm_config *cfg  = server->config;
@@ -1749,10 +1762,10 @@ render_overview_labels(nnwm_server *server, nnwm_output *out, const ov_geom &g,
         double dcy = server->cursor->y - out_box.y;
         for (int ws = 0; ws < num_ws; ws++)
         {
-            int col   = ws % OVERVIEW_COLS;
-            int row   = ws / OVERVIEW_COLS;
+            int col   = ws % ov_cols;
+            int row   = ws / ov_cols;
             double sx = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
-            double sy = OVERVIEW_OUTER + row * (slot_h + OVERVIEW_INNER);
+            double sy = row_y0 + row * (slot_h + OVERVIEW_INNER);
             if (dcx >= sx && dcx < sx + slot_w && dcy >= sy
                 && dcy < sy + slot_h)
             {
@@ -1764,10 +1777,10 @@ render_overview_labels(nnwm_server *server, nnwm_output *out, const ov_geom &g,
 
     for (int ws = 0; ws < num_ws; ws++)
     {
-        int col     = ws % OVERVIEW_COLS;
-        int row     = ws / OVERVIEW_COLS;
+        int col     = ws % ov_cols;
+        int row     = ws / ov_cols;
         double sx   = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
-        double sy   = OVERVIEW_OUTER + row * (slot_h + OVERVIEW_INNER);
+        double sy   = row_y0 + row * (slot_h + OVERVIEW_INNER);
         bool active = (ws == out->active_workspace);
         bool any    = false;
 
