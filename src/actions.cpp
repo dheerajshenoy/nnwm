@@ -904,7 +904,96 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
             target = cur + ov_cols;
 
         if (target < 0)
+        {
+            /* At grid edge — try to move focus to a neighbouring output */
+            wlr_box cur_box;
+            wlr_output_layout_get_box(server->output_layout, out->wlr_output,
+                                      &cur_box);
+            int cur_cx = cur_box.x + cur_box.width / 2;
+            int cur_cy = cur_box.y + cur_box.height / 2;
+
+            nnwm_output *best = nullptr;
+            int best_pri = INT_MAX, best_sec = INT_MAX;
+
+            nnwm_output *o;
+            wl_list_for_each(o, &server->outputs, link)
+            {
+                if (o == out || !o->overview)
+                    continue;
+                wlr_box ob;
+                wlr_output_layout_get_box(server->output_layout, o->wlr_output,
+                                          &ob);
+                int ocx = ob.x + ob.width / 2;
+                int ocy = ob.y + ob.height / 2;
+
+                int pri = 0, sec = 0;
+                bool valid = false;
+                if (is_left && ocx < cur_cx)
+                { pri = cur_cx - ocx; sec = abs(ocy - cur_cy); valid = true; }
+                if (is_right && ocx > cur_cx)
+                { pri = ocx - cur_cx; sec = abs(ocy - cur_cy); valid = true; }
+                if (is_up && ocy < cur_cy)
+                { pri = cur_cy - ocy; sec = abs(ocx - cur_cx); valid = true; }
+                if (is_down && ocy > cur_cy)
+                { pri = ocy - cur_cy; sec = abs(ocx - cur_cx); valid = true; }
+
+                if (valid && (pri < best_pri
+                              || (pri == best_pri && sec < best_sec)))
+                { best = o; best_pri = pri; best_sec = sec; }
+            }
+
+            if (!best)
+                return;
+
+            server->focused_output = best;
+            /* Land on the workspace at the opposite edge of the new output's
+             * grid so the navigation feels continuous. */
+            int n2   = server->config->workspace_count;
+            int cols2 = ov_cols_for(n2);
+            int rows2 = (n2 + cols2 - 1) / cols2;
+            int dest;
+            if (is_left)
+            {
+                /* entering from the right: last slot in the same row */
+                int row2 = (best->active_workspace / cols2);
+                int last_col = cols2 - 1;
+                while (row2 * cols2 + last_col >= n2)
+                    last_col--;
+                dest = row2 * cols2 + last_col;
+            }
+            else if (is_right)
+            {
+                /* entering from the left: first slot in the same row */
+                dest = (best->active_workspace / cols2) * cols2;
+            }
+            else if (is_up)
+            {
+                /* entering from below: slot in the last row, same column */
+                int last_row = rows2 - 1;
+                while (last_row * cols2 + (best->active_workspace % cols2)
+                       >= n2)
+                    last_row--;
+                dest = last_row * cols2 + (best->active_workspace % cols2);
+            }
+            else /* is_down */
+            {
+                /* entering from above: slot in the first row, same column */
+                dest = best->active_workspace % cols2;
+            }
+            dest = std::max(0, std::min(dest, n2 - 1));
+            ov_switch_ws(server, best, dest);
+
+            nnwm_toplevel *next2 = ws_first(server, best);
+            if (next2)
+                focus_toplevel(next2);
+            else
+            {
+                wlr_seat_keyboard_clear_focus(server->seat);
+                unfocus_all_borders(server);
+            }
+            render_overview(server, best);
             return;
+        }
         ov_switch_ws(server, out, target);
 
         nnwm_toplevel *next = ws_first(server, out);
