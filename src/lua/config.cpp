@@ -735,6 +735,14 @@ l_nnwm_screenshot(lua_State *L)
         lua_pop(L, 1);
     }
 
+    bool notify = false;
+    if (lua_istable(L, 1))
+    {
+        lua_getfield(L, 1, "notify");
+        notify = lua_isboolean(L, -1) && lua_toboolean(L, -1);
+        lua_pop(L, 1);
+    }
+
     char auto_path[512];
     if (!path)
     {
@@ -800,7 +808,24 @@ l_nnwm_screenshot(lua_State *L)
             snprintf(cmd, sizeof(cmd), "grim \"%s\"", path);
     }
 
-    nnwm::spawn(server, cmd);
+    if (notify)
+    {
+        char notify_cmd[1536];
+        const char *msg = copy ? "Copied to clipboard" : path;
+        if (copy)
+            snprintf(notify_cmd, sizeof(notify_cmd),
+                     "(%s) && notify-send -i camera-photo \"Screenshot\" \"%s\"",
+                     cmd, msg);
+        else
+            snprintf(notify_cmd, sizeof(notify_cmd),
+                     "%s && notify-send -i camera-photo \"Screenshot\" \"Saved to %s\"",
+                     cmd, msg);
+        nnwm::spawn(server, notify_cmd);
+    }
+    else
+    {
+        nnwm::spawn(server, cmd);
+    }
     return 0;
 }
 

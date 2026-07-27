@@ -606,6 +606,7 @@ function nnwm.spawn_once(cmd) end
 ---@field height? integer  Region height — used when `type = "region"`.
 ---@field path?   string   Destination file. Defaults to `~/Pictures/nnwm-TIMESTAMP.png`.
 ---@field copy?   boolean  Pipe to `wl-copy` instead of writing a file (requires `wl-copy`).
+---@field notify? boolean  Send a desktop notification via `notify-send` after capture (requires `notify-send`).
 
 --- Take a screenshot.
 --- Requires `grim` to be installed. `type = "interactive"` also requires `slurp`.

@@ -192,6 +192,9 @@ int main(int argc, char **argv)
     cmd_screenshot.add_argument("--copy", "-c")
         .help("copy result to clipboard instead of saving to a file")
         .flag();
+    cmd_screenshot.add_argument("--notify", "-n")
+        .help("send a desktop notification after capture (requires notify-send)")
+        .flag();
     cmd_screenshot.add_argument("path")
         .help("destination file path (default: ~/Pictures/nnwm-TIMESTAMP.png)")
         .nargs(argparse::nargs_pattern::optional);
@@ -333,6 +336,7 @@ int main(int argc, char **argv)
         std::string region_arg = cmd_screenshot.get<std::string>("--region");
         bool        interactive = cmd_screenshot.get<bool>("--interactive");
         bool        do_copy    = cmd_screenshot.get<bool>("--copy");
+        bool        do_notify  = cmd_screenshot.get<bool>("--notify");
         std::string path_arg;
         try { path_arg = cmd_screenshot.get<std::string>("path"); } catch (...) {}
 
@@ -364,7 +368,8 @@ int main(int argc, char **argv)
         else
             lua += "type=\"screen\"";
 
-        if (do_copy) lua += ",copy=true";
+        if (do_copy)   lua += ",copy=true";
+        if (do_notify) lua += ",notify=true";
         if (!path_arg.empty()) lua += ",path=\"" + path_arg + "\"";
 
         lua += "})";
