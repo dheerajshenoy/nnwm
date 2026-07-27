@@ -4264,6 +4264,32 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
     }
     lua_pop(L, 1); /* pop hot_corners */
 
+    lua_getfield(L, -1, "overview");
+    if (lua_istable(L, -1))
+    {
+        lua_getfield(L, -1, "layout");
+        if (lua_isstring(L, -1))
+        {
+            const char *s = lua_tostring(L, -1);
+            if (strcmp(s, "horizontal") == 0)
+                cfg->overview.layout = nnwm_overview_layout::HORIZONTAL;
+            else if (strcmp(s, "vertical") == 0)
+                cfg->overview.layout = nnwm_overview_layout::VERTICAL;
+            else if (strcmp(s, "equal_grid") == 0)
+                cfg->overview.layout = nnwm_overview_layout::EQUAL_GRID;
+            else
+                cfg->overview.layout = nnwm_overview_layout::AUTO;
+        }
+        lua_pop(L, 1);
+
+        cfg->overview.show_index
+            = get_bool_field(L, "show_index", cfg->overview.show_index);
+        cfg->overview.show_wallpaper_bg
+            = get_bool_field(L, "show_wallpaper_bg",
+                             cfg->overview.show_wallpaper_bg);
+    }
+    lua_pop(L, 1); /* pop overview */
+
     lua_pop(L, 2); /* pop opt and nnwm */
 }
 
@@ -4795,6 +4821,10 @@ nnwm::config_defaults(void)
         cfg->workspace_names[i]           = nullptr;
         cfg->workspace_default_layouts[i] = -1; /* -1 = htile */
     }
+
+    cfg->overview.layout           = nnwm_overview_layout::AUTO;
+    cfg->overview.show_index       = false;
+    cfg->overview.show_wallpaper_bg = false;
 
     cfg->find_cursor_style = strdup("rings");
 

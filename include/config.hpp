@@ -86,6 +86,14 @@ enum class nnwm_bar_align
     RIGHT,
 };
 
+enum class nnwm_overview_layout
+{
+    AUTO = 0,     /* even ws count → 2 rows; odd → 1 row */
+    HORIZONTAL,   /* always 1 row × n cols */
+    VERTICAL,     /* always n rows × 1 col */
+    EQUAL_GRID,   /* approximately square grid */
+};
+
 /* Hot corner indices: 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right */
 #define NNWM_CORNER_TL 0
 #define NNWM_CORNER_TR 1
@@ -454,6 +462,14 @@ struct nnwm_config
     /* Window rules */
     nnwm_window_rule *window_rules;
     int window_rule_count;
+
+    /* Overview mode */
+    struct
+    {
+        nnwm_overview_layout layout;  /* grid layout algorithm */
+        bool show_index;              /* prepend numeric index to workspace label */
+        bool show_wallpaper_bg;       /* render wallpaper full-screen behind slots */
+    } overview;
 
     /* Compositor-drawn status bar */
     nnwm_bar_config bar;

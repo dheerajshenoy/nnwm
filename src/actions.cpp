@@ -730,14 +730,6 @@ nnwm::monitor::focus_prev(nnwm_server *server)
 
 /* ---- Overview-grid geometry helpers ---- */
 
-static int
-ov_cols_for(int num_ws)
-{
-    /* Must match the layout computed by ov_geom_compute() in nnwm.cpp:
-     * even workspace count → 2 rows × (n/2) cols; odd → 1 row × n cols. */
-    return (num_ws > 0 && num_ws % 2 == 0) ? num_ws / 2 : num_ws;
-}
-
 /* Switch active workspace in-place (visibility + focused_output) without
  * triggering the full workspace::switch_to animation/arrange path. */
 static void
@@ -887,8 +879,9 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
     /* ---- Overview mode: navigate between workspace slots in the grid ---- */
     if (out->overview)
     {
-        int num_ws  = server->config->workspace_count;
-        int ov_cols = ov_cols_for(num_ws);
+        ov_geom og  = ov_geom_compute(server, out);
+        int num_ws  = og.num_ws;
+        int ov_cols = og.ov_cols;
         int cur     = out->active_workspace;
         int cur_col = cur % ov_cols;
         int cur_row = cur / ov_cols;
@@ -948,9 +941,10 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
             server->focused_output = best;
             /* Land on the workspace at the opposite edge of the new output's
              * grid so the navigation feels continuous. */
-            int n2   = server->config->workspace_count;
-            int cols2 = ov_cols_for(n2);
-            int rows2 = (n2 + cols2 - 1) / cols2;
+            ov_geom og2 = ov_geom_compute(server, best);
+            int n2      = og2.num_ws;
+            int cols2   = og2.ov_cols;
+            int rows2   = og2.ov_rows;
             int dest;
             if (is_left)
             {
@@ -1239,8 +1233,9 @@ nnwm::focus::move_dir(nnwm_server *server, const char *direction)
      * ---- */
     if (out->overview)
     {
-        int num_ws  = server->config->workspace_count;
-        int ov_cols = ov_cols_for(num_ws);
+        ov_geom og  = ov_geom_compute(server, out);
+        int num_ws  = og.num_ws;
+        int ov_cols = og.ov_cols;
         int cur     = focused->workspace;
         int cur_col = cur % ov_cols;
         int cur_row = cur / ov_cols;

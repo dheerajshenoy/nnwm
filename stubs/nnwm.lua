@@ -244,6 +244,12 @@ MOD = {}
 ---@field find_cursor_style?         "rings"|"spotlight"|"zoom"  Animation style for `nnwm.find_cursor()`. "rings" = filled circle shrinking to cursor (default); "spotlight" = full-screen dim with circular cutout at cursor; "zoom" = temporarily enlarges the system cursor.
 ---@field idle_timeout?              number  Seconds of inactivity before the "idle" hook fires. 0 disables idle detection (default: 0).
 ---@field hot_corners?               nnwm_hot_corners_config  Hot corner configuration.
+---@field overview?                  nnwm.overview_config     Overview mode options.
+
+---@class nnwm.overview_config
+---@field layout?           "auto"|"horizontal"|"vertical"|"equal_grid"  Grid layout algorithm. "auto" = even ws→2 rows, odd→1 row (default); "horizontal" = single row; "vertical" = single column; "equal_grid" = balanced square grid.
+---@field show_index?       boolean  When true, always prepend the numeric index to the workspace label (e.g. "1: work"). Default: false.
+---@field show_wallpaper_bg? boolean  When true, render the layer-shell background (wallpaper) full-screen behind all slots instead of a solid dark fill. Default: false.
 
 ---@class nnwm_hot_corner_action
 ---@field action  fun()    Callback fired when the cursor dwells in this corner.

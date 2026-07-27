@@ -1350,16 +1350,37 @@ ov_geom_compute(nnwm_server *server, nnwm_output *out)
     g.buf_w     = (int)(g.W * g.dpi);
     g.buf_h     = (int)(g.H * g.dpi);
     g.num_ws = server->config->workspace_count;
-    /* Even: split into 2 equal rows. Odd: single horizontal row. */
-    if (g.num_ws > 0 && g.num_ws % 2 == 0)
+    int n = g.num_ws > 0 ? g.num_ws : 1;
+    switch (server->config->overview.layout)
     {
-        g.ov_rows = 2;
-        g.ov_cols = g.num_ws / 2;
-    }
-    else
-    {
+    case nnwm_overview_layout::HORIZONTAL:
         g.ov_rows = 1;
-        g.ov_cols = g.num_ws;
+        g.ov_cols = n;
+        break;
+    case nnwm_overview_layout::VERTICAL:
+        g.ov_rows = n;
+        g.ov_cols = 1;
+        break;
+    case nnwm_overview_layout::EQUAL_GRID:
+    {
+        g.ov_cols = (int)std::ceil(std::sqrt((double)n));
+        if (g.ov_cols < 1)
+            g.ov_cols = 1;
+        g.ov_rows = (n + g.ov_cols - 1) / g.ov_cols;
+        break;
+    }
+    default: /* AUTO: even → 2 rows, odd → 1 row */
+        if (n % 2 == 0)
+        {
+            g.ov_rows = 2;
+            g.ov_cols = n / 2;
+        }
+        else
+        {
+            g.ov_rows = 1;
+            g.ov_cols = n;
+        }
+        break;
     }
     int ov_rows = g.ov_rows, ov_cols = g.ov_cols;
     g.slot_w
@@ -1584,16 +1605,6 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
 
     if (pass)
     {
-        /* Dark background fill */
-        {
-            float a                    = 0.93f;
-            wlr_render_rect_options bg = {};
-            bg.box                     = {0, 0, buf_w, buf_h};
-            bg.color                   = {0.07f * a, 0.07f * a, 0.10f * a, a};
-            bg.blend_mode              = WLR_RENDER_BLEND_MODE_NONE;
-            wlr_render_pass_add_rect(pass, &bg);
-        }
-
         /* Locate background layer surface for this output (wallpaper) */
         wlr_texture *bg_tex = nullptr;
         {
@@ -1610,6 +1621,35 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
                 if (bg_tex)
                     break;
             }
+        }
+
+        bool wallpaper_bg = cfg->overview.show_wallpaper_bg && bg_tex;
+
+        if (wallpaper_bg)
+        {
+            /* Full-screen wallpaper stretched to output size */
+            wlr_render_texture_options wtex = {};
+            wtex.texture                    = bg_tex;
+            wtex.dst_box                    = {0, 0, buf_w, buf_h};
+            wtex.filter_mode                = WLR_SCALE_FILTER_BILINEAR;
+            wlr_render_pass_add_texture(pass, &wtex);
+
+            /* Semi-transparent dark overlay for readability */
+            wlr_render_rect_options ov = {};
+            ov.box                     = {0, 0, buf_w, buf_h};
+            ov.color                   = {0.0f, 0.0f, 0.0f, 0.50f};
+            ov.blend_mode              = WLR_RENDER_BLEND_MODE_PREMULTIPLIED;
+            wlr_render_pass_add_rect(pass, &ov);
+        }
+        else
+        {
+            /* Solid dark background fill */
+            float a                    = 0.93f;
+            wlr_render_rect_options bg = {};
+            bg.box                     = {0, 0, buf_w, buf_h};
+            bg.color                   = {0.07f * a, 0.07f * a, 0.10f * a, a};
+            bg.blend_mode              = WLR_RENDER_BLEND_MODE_NONE;
+            wlr_render_pass_add_rect(pass, &bg);
         }
 
         for (int ws = 0; ws < num_ws; ws++)
@@ -1633,15 +1673,26 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
             {
                 wlr_render_rect_options slot_bg = {};
                 slot_bg.box                     = {psx, psy, psw, psh};
-                slot_bg.color
-                    = active ? wlr_render_color{0.18f, 0.22f, 0.35f, 1.0f}
-                             : wlr_render_color{0.12f, 0.12f, 0.18f, 1.0f};
-                slot_bg.blend_mode = WLR_RENDER_BLEND_MODE_NONE;
+                if (wallpaper_bg)
+                {
+                    /* Lighter tint over the full-screen wallpaper */
+                    slot_bg.color = active
+                        ? wlr_render_color{0.25f, 0.35f, 0.55f, 0.45f}
+                        : wlr_render_color{0.10f, 0.10f, 0.15f, 0.30f};
+                    slot_bg.blend_mode = WLR_RENDER_BLEND_MODE_PREMULTIPLIED;
+                }
+                else
+                {
+                    slot_bg.color = active
+                        ? wlr_render_color{0.18f, 0.22f, 0.35f, 1.0f}
+                        : wlr_render_color{0.12f, 0.12f, 0.18f, 1.0f};
+                    slot_bg.blend_mode = WLR_RENDER_BLEND_MODE_NONE;
+                }
                 wlr_render_pass_add_rect(pass, &slot_bg);
             }
 
-            /* Wallpaper texture stretched to fill slot */
-            if (bg_tex)
+            /* Per-slot wallpaper (solid-bg mode only) */
+            if (!wallpaper_bg && bg_tex)
             {
                 wlr_render_texture_options tex = {};
                 tex.texture                    = bg_tex;
@@ -1892,14 +1943,18 @@ render_overview_labels(nnwm_server *server, nnwm_output *out, const ov_geom &g,
         cairo_rectangle(cr, sx + 0.5, sy + 0.5, slot_w - 1.0, slot_h - 1.0);
         cairo_stroke(cr);
 
-        /* Workspace label (configured name, or fallback to index) */
-        char label_buf[32];
-        const char *label = out->workspace_names[ws];
-        if (!label || label[0] == '\0')
-        {
+        /* Workspace label */
+        char label_buf[64];
+        const char *name  = out->workspace_names[ws];
+        bool has_name     = name && name[0] != '\0';
+        bool show_index   = cfg->overview.show_index;
+        if (show_index && has_name)
+            std::snprintf(label_buf, sizeof(label_buf), "%d: %s", ws + 1, name);
+        else if (has_name)
+            std::snprintf(label_buf, sizeof(label_buf), "%s", name);
+        else
             std::snprintf(label_buf, sizeof(label_buf), "%d", ws + 1);
-            label = label_buf;
-        }
+        const char *label = label_buf;
         double fs_label = any ? std::max(8.0, slot_h * 0.10)
                               : std::max(14.0, slot_h * 0.28);
         fs_label        = std::min(fs_label, 40.0);
