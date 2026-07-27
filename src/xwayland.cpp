@@ -301,6 +301,7 @@ xwayland_surface_unmap(wl_listener *listener, void * /*data*/)
         else
             wlr_seat_keyboard_clear_focus(server->seat);
         arrange_windows(server, out);
+        bar_update_fullscreen_visibility(server, out);
     }
 
     struct timespec now;

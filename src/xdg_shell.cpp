@@ -274,6 +274,7 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
         else
             wlr_seat_keyboard_clear_focus(server->seat);
         arrange_windows(server, out);
+        bar_update_fullscreen_visibility(server, out);
     }
 
     /* Restore pointer focus to whatever is now under the cursor. */
