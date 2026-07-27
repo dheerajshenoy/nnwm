@@ -20,6 +20,8 @@ P.S : MangoWM is awesome, and I love it, but I want to have my own compositor wi
 - Floating, fullscreen, fake-fullscreen, maximized, and sticky windows
 - Window rules
 - NNWM panel
+- Overview mode - a zoomed-out view of all workspaces and windows
+- Configurable hot-corners - trigger actions when the mouse is moved to a corner of the screen
 - Animations and effects (requires sceneFX)
     - **Window open/close** — `"fade_scale"` (default), `"fade"`, `"scale"`, `"slide_up/down/left/right"`, `"none"`
     - **Layout transitions** — smooth position and size tweening
@@ -89,6 +91,12 @@ nnwm -s "kitty &"   # run a command after startup
 ## Configuration
 
 - [CONFIGURATION](./CONFIGURATION.md) - TODO (For now see `example-config.lua`)
+
+## Screenshots
+
+- ![1](./images/desktop.png)
+- ![2](./images/windows.png)
+- ![3](./images/unixporn.png)
 
 ## Links
 
