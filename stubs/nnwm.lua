@@ -148,14 +148,15 @@ MOD = {}
 ---   * `"custom"`       — Lua-provided string (requires `update` callback)
 ---   * `"tray"`         — StatusNotifierItem (SNI) system tray; renders app icons from D-Bus
 ---
----@field enabled?         boolean            Enable the compositor status bar (default: false).
----@field position?        "top"|"bottom"     Bar position on each output (default: "top").
----@field height?          integer            Bar height in pixels (default: 28).
----@field per_output?      boolean            When true, one bar per monitor. When false, a single bar attached to `output` (or the focused output). Default: true.
----@field output?          string             When `per_output = false`, name of the output to attach the bar to (e.g. `"HDMI-A-1"`). Nil = focused output.
----@field font?            string             Pango font description, e.g. `"monospace 11"` (default: "monospace 11").
----@field padding?         integer|integer[]  Outer margin around the bar (CSS-style). Number applies to all sides; table shorthand: `{a}`, `{v,h}`, `{t,r,b}`, or `{t,r,b,l}`. Non-zero values shrink the bar and float it inward from the output edges. Default: 0.
----@field module_spacing?  integer            Space between adjacent modules in pixels (default: 8).
+---@field enabled?            boolean            Enable the compositor status bar (default: false).
+---@field position?           "top"|"bottom"     Bar position on each output (default: "top").
+---@field height?             integer            Bar height in pixels (default: 28).
+---@field per_output?         boolean            When true, one bar per monitor. When false, a single bar attached to `output` (or the focused output). Default: true.
+---@field output?             string             When `per_output = false`, name of the output to attach the bar to (e.g. `"HDMI-A-1"`). Nil = focused output.
+---@field font?               string             Pango font description, e.g. `"monospace 11"` (default: "monospace 11").
+---@field padding?            integer|integer[]  Outer margin around the bar (CSS-style). Number applies to all sides; table shorthand: `{a}`, `{v,h}`, `{t,r,b}`, or `{t,r,b,l}`. Non-zero values shrink the bar and float it inward from the output edges. Default: 0.
+---@field module_spacing?     integer            Space between adjacent modules in pixels (default: 8).
+---@field smart_workspaces?   boolean            Hide empty workspaces in the `workspaces` module; only occupied workspaces and the active one are shown (default: false).
 ---@field opacity?         number             Bar background opacity multiplier (0.0–1.0, default 1.0). Multiplies the alpha of the background rect and the drop shadow only — text stays fully opaque so labels remain crisp. Dim text via the `foreground` color alpha instead.
 ---@field colors?          nnwm.bar.colors    Color palette for the bar and its built-in modules.
 ---@field modules?         nnwm.bar.modules   Ordered modules by alignment.

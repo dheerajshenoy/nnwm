@@ -3477,6 +3477,9 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
         cfg->bar.module_spacing
             = get_int_field(L, "module_spacing", cfg->bar.module_spacing);
 
+        cfg->bar.smart_workspaces
+            = get_bool_field(L, "smart_workspaces", cfg->bar.smart_workspaces);
+
         /* Global opacity multiplier for the whole bar (0.0-1.0). Clamped
          * defensively; <0 falls back to 1.0. */
         float o = get_float_field(L, "opacity", cfg->bar.opacity);
@@ -3720,7 +3723,6 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                             get_color_field(L, "fg", m.fg, dinh);
                             float dtrans[4] = {0, 0, 0, 0};
                             get_color_field(L, "bg", m.bg, dtrans);
-                            m.ws_smart = false;
                             for (int c = 0; c < 4; c++)
                             {
                                 m.ws_active_bg[c]     = -1.0f;
@@ -3744,11 +3746,6 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                                 m.ws_unoccupied_fg, sentinel);
                             }
                             lua_pop(L, 1); /* pop 'colors' */
-
-                            lua_getfield(L, -1, "smart");
-                            if (lua_isboolean(L, -1))
-                                m.ws_smart = lua_toboolean(L, -1);
-                            lua_pop(L, 1);
 
                             if (m.type == nnwm_bar_module_type::CUSTOM)
                             {
@@ -4671,8 +4668,9 @@ nnwm::config_defaults(void)
     cfg->bar.padding.right  = 0;
     cfg->bar.padding.bottom = 0;
     cfg->bar.padding.left   = 0;
-    cfg->bar.module_spacing = 8;
-    cfg->bar.opacity        = 1.0f;
+    cfg->bar.module_spacing    = 8;
+    cfg->bar.smart_workspaces  = false;
+    cfg->bar.opacity           = 1.0f;
     cfg->bar.bg_color[0]    = 0.08f;
     cfg->bar.bg_color[1]    = 0.09f;
     cfg->bar.bg_color[2]    = 0.12f;

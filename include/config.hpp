@@ -125,7 +125,6 @@ struct nnwm_bar_module
     float ws_active_fg[4];
     float ws_occupied_fg[4];
     float ws_unoccupied_fg[4];
-    bool ws_smart;   /* only show occupied workspaces + the active one */
 
     /* Lua handlers (LUA_REGISTRYINDEX refs; -1 = unset). */
     int lua_click_ref;    /* on_click = fn(button:string, lx:int, ly:int) */
@@ -179,6 +178,8 @@ struct nnwm_bar_config
      * not over any module). LUA_REGISTRYINDEX refs; -1 = unset. */
     int lua_click_ref;
     int lua_hover_ref;
+
+    bool smart_workspaces; /* hide empty workspaces; show only occupied + active */
 
     /* scenefx effects for the bar. Only take effect when built with
      * USE_SCENEFX=ON. Everything defaults to off/0 so behavior is

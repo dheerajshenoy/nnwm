@@ -277,7 +277,7 @@ static int draw_workspaces_module(cairo_t *cr, PangoFontDescription *fd,
     }
     for (int i = 0; i < count; i++) {
         bool is_occupied = (occ_bits & (uint16_t)(1u << i)) != 0;
-        if (m.ws_smart && i != active_ws && !is_occupied)
+        if (cfg->bar.smart_workspaces && i != active_ws && !is_occupied)
             continue;
 
         const char *label = nullptr;
@@ -1214,7 +1214,7 @@ bool bar_handle_button(nnwm_server *server, double lx, double ly,
             int cursor_x = m.rect_x;
             for (int i = 0; i < count; i++) {
                 bool is_occ = (occ & (uint16_t)(1u << i)) != 0;
-                if (m.ws_smart && i != out->active_workspace && !is_occ)
+                if (cfg->bar.smart_workspaces && i != out->active_workspace && !is_occ)
                     continue;
 
                 const char *label = nullptr;

@@ -4,6 +4,18 @@
 
 ### Bug Fixes
 
+- **Firefox (and other browsers) freeze when typing until cursor leaves and
+  re-enters the window**: `wl_surface.frame` callbacks were only sent to
+  visible surfaces when the compositor actually rendered a new frame
+  (`wlr_scene_output_commit` returned true). On vblanks where nothing had
+  changed visually, the callback was skipped. Browsers pace rendering via
+  `requestAnimationFrame`, which waits for this callback before submitting the
+  next frame — so a single skipped callback caused the render loop to stall.
+  Moving the cursor over the window happened to create cursor-node scene damage,
+  which fired a real frame and unblocked the browser as a side effect. Fixed by
+  always calling `wlr_scene_output_send_frame_done` on every vblank, regardless
+  of whether the commit produced visible output.
+
 - **`focus_dir` / `move_dir` "down" jumps to master instead of next stack
   window**: directional navigation used a pure center-to-center distance metric
   with no angular filter. In HTILE layout, the master window's vertical center
@@ -59,6 +71,18 @@
     function() nnwm.toggle_keybind_overlay() end,
     { description = "Show keybindings" })
   ```
+
+- **Smart workspaces module**: `nnwm.opt.bar.smart_workspaces = true` hides
+  empty workspaces from the `workspaces` bar module, showing only occupied ones
+  plus the currently active workspace (mirrors sway's behaviour):
+  ```lua
+  nnwm.opt.bar = {
+    smart_workspaces = true,
+    modules = { left = { "workspaces" } },
+  }
+  ```
+  Click hit-testing uses the same filter so clicking a visible pill always
+  switches to the correct workspace. Default is `false` (all workspaces shown).
 
 - **Hot corners**: moving the cursor into any screen corner can trigger a Lua
   callback after a configurable dwell time. Supports global defaults and

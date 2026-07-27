@@ -139,12 +139,18 @@ output_frame(wl_listener *listener, void * /*data*/)
     }
 #endif
 
-    if (!committed)
-        return;
-
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
+
+    /* Always send frame_done to visible surfaces, even when nothing was
+     * rendered (committed=false means no damage this vblank). Without this,
+     * clients that pace rendering via wl_surface.frame callbacks (e.g.
+     * Firefox/WebKit using requestAnimationFrame) stall until something else
+     * creates scene damage — typically cursor movement. */
     wlr_scene_output_send_frame_done(scene_output, &now);
+
+    if (!committed)
+        return;
 
     /* In overview mode, send frame_done to toplevels on inactive workspaces
      * so their clients continue rendering and the overview stays live. */
