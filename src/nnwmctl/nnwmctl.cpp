@@ -173,12 +173,36 @@ int main(int argc, char **argv)
     cmd_get.add_argument("resource", "windows|workspaces|outputs|focused|workspace|output|version")
         .nargs(1);
 
+    argparse::ArgumentParser cmd_screenshot("screenshot");
+    cmd_screenshot.add_description("Take a screenshot (requires grim; --copy requires wl-copy)");
+    cmd_screenshot.add_argument("--output", "-o")
+        .help("capture a specific output by name")
+        .nargs(1)
+        .default_value(std::string(""));
+    cmd_screenshot.add_argument("--window", "-w")
+        .help("capture the focused window")
+        .flag();
+    cmd_screenshot.add_argument("--region", "-r")
+        .help("capture a region (format: X,Y WxH)")
+        .nargs(1)
+        .default_value(std::string(""));
+    cmd_screenshot.add_argument("--interactive", "-i")
+        .help("interactively select a region using slurp")
+        .flag();
+    cmd_screenshot.add_argument("--copy", "-c")
+        .help("copy result to clipboard instead of saving to a file")
+        .flag();
+    cmd_screenshot.add_argument("path")
+        .help("destination file path (default: ~/Pictures/nnwm-TIMESTAMP.png)")
+        .nargs(argparse::nargs_pattern::optional);
+
     argparse::ArgumentParser cmd_exec("exec");
     cmd_exec.add_description("Execute raw Lua code");
     cmd_exec.add_argument("code", "Lua code to execute")
         .nargs(argparse::nargs_pattern::at_least_one);
 
     /* Add subcommands */
+    program.add_subparser(cmd_screenshot);
     program.add_subparser(cmd_workspace);
     program.add_subparser(cmd_move_to_workspace);
     program.add_subparser(cmd_focus);
@@ -301,6 +325,50 @@ int main(int argc, char **argv)
         else if (res == "output")     emit("return nnwm.current_output()");
         else if (res == "version")    emit("return nnwm.version()");
         else { std::fprintf(stderr, "nnwmctl: get: unknown resource '%s'\n", res.c_str()); return 1; }
+    }
+    else if (program.is_subcommand_used(cmd_screenshot))
+    {
+        std::string output_arg = cmd_screenshot.get<std::string>("--output");
+        bool        do_window  = cmd_screenshot.get<bool>("--window");
+        std::string region_arg = cmd_screenshot.get<std::string>("--region");
+        bool        interactive = cmd_screenshot.get<bool>("--interactive");
+        bool        do_copy    = cmd_screenshot.get<bool>("--copy");
+        std::string path_arg;
+        try { path_arg = cmd_screenshot.get<std::string>("path"); } catch (...) {}
+
+        /* Build Lua table */
+        std::string lua = "nnwm.screenshot({";
+
+        if (interactive)
+            lua += "type=\"interactive\"";
+        else if (do_window)
+            lua += "type=\"window\"";
+        else if (!output_arg.empty())
+            lua += "type=\"output\",output=\"" + output_arg + "\"";
+        else if (!region_arg.empty())
+        {
+            /* parse "X,Y WxH" */
+            int rx = 0, ry = 0, rw = 0, rh = 0;
+            if (std::sscanf(region_arg.c_str(), "%d,%d %dx%d", &rx, &ry, &rw, &rh) == 4)
+                lua += "type=\"region\",x=" + std::to_string(rx)
+                     + ",y=" + std::to_string(ry)
+                     + ",width=" + std::to_string(rw)
+                     + ",height=" + std::to_string(rh);
+            else
+            {
+                std::fprintf(stderr,
+                             "nnwmctl: screenshot: --region format must be X,Y WxH\n");
+                return 1;
+            }
+        }
+        else
+            lua += "type=\"screen\"";
+
+        if (do_copy) lua += ",copy=true";
+        if (!path_arg.empty()) lua += ",path=\"" + path_arg + "\"";
+
+        lua += "})";
+        snprintf(lua_buf, sizeof(lua_buf), "%s", lua.c_str());
     }
     else if (program.is_subcommand_used(cmd_exec))
     {

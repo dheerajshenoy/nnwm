@@ -597,6 +597,36 @@ function nnwm.spawn(cmd) end
 ---@param cmd string  Shell command to execute
 function nnwm.spawn_once(cmd) end
 
+---@class nnwm.ScreenshotOpts
+---@field type?   "screen"|"output"|"window"|"region"|"interactive"  Capture selector (default: `"screen"`).
+---@field output? string   Output name — used when `type = "output"`.
+---@field x?      integer  Region left edge — used when `type = "region"`.
+---@field y?      integer  Region top edge — used when `type = "region"`.
+---@field width?  integer  Region width — used when `type = "region"`.
+---@field height? integer  Region height — used when `type = "region"`.
+---@field path?   string   Destination file. Defaults to `~/Pictures/nnwm-TIMESTAMP.png`.
+---@field copy?   boolean  Pipe to `wl-copy` instead of writing a file (requires `wl-copy`).
+
+--- Take a screenshot.
+--- Requires `grim` to be installed. `type = "interactive"` also requires `slurp`.
+--- `copy = true` pipes the image to `wl-copy -t image/png` instead of saving to disk.
+---
+--- ```lua
+--- nnwm.key({"Super", "Print"}, function()
+---     nnwm.screenshot({ type = "screen" })
+--- end, "Screenshot all outputs")
+---
+--- nnwm.key({"Super", "Shift", "Print"}, function()
+---     nnwm.screenshot({ type = "window", copy = true })
+--- end, "Copy focused window screenshot to clipboard")
+---
+--- nnwm.key({"Print"}, function()
+---     nnwm.screenshot({ type = "interactive" })
+--- end, "Interactive region screenshot")
+--- ```
+---@param opts? nnwm.ScreenshotOpts
+function nnwm.screenshot(opts) end
+
 --- Increase the master column width by `master_ratio_step`, up to `master_ratio_max`.
 function nnwm.master_ratio_grow() end
 

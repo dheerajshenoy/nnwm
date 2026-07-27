@@ -84,6 +84,28 @@
   Click hit-testing uses the same filter so clicking a visible pill always
   switches to the correct workspace. Default is `false` (all workspaces shown).
 
+- **`nnwm.screenshot()`**: built-in screenshot API that delegates to `grim`.
+  Supports five selectors: `"screen"` (all outputs), `"output"` (named
+  monitor), `"window"` (focused window geometry), `"region"` (explicit
+  `x/y/width/height`), and `"interactive"` (calls `slurp` for region
+  selection). Pass `copy = true` to pipe via `wl-copy` instead of writing a
+  file; `path` overrides the default `~/Pictures/nnwm-TIMESTAMP.png`:
+  ```lua
+  nnwm.key({ "Print" }, function()
+      nnwm.screenshot({ type = "screen" })
+  end, { description = "Screenshot all outputs" })
+
+  nnwm.key({ "Shift", "Print" }, function()
+      nnwm.screenshot({ type = "interactive" })
+  end, { description = "Region screenshot" })
+
+  nnwm.key({ mod, "Print" }, function()
+      nnwm.screenshot({ type = "window", copy = true })
+  end, { description = "Copy window screenshot to clipboard" })
+  ```
+  `nnwmctl screenshot` also works: `--output DP-1`, `--window`, `--region
+  X,Y WxH`, `--interactive`, `--copy`, and an optional path argument.
+
 - **Hot corners**: moving the cursor into any screen corner can trigger a Lua
   callback after a configurable dwell time. Supports global defaults and
   per-monitor overrides:

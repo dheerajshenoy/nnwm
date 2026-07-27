@@ -426,9 +426,26 @@ nnwm.key({ "XF86AudioPlay" },        function() nnwm.spawn("playerctl play-pause
 nnwm.key({ "XF86AudioNext" },        function() nnwm.spawn("playerctl next") end)
 nnwm.key({ "XF86AudioPrev" },        function() nnwm.spawn("playerctl previous") end)
 
--- Screenshot
-nnwm.key({ "", "Print" },        function() nnwm.spawn("grim ~/Pictures/$(date +%F_%T).png") end, { description = "Screenshot" })
-nnwm.key({ "Shift", "Print" },   function() nnwm.spawn("grim -g \"$(slurp)\" ~/Pictures/$(date +%F_%T).png") end, { description = "Screenshot region" })
+-- Screenshot (requires grim; interactive also requires slurp; --copy requires wl-copy)
+nnwm.key({ "", "Print" }, function()
+    nnwm.screenshot({ type = "screen" })
+end, { description = "Screenshot all outputs" })
+
+nnwm.key({ mod, "Print" }, function()
+    nnwm.screenshot({ type = "window" })
+end, { description = "Screenshot focused window" })
+
+nnwm.key({ "Shift", "Print" }, function()
+    nnwm.screenshot({ type = "interactive" })
+end, { description = "Screenshot interactive region" })
+
+nnwm.key({ "Control", "Print" }, function()
+    nnwm.screenshot({ type = "screen", copy = true })
+end, { description = "Copy screenshot to clipboard" })
+
+nnwm.key({ mod, "Control", "Print" }, function()
+    nnwm.screenshot({ type = "window", copy = true })
+end, { description = "Copy focused window to clipboard" })
 
 -- ── Touchpad gestures ─────────────────────────────────────────────────────────
 

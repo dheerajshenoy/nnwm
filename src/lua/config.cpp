@@ -690,6 +690,121 @@ l_nnwm_spawn_once(lua_State *L)
 }
 
 static int
+l_nnwm_screenshot(lua_State *L)
+{
+    auto *server = get_server(L);
+
+    const char *type        = "screen";
+    const char *path        = nullptr;
+    const char *output_name = nullptr;
+    bool        copy        = false;
+    int x = 0, y = 0, w = 0, h = 0;
+
+    if (lua_istable(L, 1))
+    {
+        lua_getfield(L, 1, "type");
+        if (lua_isstring(L, -1)) type = lua_tostring(L, -1);
+        lua_pop(L, 1);
+
+        lua_getfield(L, 1, "output");
+        if (lua_isstring(L, -1)) output_name = lua_tostring(L, -1);
+        lua_pop(L, 1);
+
+        lua_getfield(L, 1, "x");
+        if (lua_isnumber(L, -1)) x = (int)lua_tonumber(L, -1);
+        lua_pop(L, 1);
+
+        lua_getfield(L, 1, "y");
+        if (lua_isnumber(L, -1)) y = (int)lua_tonumber(L, -1);
+        lua_pop(L, 1);
+
+        lua_getfield(L, 1, "width");
+        if (lua_isnumber(L, -1)) w = (int)lua_tonumber(L, -1);
+        lua_pop(L, 1);
+
+        lua_getfield(L, 1, "height");
+        if (lua_isnumber(L, -1)) h = (int)lua_tonumber(L, -1);
+        lua_pop(L, 1);
+
+        lua_getfield(L, 1, "path");
+        if (lua_isstring(L, -1)) path = lua_tostring(L, -1);
+        lua_pop(L, 1);
+
+        lua_getfield(L, 1, "copy");
+        copy = lua_isboolean(L, -1) && lua_toboolean(L, -1);
+        lua_pop(L, 1);
+    }
+
+    char auto_path[512];
+    if (!path)
+    {
+        const char *home = getenv("HOME");
+        if (!home) home = "/tmp";
+        time_t    now = time(nullptr);
+        struct tm *tm = localtime(&now);
+        char ts[32];
+        strftime(ts, sizeof(ts), "%Y%m%d-%H%M%S", tm);
+        snprintf(auto_path, sizeof(auto_path), "%s/Pictures/nnwm-%s.png", home, ts);
+        path = auto_path;
+    }
+
+    char cmd[1024];
+    if (strcmp(type, "interactive") == 0)
+    {
+        if (copy)
+            snprintf(cmd, sizeof(cmd),
+                     "grim -g \"$(slurp)\" - | wl-copy -t image/png");
+        else
+            snprintf(cmd, sizeof(cmd),
+                     "grim -g \"$(slurp)\" \"%s\"", path);
+    }
+    else if (strcmp(type, "output") == 0 && output_name)
+    {
+        if (copy)
+            snprintf(cmd, sizeof(cmd),
+                     "grim -o \"%s\" - | wl-copy -t image/png", output_name);
+        else
+            snprintf(cmd, sizeof(cmd),
+                     "grim -o \"%s\" \"%s\"", output_name, path);
+    }
+    else if (strcmp(type, "window") == 0)
+    {
+        auto *tl = get_focused_toplevel(server);
+        if (!tl)
+            return luaL_error(L, "screenshot: no focused window");
+        if (copy)
+            snprintf(cmd, sizeof(cmd),
+                     "grim -g \"%d,%d %dx%d\" - | wl-copy -t image/png",
+                     tl->cur_x, tl->cur_y, tl->cur_w, tl->cur_h);
+        else
+            snprintf(cmd, sizeof(cmd),
+                     "grim -g \"%d,%d %dx%d\" \"%s\"",
+                     tl->cur_x, tl->cur_y, tl->cur_w, tl->cur_h, path);
+    }
+    else if (strcmp(type, "region") == 0)
+    {
+        if (copy)
+            snprintf(cmd, sizeof(cmd),
+                     "grim -g \"%d,%d %dx%d\" - | wl-copy -t image/png",
+                     x, y, w, h);
+        else
+            snprintf(cmd, sizeof(cmd),
+                     "grim -g \"%d,%d %dx%d\" \"%s\"",
+                     x, y, w, h, path);
+    }
+    else /* screen */
+    {
+        if (copy)
+            snprintf(cmd, sizeof(cmd), "grim - | wl-copy -t image/png");
+        else
+            snprintf(cmd, sizeof(cmd), "grim \"%s\"", path);
+    }
+
+    nnwm::spawn(server, cmd);
+    return 0;
+}
+
+static int
 l_nnwm_focus_left(lua_State *L)
 {
     nnwm::focus::left(get_server(L));
@@ -2417,6 +2532,7 @@ static const struct luaL_Reg nnwm_funcs[] = {
     {"close", l_nnwm_close},
     {"spawn", l_nnwm_spawn},
     {"spawn_once", l_nnwm_spawn_once},
+    {"screenshot", l_nnwm_screenshot},
     {"focus_left", l_nnwm_focus_left},
     {"focus_right", l_nnwm_focus_right},
     {"focus_next", l_nnwm_focus_next},
