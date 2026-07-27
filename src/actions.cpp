@@ -730,7 +730,13 @@ nnwm::monitor::focus_prev(nnwm_server *server)
 
 /* ---- Overview-grid geometry helpers ---- */
 
-static constexpr int OV_COLS = 3;
+static int
+ov_cols_for(int num_ws)
+{
+    /* Must match the layout computed by ov_geom_compute() in nnwm.cpp:
+     * even workspace count → 2 rows × (n/2) cols; odd → 1 row × n cols. */
+    return (num_ws > 0 && num_ws % 2 == 0) ? num_ws / 2 : num_ws;
+}
 
 /* Switch active workspace in-place (visibility + focused_output) without
  * triggering the full workspace::switch_to animation/arrange path. */
@@ -881,20 +887,21 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
     /* ---- Overview mode: navigate between workspace slots in the grid ---- */
     if (out->overview)
     {
+        int num_ws  = server->config->workspace_count;
+        int ov_cols = ov_cols_for(num_ws);
         int cur     = out->active_workspace;
-        int cur_col = cur % OV_COLS;
-        int cur_row = cur / OV_COLS;
+        int cur_col = cur % ov_cols;
+        int cur_row = cur / ov_cols;
         int target  = -1;
 
-        int num_ws = server->config->workspace_count;
         if (is_left && cur_col > 0)
             target = cur - 1;
-        if (is_right && cur_col < OV_COLS - 1 && cur + 1 < num_ws)
+        if (is_right && cur_col < ov_cols - 1 && cur + 1 < num_ws)
             target = cur + 1;
         if (is_up && cur_row > 0)
-            target = cur - OV_COLS;
-        if (is_down && cur + OV_COLS < num_ws)
-            target = cur + OV_COLS;
+            target = cur - ov_cols;
+        if (is_down && cur + ov_cols < num_ws)
+            target = cur + ov_cols;
 
         if (target < 0)
             return;
@@ -1143,20 +1150,21 @@ nnwm::focus::move_dir(nnwm_server *server, const char *direction)
      * ---- */
     if (out->overview)
     {
+        int num_ws  = server->config->workspace_count;
+        int ov_cols = ov_cols_for(num_ws);
         int cur     = focused->workspace;
-        int cur_col = cur % OV_COLS;
-        int cur_row = cur / OV_COLS;
+        int cur_col = cur % ov_cols;
+        int cur_row = cur / ov_cols;
         int target  = -1;
 
-        int num_ws = server->config->workspace_count;
         if (is_left && cur_col > 0)
             target = cur - 1;
-        if (is_right && cur_col < OV_COLS - 1 && cur + 1 < num_ws)
+        if (is_right && cur_col < ov_cols - 1 && cur + 1 < num_ws)
             target = cur + 1;
         if (is_up && cur_row > 0)
-            target = cur - OV_COLS;
-        if (is_down && cur + OV_COLS < num_ws)
-            target = cur + OV_COLS;
+            target = cur - ov_cols;
+        if (is_down && cur + ov_cols < num_ws)
+            target = cur + ov_cols;
 
         if (target < 0)
             return;
@@ -2000,19 +2008,31 @@ keyboard_handle_key(wl_listener *listener, void *data)
         }
     }
 
-    /* In overview mode, Escape goes back to the focused workspace and exits */
+    /* In overview mode: Escape exits; arrow/hjkl navigates workspaces.
+     * All other keybindings are suppressed — handled=true consumes the event. */
     if (!handled && event->state == WL_KEYBOARD_KEY_STATE_PRESSED
         && server->focused_output && server->focused_output->overview)
     {
         for (int i = 0; i < nsyms; i++)
         {
-            if (syms[i] == XKB_KEY_Escape)
+            if (syms[i] == XKB_KEY_Escape || syms[i] == XKB_KEY_Return
+                || syms[i] == XKB_KEY_KP_Enter)
             {
                 begin_exit_overview(server, server->focused_output);
-                handled = true;
                 break;
             }
+            const char *dir = nullptr;
+            switch (syms[i])
+            {
+                case XKB_KEY_Left:  case XKB_KEY_h: dir = "left";  break;
+                case XKB_KEY_Right: case XKB_KEY_l: dir = "right"; break;
+                case XKB_KEY_Up:    case XKB_KEY_k: dir = "up";    break;
+                case XKB_KEY_Down:  case XKB_KEY_j: dir = "down";  break;
+                default: break;
+            }
+            if (dir) { nnwm::focus::dir(server, dir); break; }
         }
+        handled = true;
     }
 
     /* Escape closes the keybinding overlay */
@@ -2109,6 +2129,9 @@ keyboard_repeat_cb(void *data)
     nnwm_keyboard *keyboard = static_cast<nnwm_keyboard *>(data);
     nnwm_server *server     = keyboard->server;
     nnwm_config *cfg        = server->config;
+
+    if (server->focused_output && server->focused_output->overview)
+        return 0;
 
     handle_keybinding(server, keyboard->repeat_modifiers, keyboard->repeat_sym);
 
