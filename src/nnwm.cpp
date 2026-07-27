@@ -1694,8 +1694,8 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
                 wlr_render_pass_add_rect(pass, &slot_bg);
             }
 
-            /* Per-slot wallpaper (solid-bg mode only) */
-            if (!wallpaper_bg && bg_tex)
+            /* Per-slot wallpaper */
+            if (bg_tex)
             {
                 wlr_render_texture_options tex = {};
                 tex.texture                    = bg_tex;
