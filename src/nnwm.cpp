@@ -2005,34 +2005,6 @@ render_overview_labels(nnwm_server *server, nnwm_output *out, const ov_geom &g,
         cairo_show_text(cr, label);
     }
 
-    /* Focus ring: bright border enclosing the entire grid on the focused output */
-    if (out == server->focused_output)
-    {
-        int ov_rows      = g.ov_rows;
-        double total_w   = ov_cols * slot_w + (ov_cols - 1) * OVERVIEW_INNER;
-        double total_h   = ov_rows * slot_h + (ov_rows - 1) * OVERVIEW_INNER;
-        double margin    = 8.0;
-        double rx        = col_x0 - margin;
-        double ry        = row_y0 - margin;
-        double rw        = total_w + 2.0 * margin;
-        double rh        = total_h + 2.0 * margin;
-        double corner    = 6.0;
-        cairo_set_line_width(cr, 2.0);
-        cairo_set_source_rgba(cr, 0.45, 0.65, 1.0, 0.75);
-        /* Rounded rectangle */
-        cairo_move_to(cr, rx + corner, ry);
-        cairo_line_to(cr, rx + rw - corner, ry);
-        cairo_arc(cr, rx + rw - corner, ry + corner, corner, -M_PI / 2, 0);
-        cairo_line_to(cr, rx + rw, ry + rh - corner);
-        cairo_arc(cr, rx + rw - corner, ry + rh - corner, corner, 0, M_PI / 2);
-        cairo_line_to(cr, rx + corner, ry + rh);
-        cairo_arc(cr, rx + corner, ry + rh - corner, corner, M_PI / 2, M_PI);
-        cairo_line_to(cr, rx, ry + corner);
-        cairo_arc(cr, rx + corner, ry + corner, corner, M_PI, 3 * M_PI / 2);
-        cairo_close_path(cr);
-        cairo_stroke(cr);
-    }
-
     cairo_surface_flush(csurf);
     cairo_surface_destroy(csurf);
     cairo_destroy(cr);

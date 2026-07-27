@@ -593,6 +593,32 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
         }
     }
 
+    /* Overview mode: update hover highlights + respect focus_follows_mouse.
+     * focused_output was already updated above; propagate to all label overlays
+     * and bail out before normal surface hit-testing. */
+    {
+        bool any_overview = false;
+        nnwm_output *o;
+        wl_list_for_each(o, &server->outputs, link)
+        {
+            if (o->overview)
+            {
+                any_overview = true;
+                break;
+            }
+        }
+        if (any_overview)
+        {
+            wl_list_for_each(o, &server->outputs, link)
+            {
+                if (o->overview)
+                    overview_update_labels(server, o);
+            }
+            wlr_seat_pointer_clear_focus(server->seat);
+            return;
+        }
+    }
+
     /* Bar hit-test — fires on_hover for any module the cursor enters/leaves
      * and clears wl_seat's pointer focus so surfaces below don't see a
      * synthetic enter/motion. Only consumes when actually over a bar. */
