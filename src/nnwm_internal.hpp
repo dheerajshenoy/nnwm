@@ -98,7 +98,7 @@ struct ov_geom
     int W, H, buf_w, buf_h, num_ws;
     int ov_cols, ov_rows;
     double dpi, slot_w, slot_h, s, cx_off, cy_off;
-    double row_y0;
+    double col_x0, row_y0;
 };
 ov_geom ov_geom_compute(struct nnwm_server *server, struct nnwm_output *out);
 void render_overview(struct nnwm_server *server, struct nnwm_output *out);

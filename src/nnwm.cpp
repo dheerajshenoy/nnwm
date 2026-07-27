@@ -1383,25 +1383,27 @@ ov_geom_compute(nnwm_server *server, nnwm_output *out)
         break;
     }
     int ov_rows = g.ov_rows, ov_cols = g.ov_cols;
-    g.slot_w
-        = (g.W - 2.0 * OVERVIEW_OUTER - (ov_cols - 1) * OVERVIEW_INNER)
-          / ov_cols;
     const wlr_box &ua = out->usable_area;
     double ua_w       = ua.width > 0 ? (double)ua.width : (double)g.W;
     double ua_h       = ua.height > 0 ? (double)ua.height : (double)g.H;
-    /* Cap slot height to the aspect ratio of the usable area so slots are
-     * never stretched taller than wide (e.g. 3 workspaces → 1 row). */
+    /* Maximum slot size the grid area can accommodate */
+    double avail_slot_w
+        = (g.W - 2.0 * OVERVIEW_OUTER - (ov_cols - 1) * OVERVIEW_INNER)
+          / ov_cols;
     double avail_slot_h
         = (g.H - 2.0 * OVERVIEW_OUTER - (ov_rows - 1) * OVERVIEW_INNER)
           / ov_rows;
-    double ar_slot_h = g.slot_w * ua_h / ua_w;
-    g.slot_h         = std::min(avail_slot_h, ar_slot_h);
-    /* Vertically center the grid within the output */
+    /* Uniform scale that fits the workspace aspect ratio into the slot */
+    g.s      = std::min(avail_slot_w / ua_w, avail_slot_h / ua_h);
+    g.slot_w = ua_w * g.s;
+    g.slot_h = ua_h * g.s;
+    g.cx_off = 0.0;
+    g.cy_off = 0.0;
+    /* Center the grid both horizontally and vertically */
+    double total_grid_w = ov_cols * g.slot_w + (ov_cols - 1) * OVERVIEW_INNER;
     double total_grid_h = ov_rows * g.slot_h + (ov_rows - 1) * OVERVIEW_INNER;
-    g.row_y0            = (g.H - total_grid_h) / 2.0;
-    g.s      = std::min(g.slot_w / ua_w, g.slot_h / ua_h);
-    g.cx_off = (g.slot_w - ua_w * g.s) / 2.0;
-    g.cy_off = (g.slot_h - ua_h * g.s) / 2.0;
+    g.col_x0 = (g.W - total_grid_w) / 2.0;
+    g.row_y0 = (g.H - total_grid_h) / 2.0;
     return g;
 }
 
@@ -1418,6 +1420,7 @@ overview_toplevel_at(nnwm_server *server, nnwm_output *out, double cx,
 
     double slot_w = g.slot_w, slot_h = g.slot_h;
     double s = g.s, cx_off = g.cx_off, cy_off = g.cy_off;
+    double col_x0 = g.col_x0;
     int ov_cols = g.ov_cols;
 
     const wlr_box &ua = out->usable_area;
@@ -1429,7 +1432,7 @@ overview_toplevel_at(nnwm_server *server, nnwm_output *out, double cx,
     {
         int col   = ws % ov_cols;
         int row   = ws / ov_cols;
-        double sx = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
+        double sx = col_x0 + col * (slot_w + OVERVIEW_INNER);
         double sy = g.row_y0 + row * (slot_h + OVERVIEW_INNER);
 
         /* Skip if cursor is outside this slot */
@@ -1575,7 +1578,7 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
     int ov_cols = g.ov_cols;
     double dpi = g.dpi, slot_w = g.slot_w, slot_h = g.slot_h;
     double s = g.s, cx_off = g.cx_off, cy_off = g.cy_off;
-    double row_y0 = g.row_y0;
+    double col_x0 = g.col_x0, row_y0 = g.row_y0;
     wlr_box out_box = g.out_box;
 
     const wlr_box &ua = out->usable_area;
@@ -1656,7 +1659,7 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
         {
             int col     = ws % ov_cols;
             int row     = ws / ov_cols;
-            double sx   = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
+            double sx   = col_x0 + col * (slot_w + OVERVIEW_INNER);
             double sy   = row_y0 + row * (slot_h + OVERVIEW_INNER);
             bool active = (ws == out->active_workspace);
 
@@ -1767,7 +1770,7 @@ render_overview_labels(nnwm_server *server, nnwm_output *out, const ov_geom &g,
     int ov_cols = g.ov_cols;
     double dpi = g.dpi, slot_w = g.slot_w, slot_h = g.slot_h;
     double s = g.s, cx_off = g.cx_off, cy_off = g.cy_off;
-    double row_y0 = g.row_y0;
+    double col_x0 = g.col_x0, row_y0 = g.row_y0;
     wlr_box out_box   = g.out_box;
     const wlr_box &ua = out->usable_area;
     nnwm_config *cfg  = server->config;
@@ -1795,24 +1798,24 @@ render_overview_labels(nnwm_server *server, nnwm_output *out, const ov_geom &g,
         cairo_paint(cr);
     }
 
-    /* Determine which slot the cursor is over (for drag-target highlight) */
+    /* Determine which slot the cursor is over */
+    double cursor_ox = server->cursor->x - out_box.x;
+    double cursor_oy = server->cursor->y - out_box.y;
     int drag_target_ws = -1;
-    if (server->overview_drag_toplevel)
+    int hover_ws       = -1;
+    for (int ws = 0; ws < num_ws; ws++)
     {
-        double dcx = server->cursor->x - out_box.x;
-        double dcy = server->cursor->y - out_box.y;
-        for (int ws = 0; ws < num_ws; ws++)
+        int col   = ws % ov_cols;
+        int row   = ws / ov_cols;
+        double sx = col_x0 + col * (slot_w + OVERVIEW_INNER);
+        double sy = row_y0 + row * (slot_h + OVERVIEW_INNER);
+        if (cursor_ox >= sx && cursor_ox < sx + slot_w
+            && cursor_oy >= sy && cursor_oy < sy + slot_h)
         {
-            int col   = ws % ov_cols;
-            int row   = ws / ov_cols;
-            double sx = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
-            double sy = row_y0 + row * (slot_h + OVERVIEW_INNER);
-            if (dcx >= sx && dcx < sx + slot_w && dcy >= sy
-                && dcy < sy + slot_h)
-            {
+            hover_ws = ws;
+            if (server->overview_drag_toplevel)
                 drag_target_ws = ws;
-                break;
-            }
+            break;
         }
     }
 
@@ -1820,7 +1823,7 @@ render_overview_labels(nnwm_server *server, nnwm_output *out, const ov_geom &g,
     {
         int col     = ws % ov_cols;
         int row     = ws / ov_cols;
-        double sx   = OVERVIEW_OUTER + col * (slot_w + OVERVIEW_INNER);
+        double sx   = col_x0 + col * (slot_w + OVERVIEW_INNER);
         double sy   = row_y0 + row * (slot_h + OVERVIEW_INNER);
         bool active = (ws == out->active_workspace);
         bool any    = false;
@@ -1924,13 +1927,26 @@ render_overview_labels(nnwm_server *server, nnwm_output *out, const ov_geom &g,
             }
         }
 
-        /* Slot border — highlight when it's the drag-drop target */
+        /* Hover overlay (non-active, non-drag slots) */
+        bool hovered     = (ws == hover_ws);
         bool drag_target = (ws == drag_target_ws);
+        if (hovered && !active && !drag_target)
+        {
+            cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.06);
+            cairo_rectangle(cr, sx, sy, slot_w, slot_h);
+            cairo_fill(cr);
+        }
+
+        /* Slot border */
         if (drag_target)
         {
             cairo_set_line_width(cr, 2.5);
-            cairo_set_source_rgba(cr, 0.95, 0.75, 0.20,
-                                  1.0); /* amber drop target */
+            cairo_set_source_rgba(cr, 0.95, 0.75, 0.20, 1.0); /* amber */
+        }
+        else if (hovered && !active)
+        {
+            cairo_set_line_width(cr, 1.5);
+            cairo_set_source_rgba(cr, 0.65, 0.75, 0.95, 1.0); /* soft blue */
         }
         else
         {

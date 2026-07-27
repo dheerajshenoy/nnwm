@@ -1001,7 +1001,7 @@ server_cursor_button(wl_listener *listener, void *data)
                     {
                         int col   = ws % g.ov_cols;
                         int row   = ws / g.ov_cols;
-                        double sx = OVERVIEW_OUTER + col * (g.slot_w + OVERVIEW_INNER);
+                        double sx = g.col_x0 + col * (g.slot_w + OVERVIEW_INNER);
                         double sy = g.row_y0 + row * (g.slot_h + OVERVIEW_INNER);
                         if (cx >= sx && cx < sx + g.slot_w
                             && cy >= sy && cy < sy + g.slot_h)
@@ -1054,7 +1054,7 @@ server_cursor_button(wl_listener *listener, void *data)
                     {
                         int col   = ws % g.ov_cols;
                         int row   = ws / g.ov_cols;
-                        double sx = OVERVIEW_OUTER + col * (g.slot_w + OVERVIEW_INNER);
+                        double sx = g.col_x0 + col * (g.slot_w + OVERVIEW_INNER);
                         double sy = g.row_y0 + row * (g.slot_h + OVERVIEW_INNER);
                         if (cx >= sx && cx < sx + g.slot_w
                             && cy >= sy && cy < sy + g.slot_h)
