@@ -1,5 +1,80 @@
 # nnwm CHANGELOG
 
+## 0.1.5
+
+### Bug Fixes
+
+- **Overview slots stretch vertically in single-row layouts**: slot height was
+  computed as the full available height divided by the row count, ignoring the
+  workspace aspect ratio. In horizontal and single-row layouts this made slots
+  taller than they should be. Similarly, slots in vertical (single-column)
+  layout filled the entire output width. Fixed by switching to a unified
+  scale-based geometry: a single scale factor `s = min(avail_w/ua_w,
+  avail_h/ua_h)` is derived from whichever axis constrains first, then
+  `slot_w = ua_w * s` and `slot_h = ua_h * s`. The grid is centred both
+  horizontally and vertically within the output, so no slot is ever stretched
+  regardless of layout or workspace count.
+
+- **Overview hover highlights and focus-follows-mouse only worked during
+  window drag**: `overview_update_labels` (the cheap Cairo-only re-render that
+  updates slot borders, hover tints, and dim overlays) was only called during
+  drag motion. Regular cursor movement in overview never triggered it, so hover
+  highlights were invisible and `focus_follows_mouse` had no effect. Fixed by
+  adding an overview fast-path in the cursor motion handler: after the normal
+  `focused_output` update (which already respects `focus_follows_mouse`), if any
+  output is in overview all overview labels are re-rendered and the handler
+  returns early.
+
+### Features
+
+- **Overview layout configuration**: `nnwm.opt.overview.layout` controls the
+  workspace grid algorithm:
+  - `"auto"` (default) — even workspace count → 2 equal rows; odd → 1 row
+  - `"horizontal"` — always a single row of n columns
+  - `"vertical"` — always a single column of n rows
+  - `"equal_grid"` — approximately square grid (⌈√n⌉ columns)
+
+  All layouts use the same unified scale-based slot geometry so slots are always
+  correctly aspect-ratio-constrained and centred on screen.
+
+- **Overview workspace index display**: `nnwm.opt.overview.show_index = true`
+  always prepends the numeric index to the workspace label (e.g. `"1: work"`
+  instead of just `"work"`). When no name is configured the index is shown
+  regardless of this setting. Default: `false`.
+
+- **Overview wallpaper background**: `nnwm.opt.overview.show_wallpaper_bg =
+  true` renders the layer-shell background surface (e.g. from `swaybg` /
+  `swww`) full-screen behind all slots instead of the solid dark fill, then
+  applies a 50% dark overlay for readability. Per-slot wallpaper is rendered in
+  both modes, so each slot always shows the wallpaper scaled to fit its area.
+  Default: `false`.
+
+- **Overview `focus_dir` wraps to the nearest neighbouring monitor at grid
+  edges**: when navigating with arrow keys or hjkl in overview and reaching the
+  edge of the current monitor's grid, `focus_dir` now finds the nearest output
+  in that direction (same priority/secondary-distance algorithm used by normal
+  `focus_dir` window navigation) and moves focus there. The landing workspace is
+  chosen to feel spatially continuous: entering from the left lands on the
+  rightmost slot of the target grid, entering from the right on the leftmost,
+  and so on for up/down. Only outputs that are also in overview are considered.
+
+- **Overview focused-monitor dimming**: when multiple monitors are in overview,
+  the non-focused outputs are dimmed with a 35% dark overlay applied at the end
+  of the GPU render pass. The focused output renders at full brightness, making
+  it immediately clear which monitor has keyboard focus without any extra border
+  or decoration.
+
+- **Overview mouse hover highlight**: hovering the cursor over a workspace slot
+  now applies a subtle white tint (+6% opacity) and replaces the dim slot border
+  with a soft blue border (1.5 px), giving tactile feedback before clicking.
+  The highlight updates on every cursor motion event.
+
+- **Overview `focus_follows_mouse`**: when `nnwm.opt.mouse.focus_follows_mouse
+  = true` (or `nnwm.opt.layout.focus_follows_mouse = true`), moving the cursor
+  onto a different monitor's overview automatically shifts keyboard focus to that
+  output. The focused-monitor dim overlay updates immediately to reflect the
+  change.
+
 ## 0.1.4
 
 ### Bug Fixes
