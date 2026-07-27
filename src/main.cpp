@@ -587,6 +587,9 @@ main(int argc, char *argv[])
     server.drag_icon_tree         = nullptr;
     server.current_drag           = nullptr;
     server.overview_drag_toplevel = nullptr;
+    server.overview_drag_ghost    = nullptr;
+    server.overview_drag_ghost_w  = 0;
+    server.overview_drag_ghost_h  = 0;
 
     /* idle-inhibit-v1: lets clients (video players, games) prevent screen
      * blanking / locking while they hold an inhibitor object. */

@@ -526,9 +526,19 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
      */
     if (server->overview_drag_toplevel)
     {
-        nnwm_output *hov = output_at_cursor(server);
-        if (hov && hov->overview)
-            overview_update_labels(server, hov);
+        if (server->overview_drag_ghost)
+        {
+            int cx = (int)server->cursor->x - server->overview_drag_ghost_w / 2;
+            int cy = (int)server->cursor->y - server->overview_drag_ghost_h / 2;
+            wlr_scene_node_set_position(&server->overview_drag_ghost->node,
+                                        cx, cy);
+        }
+        nnwm_output *o;
+        wl_list_for_each(o, &server->outputs, link)
+        {
+            if (o->overview)
+                overview_update_labels(server, o);
+        }
         return;
     }
 
@@ -972,7 +982,7 @@ server_cursor_button(wl_listener *listener, void *data)
                 if (hit)
                 {
                     server->overview_drag_toplevel = hit;
-                    /* Re-render to show drag state */
+                    ov_create_drag_ghost(server, hit, hov);
                     overview_frame_update(server, hov);
                 }
                 /* else: press on empty space — wait for release to switch
@@ -1003,6 +1013,7 @@ server_cursor_button(wl_listener *listener, void *data)
 
                     nnwm_toplevel *dtl  = server->overview_drag_toplevel;
                     server->overview_drag_toplevel = nullptr;
+                    ov_destroy_drag_ghost(server);
 
                     nnwm_output *src_out = dtl->output;
                     bool ws_changed      = target_ws >= 0

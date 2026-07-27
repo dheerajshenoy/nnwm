@@ -1939,6 +1939,115 @@ render_overview_labels(nnwm_server *server, nnwm_output *out, const ov_geom &g,
     wlr_scene_node_raise_to_top(&out->overview_labels->node);
 }
 
+void
+ov_destroy_drag_ghost(nnwm_server *server)
+{
+    if (!server->overview_drag_ghost)
+        return;
+    wlr_scene_node_set_enabled(&server->overview_drag_ghost->node, false);
+    wlr_scene_node_destroy(&server->overview_drag_ghost->node);
+    server->overview_drag_ghost   = nullptr;
+    server->overview_drag_ghost_w = 0;
+    server->overview_drag_ghost_h = 0;
+}
+
+void
+ov_create_drag_ghost(nnwm_server *server, nnwm_toplevel *tl, nnwm_output *out)
+{
+    ov_destroy_drag_ghost(server);
+
+    ov_geom g = ov_geom_compute(server, out);
+    if (g.W <= 0 || g.H <= 0)
+        return;
+
+    nnwm_config *cfg = server->config;
+    int bw           = cfg->border.width;
+    int th           = cfg->titlebar.height;
+
+    bool tabbed = !tl->floating && tl->output
+                  && tl->output->layout_mode[tl->workspace]
+                         == nnwm_layout_mode::TABBED;
+    int eff_th = (tabbed || th <= 0) ? 0 : th;
+
+    wlr_box lb;
+    if (!tl_layout_box(tl, bw, eff_th, &lb))
+        return;
+
+    /* Ghost dimensions in logical output pixels */
+    int gw_log = (int)std::round(lb.width  * g.s);
+    int gh_log = (int)std::round(lb.height * g.s);
+    if (gw_log <= 0 || gh_log <= 0)
+        return;
+
+    /* Buffer dimensions in physical pixels */
+    int gw_buf = (int)std::round(gw_log * g.dpi);
+    int gh_buf = (int)std::round(gh_log * g.dpi);
+
+    const wlr_drm_format_set *fmts = wlr_renderer_get_texture_formats(
+        server->renderer, server->renderer->render_buffer_caps);
+    const wlr_drm_format *fmt
+        = fmts ? wlr_drm_format_set_get(fmts, DRM_FORMAT_ARGB8888) : nullptr;
+    if (!fmt)
+        return;
+
+    wlr_buffer *buf
+        = wlr_allocator_create_buffer(server->allocator, gw_buf, gh_buf, fmt);
+    if (!buf)
+        return;
+
+    wlr_render_pass *pass
+        = wlr_renderer_begin_buffer_pass(server->renderer, buf, nullptr);
+    if (!pass)
+    {
+        wlr_buffer_drop(buf);
+        return;
+    }
+
+    /* Clear to transparent */
+    wlr_render_rect_options clear = {};
+    clear.box                     = {0, 0, gw_buf, gh_buf};
+    clear.color                   = {0.0f, 0.0f, 0.0f, 0.0f};
+    clear.blend_mode              = WLR_RENDER_BLEND_MODE_NONE;
+    wlr_render_pass_add_rect(pass, &clear);
+
+    double win_scale = g.s * g.dpi;
+
+    /* The ghost buffer shows only the window content (no slot offset).
+     * orig_x/y = border+titlebar offset in buffer pixels. */
+    int orig_x = (int)std::round(bw * win_scale);
+    int orig_y = (int)std::round((bw + eff_th) * win_scale);
+
+    pixman_region32_t clip;
+    pixman_region32_init_rect(&clip, 0, 0, (uint32_t)gw_buf, (uint32_t)gh_buf);
+
+    ov_surf_data d{pass, &clip, orig_x, orig_y, win_scale};
+    wlr_surface_for_each_surface(tl_wlr_surface(tl), ov_surface_iter, &d);
+
+    pixman_region32_fini(&clip);
+    wlr_render_pass_submit(pass);
+
+    /* Put the ghost buffer in a scene node at the current cursor position,
+     * centered on the cursor */
+    int cx = (int)server->cursor->x - gw_log / 2;
+    int cy = (int)server->cursor->y - gh_log / 2;
+
+    server->overview_drag_ghost
+        = wlr_scene_buffer_create(&server->scene->tree, buf);
+    wlr_buffer_drop(buf);
+
+    if (!server->overview_drag_ghost)
+        return;
+
+    wlr_scene_buffer_set_dest_size(server->overview_drag_ghost, gw_log, gh_log);
+    wlr_scene_buffer_set_opacity(server->overview_drag_ghost, 0.82f);
+    wlr_scene_node_set_position(&server->overview_drag_ghost->node, cx, cy);
+    wlr_scene_node_set_enabled(&server->overview_drag_ghost->node, true);
+    wlr_scene_node_raise_to_top(&server->overview_drag_ghost->node);
+
+    server->overview_drag_ghost_w = gw_log;
+    server->overview_drag_ghost_h = gh_log;
+}
+
 /* Cheap re-render: only update the Cairo labels overlay (slot borders, labels,
  * drag-target highlight).  Does NOT re-render window textures via the GPU pass.
  * Use this during drag motion to keep things smooth. */

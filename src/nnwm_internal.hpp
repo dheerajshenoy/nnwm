@@ -109,6 +109,9 @@ struct nnwm_toplevel *overview_toplevel_at(struct nnwm_server *server,
                                             double cx, double cy,
                                             int *out_ws);
 void overview_update_labels(struct nnwm_server *server, struct nnwm_output *out);
+void ov_create_drag_ghost(struct nnwm_server *server, struct nnwm_toplevel *tl,
+                          struct nnwm_output *out);
+void ov_destroy_drag_ghost(struct nnwm_server *server);
 
 /* ---- Tray ---- */
 void bar_notify_tray_changed(nnwm_server *server);

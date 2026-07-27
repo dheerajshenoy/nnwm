@@ -157,8 +157,10 @@ output_frame(wl_listener *listener, void * /*data*/)
     if (!committed)
         return;
 
-    /* In overview mode, send frame_done to toplevels on inactive workspaces
-     * so their clients continue rendering and the overview stays live. */
+    /* In overview mode, all window scene nodes are hidden behind the overview
+     * GPU buffer, so wlr_scene_output_send_frame_done above does not reach
+     * any of them — including the active workspace. Send frame_done to every
+     * toplevel on this output so all clients keep rendering. */
     if (output->overview)
     {
         nnwm_toplevel *tl;
@@ -166,12 +168,11 @@ output_frame(wl_listener *listener, void * /*data*/)
         {
             if (tl->output != output)
                 continue;
-            if (tl->workspace == output->active_workspace)
-                continue;
             if (tl->in_scratchpad)
                 continue;
-            wlr_surface_for_each_surface(tl->xdg_toplevel->base->surface,
-                                         send_frame_done_cb, &now);
+            wlr_surface *s = tl_wlr_surface(tl);
+            if (s)
+                wlr_surface_for_each_surface(s, send_frame_done_cb, &now);
         }
     }
 }

@@ -16,6 +16,17 @@
   always calling `wlr_scene_output_send_frame_done` on every vblank, regardless
   of whether the commit produced visible output.
 
+- **Overview focused workspace stops live-rendering when focus changes**: in
+  overview mode all window scene nodes are hidden behind the GPU thumbnail
+  buffer, so `wlr_scene_output_send_frame_done` never reaches any window
+  surface — including those on the active workspace. The per-frame loop that
+  sends explicit `frame_done` calls was skipping the active workspace on the
+  assumption it was already covered, which caused the focused slot to freeze
+  whenever `focus_dir` changed the active workspace. Fixed by sending
+  `frame_done` to every toplevel on every workspace uniformly while in
+  overview. Also fixed the same loop incorrectly using `xdg_toplevel->surface`
+  directly, which would have crashed on XWayland windows.
+
 - **`focus_dir` / `move_dir` "down" jumps to master instead of next stack
   window**: directional navigation used a pure center-to-center distance metric
   with no angular filter. In HTILE layout, the master window's vertical center

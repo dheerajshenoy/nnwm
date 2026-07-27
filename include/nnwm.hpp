@@ -424,7 +424,10 @@ struct nnwm_server
     void *tray; /* nnwm_tray* — system tray state; null if disabled */
 
     /* Overview drag state */
-    struct nnwm_toplevel *overview_drag_toplevel; /* non-null while dragging in overview */
+    struct nnwm_toplevel  *overview_drag_toplevel; /* non-null while dragging in overview */
+    struct wlr_scene_buffer *overview_drag_ghost;  /* thumbnail that follows the cursor */
+    int overview_drag_ghost_w;                     /* ghost logical width in output pixels */
+    int overview_drag_ghost_h;
 
     /* IPC */
     int ipc_fd;
