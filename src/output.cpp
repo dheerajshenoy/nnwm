@@ -73,16 +73,20 @@ output_frame(wl_listener *listener, void * /*data*/)
         wl_list_for_each(tl, &server->toplevels, link)
         {
             tl->commit_hidden = false;
-            if (!tl->geo_anim || !tl->output || tl->output == output) continue;
-            if (!tl->scene_tree->node.enabled) continue;
+            if (!tl->geo_anim || !tl->output || tl->output == output)
+                continue;
+            if (!tl->scene_tree->node.enabled)
+                continue;
             wlr_scene_node_set_enabled(&tl->scene_tree->node, false);
             tl->commit_hidden = true;
         }
         wl_list_for_each(tl, &server->dying_toplevels, dying_link)
         {
             tl->commit_hidden = false;
-            if (!tl->geo_anim || !tl->output || tl->output == output) continue;
-            if (!tl->scene_tree->node.enabled) continue;
+            if (!tl->geo_anim || !tl->output || tl->output == output)
+                continue;
+            if (!tl->scene_tree->node.enabled)
+                continue;
             wlr_scene_node_set_enabled(&tl->scene_tree->node, false);
             tl->commit_hidden = true;
         }
@@ -110,7 +114,8 @@ output_frame(wl_listener *listener, void * /*data*/)
         wlr_gamma_control_v1 *gc = wlr_gamma_control_manager_v1_get_control(
             output->server->gamma_control_manager, output->wlr_output);
         if (gc)
-            commit_opts.color_transform = wlr_gamma_control_v1_get_color_transform(gc);
+            commit_opts.color_transform
+                = wlr_gamma_control_v1_get_color_transform(gc);
     }
 #endif
 
@@ -154,15 +159,19 @@ output_frame(wl_listener *listener, void * /*data*/)
 
     /* In overview mode, send frame_done to toplevels on inactive workspaces
      * so their clients continue rendering and the overview stays live. */
-    if (output->overview) {
+    if (output->overview)
+    {
         nnwm_toplevel *tl;
-        wl_list_for_each(tl, &output->server->toplevels, link) {
-            if (tl->output != output) continue;
-            if (tl->workspace == output->active_workspace) continue;
-            if (tl->in_scratchpad) continue;
-            wlr_surface_for_each_surface(
-                tl->xdg_toplevel->base->surface,
-                send_frame_done_cb, &now);
+        wl_list_for_each(tl, &output->server->toplevels, link)
+        {
+            if (tl->output != output)
+                continue;
+            if (tl->workspace == output->active_workspace)
+                continue;
+            if (tl->in_scratchpad)
+                continue;
+            wlr_surface_for_each_surface(tl->xdg_toplevel->base->surface,
+                                         send_frame_done_cb, &now);
         }
     }
 }
@@ -202,7 +211,8 @@ output_destroy(wl_listener *listener, void * /*data*/)
     /* Drop this output's per-output bar, and re-target the global bar if it
      * was anchored here. bar_apply_config re-builds anything needed. */
     bar_destroy_for_output(output);
-    if (server->global_bar && server->global_bar->output == output) {
+    if (server->global_bar && server->global_bar->output == output)
+    {
         server->global_bar->output = nullptr; /* prevent dangling deref */
         bar_apply_config(server);
     }
@@ -255,20 +265,26 @@ server_session_active(wl_listener *listener, void * /*data*/)
     /* Re-adopt orphaned toplevels onto the first live output. Toplevels
      * migrated in output_destroy may still point to an output that itself
      * was destroyed before a live replacement existed. */
-    if (!wl_list_empty(&server->outputs)) {
+    if (!wl_list_empty(&server->outputs))
+    {
         nnwm_output *first = wl_container_of(server->outputs.next, first, link);
         nnwm_toplevel *tl;
-        wl_list_for_each(tl, &server->toplevels, link) {
+        wl_list_for_each(tl, &server->toplevels, link)
+        {
             bool alive = false;
-            if (tl->output) {
+            if (tl->output)
+            {
                 nnwm_output *o;
-                wl_list_for_each(o, &server->outputs, link)
-                    if (o == tl->output) { alive = true; break; }
+                wl_list_for_each(o, &server->outputs, link) if (o == tl->output)
+                {
+                    alive = true;
+                    break;
+                }
             }
-            if (!alive) {
+            if (!alive)
+            {
                 tl->output = first;
-                if (tl->workspace < 0
-                    || tl->workspace >= NNWM_NUM_WORKSPACES)
+                if (tl->workspace < 0 || tl->workspace >= NNWM_NUM_WORKSPACES)
                     tl->workspace = first->active_workspace;
             }
         }
@@ -522,10 +538,11 @@ server_apply_config(nnwm_server *server)
          * `tl->xdg_toplevel` is null for xwayland and dereferencing it
          * would crash hot-reload as soon as any xwayland window is open. */
         wlr_surface *tls = tl_wlr_surface(tl);
-        float *color = (tls && tls == focused_surface)
-                           ? server->config->border.focused_color
-                           : server->config->border.unfocused_color;
-        if (!tl->border[0]) continue; /* not yet mapped */
+        float *color     = (tls && tls == focused_surface)
+                               ? server->config->border.focused_color
+                               : server->config->border.unfocused_color;
+        if (!tl->border[0])
+            continue; /* not yet mapped */
         for (int i = 0; i < 4; i++)
             wlr_scene_rect_set_color(tl->border[i], color);
     }
@@ -673,20 +690,20 @@ server_new_output(wl_listener *listener, void *data)
     for (int i = 0; i < NNWM_NUM_WORKSPACES; i++)
     {
         /* Priority: monitor-specific > global default > htile */
-        int mon_dfl = (mc && mc->workspace_layouts[i] >= 0)
-                          ? mc->workspace_layouts[i] : -1;
-        int glb_dfl = server->config->workspace_default_layouts[i];
-        int dfl     = (mon_dfl >= 0) ? mon_dfl : glb_dfl;
-        output->layout_mode[i]   = (dfl >= 0)
-                                        ? static_cast<nnwm_layout_mode>(dfl)
-                                        : nnwm_layout_mode::HTILE;
+        int mon_dfl            = (mc && mc->workspace_layouts[i] >= 0)
+                                     ? mc->workspace_layouts[i]
+                                     : -1;
+        int glb_dfl            = server->config->workspace_default_layouts[i];
+        int dfl                = (mon_dfl >= 0) ? mon_dfl : glb_dfl;
+        output->layout_mode[i] = (dfl >= 0) ? static_cast<nnwm_layout_mode>(dfl)
+                                            : nnwm_layout_mode::HTILE;
         output->master_ratio[i]  = server->config->layout.master_ratio;
         output->scroll_offset[i] = 0;
         /* Workspace name: monitor override > global config > nullptr */
-        const char *mon_name = (mc && mc->workspace_names[i])
-                                   ? mc->workspace_names[i] : nullptr;
-        const char *glb_name = server->config->workspace_names[i];
-        const char *eff_name = mon_name ? mon_name : glb_name;
+        const char *mon_name
+            = (mc && mc->workspace_names[i]) ? mc->workspace_names[i] : nullptr;
+        const char *glb_name       = server->config->workspace_names[i];
+        const char *eff_name       = mon_name ? mon_name : glb_name;
         output->workspace_names[i] = eff_name ? strdup(eff_name) : nullptr;
     }
     output->tab_bar = wlr_scene_buffer_create(server->scene_windows, nullptr);
@@ -743,15 +760,19 @@ server_new_output(wl_listener *listener, void *data)
         wl_list_for_each(tl, &server->toplevels, link)
         {
             bool alive = false;
-            if (tl->output) {
+            if (tl->output)
+            {
                 nnwm_output *o;
-                wl_list_for_each(o, &server->outputs, link)
-                    if (o == tl->output) { alive = true; break; }
+                wl_list_for_each(o, &server->outputs, link) if (o == tl->output)
+                {
+                    alive = true;
+                    break;
+                }
             }
-            if (!alive) {
+            if (!alive)
+            {
                 tl->output = output;
-                if (tl->workspace < 0
-                    || tl->workspace >= NNWM_NUM_WORKSPACES)
+                if (tl->workspace < 0 || tl->workspace >= NNWM_NUM_WORKSPACES)
                     tl->workspace = output->active_workspace;
                 have_orphans = true;
             }
@@ -766,7 +787,9 @@ server_new_output(wl_listener *listener, void *data)
 void
 handle_gamma_control_set_gamma(wl_listener *listener, void *data)
 {
-    nnwm_server *server = wl_container_of(listener, server, gamma_control_set_gamma);
-    auto *event = static_cast<wlr_gamma_control_manager_v1_set_gamma_event *>(data);
+    nnwm_server *server
+        = wl_container_of(listener, server, gamma_control_set_gamma);
+    auto *event
+        = static_cast<wlr_gamma_control_manager_v1_set_gamma_event *>(data);
     wlr_output_schedule_frame(event->output);
 }

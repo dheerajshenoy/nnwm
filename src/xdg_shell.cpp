@@ -191,9 +191,8 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
     /* Handle scratchpad windows separately */
     if (toplevel->in_scratchpad)
     {
-        bool was_focused_scratch
-            = (server->seat->keyboard_state.focused_surface
-               == tl_wlr_surface(toplevel));
+        bool was_focused_scratch = (server->seat->keyboard_state.focused_surface
+                                    == tl_wlr_surface(toplevel));
 
         wl_list_remove(&toplevel->link);
 #ifdef HAVE_SCENEFX
@@ -203,19 +202,26 @@ xdg_toplevel_unmap(wl_listener *listener, void * /*data*/)
 
         if (was_focused_scratch && server->scratchpad_visible)
         {
-            /* Focus next scratchpad window, or fall back to regular workspace */
+            /* Focus next scratchpad window, or fall back to regular workspace
+             */
             nnwm_toplevel *next = nullptr;
             nnwm_toplevel *t;
             wl_list_for_each(t, &server->toplevels, link)
             {
-                if (t->in_scratchpad) { next = t; break; }
+                if (t->in_scratchpad)
+                {
+                    next = t;
+                    break;
+                }
             }
             if (next)
                 focus_toplevel(next);
             else if (out)
             {
-                nnwm_toplevel *wsnext = out->last_focused[out->active_workspace];
-                if (!wsnext) wsnext = ws_first(server, out);
+                nnwm_toplevel *wsnext
+                    = out->last_focused[out->active_workspace];
+                if (!wsnext)
+                    wsnext = ws_first(server, out);
                 if (wsnext)
                     focus_toplevel(wsnext);
                 else
@@ -434,8 +440,8 @@ begin_interactive(nnwm_toplevel *toplevel, nnwm_cursor_mode mode,
         double border_y = (toplevel->scene_tree->node.y + geo_box.y)
                           + ((edges & WLR_EDGE_BOTTOM) ? geo_box.height : 0);
         wlr_cursor_warp(server->cursor, nullptr, border_x, border_y);
-        server->grab_x  = 0;
-        server->grab_y  = 0;
+        server->grab_x = 0;
+        server->grab_y = 0;
 
         server->grab_geobox = geo_box;
         server->grab_geobox.x += toplevel->scene_tree->node.x;
@@ -625,14 +631,14 @@ server_new_xdg_toplevel(wl_listener *listener, void *data)
     toplevel->set_title.notify = [](wl_listener *listener, void *)
     {
         nnwm_toplevel *tl = wl_container_of(listener, tl, set_title);
-        if (tl->is_xwayland) return; /* XWayland handles set_title separately */
+        if (tl->is_xwayland)
+            return; /* XWayland handles set_title separately */
         nnwm_server *server = tl->server;
         nnwm_config *cfg    = server->config;
         if (cfg->titlebar.height > 0 && tl->titlebar_width > 0)
         {
             wlr_surface *fs = server->seat->keyboard_state.focused_surface;
-            render_titlebar(tl, tl->titlebar_width,
-                            tl_wlr_surface(tl) == fs);
+            render_titlebar(tl, tl->titlebar_width, tl_wlr_surface(tl) == fs);
         }
         if (tl->output && !tl->floating
             && tl->output->layout_mode[tl->workspace]
@@ -677,35 +683,37 @@ server_new_xdg_popup(wl_listener *listener, void *data)
             = wlr_xdg_surface_try_from_wlr_surface(xdg_popup->parent);
         if (xdg_parent)
         {
-            /* parent_tree: immediate parent surface — where the popup lives in the scene */
+            /* parent_tree: immediate parent surface — where the popup lives in
+             * the scene */
             parent_tree = static_cast<wlr_scene_tree *>(xdg_parent->data);
 
             /* Walk up the xdg popup chain to find the root surface (toplevel or
-             * layer surface). root_tree is used for constraint coordinates because
-             * wlr_xdg_popup_unconstrain_from_box expects coords in the root
-             * surface's space, not the immediate parent popup's space. */
-            for (wlr_xdg_surface *cur = xdg_parent; cur; )
+             * layer surface). root_tree is used for constraint coordinates
+             * because wlr_xdg_popup_unconstrain_from_box expects coords in the
+             * root surface's space, not the immediate parent popup's space. */
+            for (wlr_xdg_surface *cur = xdg_parent; cur;)
             {
                 if (cur->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL)
                 {
-                    wlr_scene_tree *st = static_cast<wlr_scene_tree *>(cur->data);
+                    wlr_scene_tree *st
+                        = static_cast<wlr_scene_tree *>(cur->data);
                     if (st && st->node.data)
                     {
                         auto *tl = static_cast<nnwm_toplevel *>(st->node.data);
                         if (tl)
                         {
-                            root_tree    = tl->scene_tree;
-                            popup->output = tl->output
-                                ? tl->output->wlr_output : nullptr;
+                            root_tree = tl->scene_tree;
+                            popup->output
+                                = tl->output ? tl->output->wlr_output : nullptr;
                         }
                     }
                     break;
                 }
-                if (cur->role != WLR_XDG_SURFACE_ROLE_POPUP
-                    || !cur->popup || !cur->popup->parent)
+                if (cur->role != WLR_XDG_SURFACE_ROLE_POPUP || !cur->popup
+                    || !cur->popup->parent)
                     break;
-                wlr_xdg_surface *up =
-                    wlr_xdg_surface_try_from_wlr_surface(cur->popup->parent);
+                wlr_xdg_surface *up
+                    = wlr_xdg_surface_try_from_wlr_surface(cur->popup->parent);
                 if (up)
                 {
                     cur = up;
@@ -713,12 +721,13 @@ server_new_xdg_popup(wl_listener *listener, void *data)
                 else
                 {
                     /* Parent is a layer surface */
-                    wlr_layer_surface_v1 *lp =
-                        wlr_layer_surface_v1_try_from_wlr_surface(cur->popup->parent);
+                    wlr_layer_surface_v1 *lp
+                        = wlr_layer_surface_v1_try_from_wlr_surface(
+                            cur->popup->parent);
                     if (lp)
                     {
                         auto *ls  = static_cast<nnwm_layer_surface *>(lp->data);
-                        root_tree    = ls->scene->tree;
+                        root_tree = ls->scene->tree;
                         popup->output = lp->output;
                     }
                     break;
@@ -731,7 +740,8 @@ server_new_xdg_popup(wl_listener *listener, void *data)
                 = wlr_layer_surface_v1_try_from_wlr_surface(xdg_popup->parent);
             if (layer_parent)
             {
-                auto *ls      = static_cast<nnwm_layer_surface *>(layer_parent->data);
+                auto *ls
+                    = static_cast<nnwm_layer_surface *>(layer_parent->data);
                 parent_tree   = ls->scene->tree;
                 root_tree     = ls->scene->tree;
                 popup->output = layer_parent->output;

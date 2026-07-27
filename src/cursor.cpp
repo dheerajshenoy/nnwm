@@ -1,12 +1,13 @@
+#include "actions.hpp"
 #include "nnwm.hpp"
 #include "nnwm_internal.hpp"
-#include "actions.hpp"
 
 #include <algorithm>
 #include <ctime>
-extern "C" {
-#include <lua.h>
+extern "C"
+{
 #include <lauxlib.h>
+#include <lua.h>
 }
 #include <linux/input-event-codes.h>
 #include <wlr/types/wlr_data_device.h>
@@ -59,15 +60,16 @@ tab_toplevel_at(nnwm_server *server, double lx, double ly)
         if (o->layout_mode[ws] != nnwm_layout_mode::TABBED)
             continue;
 
-        nnwm_config *cfg       = o->server->config;
-        int n                  = ws_count(server, o);
-        bool solo              = (n == 1);
-        bool hide_tabs         = solo && cfg->layout.tab_smart;
+        nnwm_config *cfg = o->server->config;
+        int n            = ws_count(server, o);
+        bool solo        = (n == 1);
+        bool hide_tabs   = solo && cfg->layout.tab_smart;
         if (hide_tabs)
             continue;
 
-        int og     = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
-        int tab_sz = cfg->layout.tab_bar_height > 0 ? cfg->layout.tab_bar_height : 24;
+        int og = (solo && cfg->gap.smart) ? 0 : cfg->gap.outer;
+        int tab_sz
+            = cfg->layout.tab_bar_height > 0 ? cfg->layout.tab_bar_height : 24;
         nnwm_tab_position tab_pos = cfg->layout.tab_position;
         const wlr_box &area       = o->usable_area;
 
@@ -102,9 +104,11 @@ tab_toplevel_at(nnwm_server *server, double lx, double ly)
 
         if (lx >= tbx && lx < tbx + tbw && ly >= tby && ly < tby + tbh)
         {
-            hit = o;
-            hit_tbx = tbx; hit_tby = tby;
-            hit_tbw = tbw; hit_tbh = tbh;
+            hit     = o;
+            hit_tbx = tbx;
+            hit_tby = tby;
+            hit_tbw = tbw;
+            hit_tbh = tbh;
             break;
         }
     }
@@ -118,7 +122,8 @@ tab_toplevel_at(nnwm_server *server, double lx, double ly)
 
     nnwm_tab_position tab_pos = hit->server->config->layout.tab_position;
     int tab_idx;
-    if (tab_pos == nnwm_tab_position::LEFT || tab_pos == nnwm_tab_position::RIGHT)
+    if (tab_pos == nnwm_tab_position::LEFT
+        || tab_pos == nnwm_tab_position::RIGHT)
     {
         int rel_y = (int)(ly - hit_tby);
         tab_idx   = rel_y * n / hit_tbh;
@@ -128,8 +133,10 @@ tab_toplevel_at(nnwm_server *server, double lx, double ly)
         int rel_x = (int)(lx - hit_tbx);
         tab_idx   = rel_x * n / hit_tbw;
     }
-    if (tab_idx < 0)  tab_idx = 0;
-    if (tab_idx >= n) tab_idx = n - 1;
+    if (tab_idx < 0)
+        tab_idx = 0;
+    if (tab_idx >= n)
+        tab_idx = n - 1;
 
     int i = 0;
     nnwm_toplevel *tl;
@@ -180,14 +187,22 @@ resize_cursor_name(uint32_t edges)
     bool bottom = edges & WLR_EDGE_BOTTOM;
     bool left   = edges & WLR_EDGE_LEFT;
     bool right  = edges & WLR_EDGE_RIGHT;
-    if (top    && left)  return "nw-resize";
-    if (top    && right) return "ne-resize";
-    if (bottom && left)  return "sw-resize";
-    if (bottom && right) return "se-resize";
-    if (top)             return "n-resize";
-    if (bottom)          return "s-resize";
-    if (left)            return "w-resize";
-    if (right)           return "e-resize";
+    if (top && left)
+        return "nw-resize";
+    if (top && right)
+        return "ne-resize";
+    if (bottom && left)
+        return "sw-resize";
+    if (bottom && right)
+        return "se-resize";
+    if (top)
+        return "n-resize";
+    if (bottom)
+        return "s-resize";
+    if (left)
+        return "w-resize";
+    if (right)
+        return "e-resize";
     return "se-resize";
 }
 
@@ -215,8 +230,8 @@ static void
 process_tile_drag_motion(nnwm_server *server)
 {
     nnwm_toplevel *grabbed = server->grabbed_toplevel;
-    double cx = server->cursor->x;
-    double cy = server->cursor->y;
+    double cx              = server->cursor->x;
+    double cy              = server->cursor->y;
 
     /* Use geometry-based hit test instead of scene-node hit test.
      * The overlay rect sits above windows in the scene tree and would block
@@ -227,10 +242,12 @@ process_tile_drag_motion(nnwm_server *server)
         nnwm_toplevel *tl;
         wl_list_for_each(tl, &server->toplevels, link)
         {
-            if (tl == grabbed || tl->floating || tl->in_scratchpad) continue;
-            if (!tl->scene_tree->node.enabled) continue;
-            if (cx >= tl->cur_x && cx < tl->cur_x + tl->cur_w &&
-                cy >= tl->cur_y && cy < tl->cur_y + tl->cur_h)
+            if (tl == grabbed || tl->floating || tl->in_scratchpad)
+                continue;
+            if (!tl->scene_tree->node.enabled)
+                continue;
+            if (cx >= tl->cur_x && cx < tl->cur_x + tl->cur_w && cy >= tl->cur_y
+                && cy < tl->cur_y + tl->cur_h)
             {
                 under = tl;
                 break;
@@ -240,23 +257,25 @@ process_tile_drag_motion(nnwm_server *server)
 
     if (under)
     {
-        if (under == server->tile_drag_target) return; /* same target — no update */
+        if (under == server->tile_drag_target)
+            return; /* same target — no update */
         server->tile_drag_target        = under;
         server->tile_drag_target_output = nullptr;
-        tile_drop_border_show(server, under->cur_x, under->cur_y,
-                              under->cur_w, under->cur_h);
+        tile_drop_border_show(server, under->cur_x, under->cur_y, under->cur_w,
+                              under->cur_h);
     }
     else
     {
-        /* No tiled window under cursor — check if cursor is on a different output.
-         * If so, show the usable area of that output as a drop zone. */
+        /* No tiled window under cursor — check if cursor is on a different
+         * output. If so, show the usable area of that output as a drop zone. */
         nnwm_output *hover_out = output_at_cursor(server);
         if (hover_out && hover_out != grabbed->output)
         {
-            if (server->tile_drag_target_output == hover_out) return; /* same — no update */
+            if (server->tile_drag_target_output == hover_out)
+                return; /* same — no update */
             server->tile_drag_target        = nullptr;
             server->tile_drag_target_output = hover_out;
-            const wlr_box &ua = hover_out->usable_area;
+            const wlr_box &ua               = hover_out->usable_area;
             tile_drop_border_show(server, ua.x, ua.y, ua.width, ua.height);
         }
         else
@@ -318,12 +337,14 @@ process_cursor_resize(nnwm_server *server)
 #ifdef HAVE_XWAYLAND
     if (toplevel->is_xwayland)
     {
-        wlr_scene_node_set_position(&toplevel->scene_tree->node, new_left, new_top);
-        nnwm_xw_configure(toplevel->xwayland_surface,
-                          (int16_t)(new_left + bw),
-                          (int16_t)(new_top + bw + th),
-                          (uint16_t)(new_width > 2*bw ? new_width - 2*bw : 1),
-                          (uint16_t)(new_height > 2*bw+th ? new_height - 2*bw - th : 1));
+        wlr_scene_node_set_position(&toplevel->scene_tree->node, new_left,
+                                    new_top);
+        nnwm_xw_configure(
+            toplevel->xwayland_surface, (int16_t)(new_left + bw),
+            (int16_t)(new_top + bw + th),
+            (uint16_t)(new_width > 2 * bw ? new_width - 2 * bw : 1),
+            (uint16_t)(new_height > 2 * bw + th ? new_height - 2 * bw - th
+                                                : 1));
         /* Track compositor-authoritative geometry so subsequent stale
          * request_configure events from the client don't undo the resize. */
         toplevel->cur_x = new_left;
@@ -336,7 +357,8 @@ process_cursor_resize(nnwm_server *server)
     {
         wlr_box *geo_box = &toplevel->xdg_toplevel->base->geometry;
         wlr_scene_node_set_position(&toplevel->scene_tree->node,
-                                    new_left - geo_box->x, new_top - geo_box->y);
+                                    new_left - geo_box->x,
+                                    new_top - geo_box->y);
         wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, new_width - 2 * bw,
                                   new_height - 2 * bw - th);
     }
@@ -355,11 +377,17 @@ static const nnwm_hot_corner *
 hot_corner_for_output(nnwm_server *server, nnwm_output *out, int corner_idx)
 {
     nnwm_config *cfg = server->config;
-    if (out && out->wlr_output && out->wlr_output->name) {
-        for (int i = 0; i < cfg->monitor_hot_corner_count; i++) {
-            if (strcmp(cfg->monitor_hot_corners[i].name, out->wlr_output->name) == 0) {
-                const nnwm_hot_corner *mc = &cfg->monitor_hot_corners[i].corners[corner_idx];
-                if (mc->func_ref != -2) return mc; /* per-monitor override */
+    if (out && out->wlr_output && out->wlr_output->name)
+    {
+        for (int i = 0; i < cfg->monitor_hot_corner_count; i++)
+        {
+            if (strcmp(cfg->monitor_hot_corners[i].name, out->wlr_output->name)
+                == 0)
+            {
+                const nnwm_hot_corner *mc
+                    = &cfg->monitor_hot_corners[i].corners[corner_idx];
+                if (mc->func_ref != -2)
+                    return mc; /* per-monitor override */
                 break;
             }
         }
@@ -371,16 +399,21 @@ int
 hot_corner_timer_cb(void *data)
 {
     nnwm_server *server = static_cast<nnwm_server *>(data);
-    int ci = server->hot_corner_active;
-    if (ci < 0 || ci > 3) return 0;
+    int ci              = server->hot_corner_active;
+    if (ci < 0 || ci > 3)
+        return 0;
     /* Mark cooldown so we don't re-fire while the cursor stays there */
     server->hot_corner_cooldown |= (1 << ci);
-    const nnwm_hot_corner *hc = hot_corner_for_output(server, server->hot_corner_output, ci);
-    if (hc->func_ref >= 0) {
+    const nnwm_hot_corner *hc
+        = hot_corner_for_output(server, server->hot_corner_output, ci);
+    if (hc->func_ref >= 0)
+    {
         lua_State *L = server->lua;
         lua_rawgeti(L, LUA_REGISTRYINDEX, hc->func_ref);
-        if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
-            fprintf(stderr, "nnwm: hot_corner action error: %s\n", lua_tostring(L, -1));
+        if (lua_pcall(L, 0, 0, 0) != LUA_OK)
+        {
+            fprintf(stderr, "nnwm: hot_corner action error: %s\n",
+                    lua_tostring(L, -1));
             lua_pop(L, 1);
         }
     }
@@ -391,7 +424,8 @@ void
 process_hot_corners(nnwm_server *server)
 {
     nnwm_config *cfg = server->config;
-    if (cfg->hot_corner_size <= 0) return;
+    if (cfg->hot_corner_size <= 0)
+        return;
 
     double cx = server->cursor->x;
     double cy = server->cursor->y;
@@ -400,17 +434,21 @@ process_hot_corners(nnwm_server *server)
     nnwm_output *out = nullptr;
     {
         nnwm_output *o;
-        wl_list_for_each(o, &server->outputs, link) {
+        wl_list_for_each(o, &server->outputs, link)
+        {
             wlr_box box;
-            wlr_output_layout_get_box(server->output_layout, o->wlr_output, &box);
-            if (cx >= box.x && cx < box.x + box.width &&
-                cy >= box.y && cy < box.y + box.height) {
+            wlr_output_layout_get_box(server->output_layout, o->wlr_output,
+                                      &box);
+            if (cx >= box.x && cx < box.x + box.width && cy >= box.y
+                && cy < box.y + box.height)
+            {
                 out = o;
                 break;
             }
         }
     }
-    if (!out) return;
+    if (!out)
+        return;
 
     wlr_box ob;
     wlr_output_layout_get_box(server->output_layout, out->wlr_output, &ob);
@@ -418,10 +456,14 @@ process_hot_corners(nnwm_server *server)
 
     /* Determine which corner (if any) the cursor is in */
     int ci = -1;
-    if (cx < ob.x + sz && cy < ob.y + sz)                               ci = NNWM_CORNER_TL;
-    else if (cx >= ob.x + ob.width - sz && cy < ob.y + sz)              ci = NNWM_CORNER_TR;
-    else if (cx < ob.x + sz && cy >= ob.y + ob.height - sz)             ci = NNWM_CORNER_BL;
-    else if (cx >= ob.x + ob.width - sz && cy >= ob.y + ob.height - sz) ci = NNWM_CORNER_BR;
+    if (cx < ob.x + sz && cy < ob.y + sz)
+        ci = NNWM_CORNER_TL;
+    else if (cx >= ob.x + ob.width - sz && cy < ob.y + sz)
+        ci = NNWM_CORNER_TR;
+    else if (cx < ob.x + sz && cy >= ob.y + ob.height - sz)
+        ci = NNWM_CORNER_BL;
+    else if (cx >= ob.x + ob.width - sz && cy >= ob.y + ob.height - sz)
+        ci = NNWM_CORNER_BR;
 
     if (ci == server->hot_corner_active && out == server->hot_corner_output)
         return; /* no change */
@@ -430,7 +472,8 @@ process_hot_corners(nnwm_server *server)
     if (server->hot_corner_timer)
         wl_event_source_timer_update(server->hot_corner_timer, 0);
 
-    if (ci < 0) {
+    if (ci < 0)
+    {
         /* Left all corners — clear cooldown for the corner we were in */
         if (server->hot_corner_active >= 0)
             server->hot_corner_cooldown &= ~(1 << server->hot_corner_active);
@@ -443,18 +486,24 @@ process_hot_corners(nnwm_server *server)
     server->hot_corner_output = out;
 
     /* Skip if cooldown is set (cursor never left since last fire) */
-    if (server->hot_corner_cooldown & (1 << ci)) return;
+    if (server->hot_corner_cooldown & (1 << ci))
+        return;
 
     /* Check this corner has an action configured */
     const nnwm_hot_corner *hc = hot_corner_for_output(server, out, ci);
-    if (hc->func_ref < 0) return;
+    if (hc->func_ref < 0)
+        return;
 
     int delay = hc->delay_ms;
-    if (delay < 0) delay = cfg->hot_corners[ci].delay_ms;
-    if (delay <= 0) {
+    if (delay < 0)
+        delay = cfg->hot_corners[ci].delay_ms;
+    if (delay <= 0)
+    {
         /* Fire immediately */
         hot_corner_timer_cb(server);
-    } else {
+    }
+    else
+    {
         wl_event_source_timer_update(server->hot_corner_timer, delay);
     }
 }
@@ -462,7 +511,8 @@ process_hot_corners(nnwm_server *server)
 void
 process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
 {
-    if (real_motion) nnwm_notify_activity(server);
+    if (real_motion)
+        nnwm_notify_activity(server);
 
     if (server->drag_icon_tree)
     {
@@ -471,9 +521,11 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
                                     (int)server->cursor->y);
     }
 
-    /* During overview drag, only update the cheap Cairo overlay (slot highlight).
-     * The GPU texture pass is not re-run, so motion stays smooth. */
-    if (server->overview_drag_toplevel) {
+    /* During overview drag, only update the cheap Cairo overlay (slot
+     * highlight). The GPU texture pass is not re-run, so motion stays smooth.
+     */
+    if (server->overview_drag_toplevel)
+    {
         nnwm_output *hov = output_at_cursor(server);
         if (hov && hov->overview)
             overview_update_labels(server, hov);
@@ -496,7 +548,8 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
         return;
     }
 
-    if (real_motion) process_hot_corners(server);
+    if (real_motion)
+        process_hot_corners(server);
 
     if (server->cursor_zoom_active)
         cursor_zoom_update_pos(server);
@@ -505,7 +558,8 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
     {
         server->cursor_hidden_by_typing = false;
         if (!server->cursor_zoom_active)
-            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr,
+                                   "default");
     }
 
     /* Track which output the cursor is on. When focus_follows_mouse is off,
@@ -515,14 +569,15 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
         nnwm_output *cur_out = output_at_cursor(server);
         if (cur_out)
         {
-            bool no_focus = !server->seat->keyboard_state.focused_surface
-                            || (!wlr_xdg_toplevel_try_from_wlr_surface(
-                                    server->seat->keyboard_state.focused_surface)
+            bool no_focus
+                = !server->seat->keyboard_state.focused_surface
+                  || (!wlr_xdg_toplevel_try_from_wlr_surface(
+                          server->seat->keyboard_state.focused_surface)
 #ifdef HAVE_XWAYLAND
-                                && !nnwm_xw_try_from_surface(
-                                    server->seat->keyboard_state.focused_surface)
+                      && !nnwm_xw_try_from_surface(
+                          server->seat->keyboard_state.focused_surface)
 #endif
-                                );
+                  );
             if (server->config->focus_follows_mouse || no_focus)
                 server->focused_output = cur_out;
         }
@@ -531,12 +586,14 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
     /* Bar hit-test — fires on_hover for any module the cursor enters/leaves
      * and clears wl_seat's pointer focus so surfaces below don't see a
      * synthetic enter/motion. Only consumes when actually over a bar. */
-    bool over_bar = bar_handle_motion(
-        server, server->cursor->x, server->cursor->y);
-    if (over_bar) {
+    bool over_bar
+        = bar_handle_motion(server, server->cursor->x, server->cursor->y);
+    if (over_bar)
+    {
         wlr_seat_pointer_clear_focus(server->seat);
         if (!server->cursor_zoom_active)
-            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr,
+                                   "default");
         return;
     }
 
@@ -567,13 +624,15 @@ process_cursor_motion(nnwm_server *server, uint32_t time, bool real_motion)
 static void
 switch_handle_toggle(wl_listener *listener, void *data)
 {
-    nnwm_switch *sw = wl_container_of(listener, sw, toggle);
+    nnwm_switch *sw   = wl_container_of(listener, sw, toggle);
     const auto *event = static_cast<wlr_switch_toggle_event *>(data);
-    const char *hook = nullptr;
+    const char *hook  = nullptr;
     if (event->switch_type == WLR_SWITCH_TYPE_LID)
-        hook = (event->switch_state == WLR_SWITCH_STATE_ON) ? "lid_close" : "lid_open";
+        hook = (event->switch_state == WLR_SWITCH_STATE_ON) ? "lid_close"
+                                                            : "lid_open";
     else if (event->switch_type == WLR_SWITCH_TYPE_TABLET_MODE)
-        hook = (event->switch_state == WLR_SWITCH_STATE_ON) ? "tablet_mode_on" : "tablet_mode_off";
+        hook = (event->switch_state == WLR_SWITCH_STATE_ON) ? "tablet_mode_on"
+                                                            : "tablet_mode_off";
     if (hook)
         fire_hook_plain(sw->server, hook);
 }
@@ -591,10 +650,10 @@ switch_handle_destroy(wl_listener *listener, void * /*data*/)
 static void
 server_new_switch(nnwm_server *server, wlr_input_device *device)
 {
-    nnwm_switch *sw  = new nnwm_switch{};
-    sw->server       = server;
-    sw->wlr_switch   = wlr_switch_from_input_device(device);
-    sw->toggle.notify  = switch_handle_toggle;
+    nnwm_switch *sw   = new nnwm_switch{};
+    sw->server        = server;
+    sw->wlr_switch    = wlr_switch_from_input_device(device);
+    sw->toggle.notify = switch_handle_toggle;
     wl_signal_add(&sw->wlr_switch->events.toggle, &sw->toggle);
     sw->destroy.notify = switch_handle_destroy;
     wl_signal_add(&device->events.destroy, &sw->destroy);
@@ -628,7 +687,8 @@ server_new_input(wl_listener *listener, void *data)
     wlr_seat_set_capabilities(server->seat, caps);
 }
 
-static void pointer_constraint_check_focus(nnwm_server *server);
+static void
+pointer_constraint_check_focus(nnwm_server *server);
 
 void
 seat_request_cursor(wl_listener *listener, void *data)
@@ -664,7 +724,7 @@ seat_pointer_focus_change(wl_listener *listener, void *data)
 static void
 on_drag_icon_destroy(wl_listener *listener, void * /*data*/)
 {
-    nnwm_server *server    = wl_container_of(listener, server, drag_icon_destroy);
+    nnwm_server *server = wl_container_of(listener, server, drag_icon_destroy);
     wl_list_remove(&server->drag_icon_destroy.link);
     wl_list_init(&server->drag_icon_destroy.link);
     server->drag_icon_tree = nullptr;
@@ -713,18 +773,17 @@ seat_start_drag(wl_listener *listener, void *data)
     nnwm_server *server = wl_container_of(listener, server, start_drag);
     auto *drag          = static_cast<wlr_drag *>(data);
 
-    server->current_drag         = drag;
-    server->drag_destroy.notify  = on_drag_destroy;
+    server->current_drag        = drag;
+    server->drag_destroy.notify = on_drag_destroy;
     wl_signal_add(&drag->events.destroy, &server->drag_destroy);
 
     if (!drag->icon)
         return;
 
-    server->drag_icon_tree = wlr_scene_drag_icon_create(
-        server->scene_windows, drag->icon);
+    server->drag_icon_tree
+        = wlr_scene_drag_icon_create(server->scene_windows, drag->icon);
     wlr_scene_node_set_position(&server->drag_icon_tree->node,
-                                (int)server->cursor->x,
-                                (int)server->cursor->y);
+                                (int)server->cursor->x, (int)server->cursor->y);
 
     server->drag_icon_destroy.notify = on_drag_icon_destroy;
     wl_signal_add(&drag->icon->events.destroy, &server->drag_icon_destroy);
@@ -733,16 +792,19 @@ seat_start_drag(wl_listener *listener, void *data)
 void
 handle_new_virtual_pointer(wl_listener *listener, void *data)
 {
-    nnwm_server *server = wl_container_of(listener, server, new_virtual_pointer);
+    nnwm_server *server
+        = wl_container_of(listener, server, new_virtual_pointer);
     auto *event = static_cast<wlr_virtual_pointer_v1_new_pointer_event *>(data);
-    wlr_cursor_attach_input_device(server->cursor, &event->new_pointer->pointer.base);
+    wlr_cursor_attach_input_device(server->cursor,
+                                   &event->new_pointer->pointer.base);
 }
 
 void
 handle_new_virtual_keyboard(wl_listener *listener, void *data)
 {
-    nnwm_server *server = wl_container_of(listener, server, new_virtual_keyboard);
-    auto *vk            = static_cast<wlr_virtual_keyboard_v1 *>(data);
+    nnwm_server *server
+        = wl_container_of(listener, server, new_virtual_keyboard);
+    auto *vk = static_cast<wlr_virtual_keyboard_v1 *>(data);
     server_new_keyboard(server, &vk->keyboard.base);
 }
 
@@ -761,7 +823,7 @@ seat_request_set_selection(wl_listener *listener, void *data)
 
 void
 pointer_constraint_activate(nnwm_server *server,
-                             wlr_pointer_constraint_v1 *constraint)
+                            wlr_pointer_constraint_v1 *constraint)
 {
     if (server->active_constraint == constraint)
         return;
@@ -780,8 +842,10 @@ pointer_constraint_activate(nnwm_server *server,
 
     wlr_pointer_constraint_v1_send_activated(constraint);
 
-    server->constraint_destroy.notify = [](wl_listener *listener, void *) {
-        nnwm_server *server = wl_container_of(listener, server, constraint_destroy);
+    server->constraint_destroy.notify = [](wl_listener *listener, void *)
+    {
+        nnwm_server *server
+            = wl_container_of(listener, server, constraint_destroy);
         server->active_constraint = nullptr;
         wl_list_remove(&server->constraint_destroy.link);
     };
@@ -811,8 +875,8 @@ server_cursor_motion(wl_listener *listener, void *data)
     nnwm_server *server = wl_container_of(listener, server, cursor_motion);
     auto *event         = static_cast<wlr_pointer_motion_event *>(data);
 
-    double dx = event->delta_x;
-    double dy = event->delta_y;
+    double dx  = event->delta_x;
+    double dy  = event->delta_y;
     double udx = event->unaccel_dx;
     double udy = event->unaccel_dy;
 
@@ -824,8 +888,7 @@ server_cursor_motion(wl_listener *listener, void *data)
             /* Locked: block all cursor movement, just send relative motion */
             wlr_relative_pointer_manager_v1_send_relative_motion(
                 server->relative_pointer_manager, server->seat,
-                (uint64_t)event->time_msec * 1000,
-                dx, dy, udx, udy);
+                (uint64_t)event->time_msec * 1000, dx, dy, udx, udy);
             return;
         }
         /* Confined: clamp movement to the constraint region */
@@ -845,8 +908,8 @@ server_cursor_motion(wl_listener *listener, void *data)
             /* Convert proposed position to surface-local */
             double nsx = sx + dx;
             double nsy = sy + dy;
-            if (!pixman_region32_contains_point(
-                    &c->region, (int)nsx, (int)nsy, nullptr))
+            if (!pixman_region32_contains_point(&c->region, (int)nsx, (int)nsy,
+                                                nullptr))
             {
                 /* Clamp: keep cursor at boundary */
                 dx = 0;
@@ -855,7 +918,8 @@ server_cursor_motion(wl_listener *listener, void *data)
                 ny = cy;
             }
         }
-        (void)nx; (void)ny;
+        (void)nx;
+        (void)ny;
     }
 
     wlr_cursor_move(server->cursor, &event->pointer->base, dx, dy);
@@ -863,8 +927,7 @@ server_cursor_motion(wl_listener *listener, void *data)
     /* Send relative motion to any listening client (e.g. games) */
     wlr_relative_pointer_manager_v1_send_relative_motion(
         server->relative_pointer_manager, server->seat,
-        (uint64_t)event->time_msec * 1000,
-        dx, dy, udx, udy);
+        (uint64_t)event->time_msec * 1000, dx, dy, udx, udy);
 
     process_cursor_motion(server, event->time_msec, true);
 }
@@ -894,7 +957,8 @@ server_cursor_button(wl_listener *listener, void *data)
         if (hov && hov->overview)
         {
             wlr_box ob;
-            wlr_output_layout_get_box(server->output_layout, hov->wlr_output, &ob);
+            wlr_output_layout_get_box(server->output_layout, hov->wlr_output,
+                                      &ob);
             double cx = server->cursor->x - ob.x;
             double cy = server->cursor->y - ob.y;
 
@@ -903,35 +967,46 @@ server_cursor_button(wl_listener *listener, void *data)
             {
                 /* Hit-test: window under cursor? Start drag. */
                 int hit_ws = -1;
-                nnwm_toplevel *hit = overview_toplevel_at(server, hov, cx, cy, &hit_ws);
-                if (hit) {
+                nnwm_toplevel *hit
+                    = overview_toplevel_at(server, hov, cx, cy, &hit_ws);
+                if (hit)
+                {
                     server->overview_drag_toplevel = hit;
                     /* Re-render to show drag state */
                     overview_frame_update(server, hov);
                 }
-                /* else: press on empty space — wait for release to switch workspace */
+                /* else: press on empty space — wait for release to switch
+                 * workspace */
                 return;
             }
 
             if (event->state == WL_POINTER_BUTTON_STATE_RELEASED)
             {
-                if (server->overview_drag_toplevel) {
+                if (server->overview_drag_toplevel)
+                {
                     /* Drop: find target workspace slot */
                     const double OV_OUTER = 32.0;
                     const double OV_INNER = 12.0;
-                    const int    OV_COLS  = 3;
-                    const int    num_ws   = server->config->workspace_count;
-                    const int    OV_ROWS  = (num_ws + OV_COLS - 1) / OV_COLS;
-                    double slot_w = (ob.width  - 2.0 * OV_OUTER - (OV_COLS - 1) * OV_INNER) / OV_COLS;
-                    double slot_h = (ob.height - 2.0 * OV_OUTER - (OV_ROWS - 1) * OV_INNER) / OV_ROWS;
+                    const int OV_COLS     = 3;
+                    const int num_ws      = server->config->workspace_count;
+                    const int OV_ROWS     = (num_ws + OV_COLS - 1) / OV_COLS;
+                    double slot_w
+                        = (ob.width - 2.0 * OV_OUTER - (OV_COLS - 1) * OV_INNER)
+                          / OV_COLS;
+                    double slot_h = (ob.height - 2.0 * OV_OUTER
+                                     - (OV_ROWS - 1) * OV_INNER)
+                                    / OV_ROWS;
 
                     int target_ws = -1;
-                    for (int ws = 0; ws < num_ws; ws++) {
-                        int    col = ws % OV_COLS;
-                        int    row = ws / OV_COLS;
-                        double sx  = OV_OUTER + col * (slot_w + OV_INNER);
-                        double sy  = OV_OUTER + row * (slot_h + OV_INNER);
-                        if (cx >= sx && cx < sx + slot_w && cy >= sy && cy < sy + slot_h) {
+                    for (int ws = 0; ws < num_ws; ws++)
+                    {
+                        int col   = ws % OV_COLS;
+                        int row   = ws / OV_COLS;
+                        double sx = OV_OUTER + col * (slot_w + OV_INNER);
+                        double sy = OV_OUTER + row * (slot_h + OV_INNER);
+                        if (cx >= sx && cx < sx + slot_w && cy >= sy
+                            && cy < sy + slot_h)
+                        {
                             target_ws = ws;
                             break;
                         }
@@ -940,15 +1015,22 @@ server_cursor_button(wl_listener *listener, void *data)
                     nnwm_toplevel *dtl = server->overview_drag_toplevel;
                     server->overview_drag_toplevel = nullptr;
 
-                    if (target_ws >= 0 && target_ws != dtl->workspace) {
-                        dtl->workspace = target_ws;
-                        /* If the window was last-focused on the old ws, clear that */
+                    if (target_ws >= 0 && target_ws != dtl->workspace)
+                    {
+                        dtl->workspace   = target_ws;
+                        /* If the window was last-focused on the old ws, clear
+                         * that */
                         nnwm_output *out = dtl->output;
-                        if (out) {
-                            for (int w = 0; w < server->config->workspace_count; w++) {
-                                if (out->last_focused[w] == dtl && w != target_ws)
+                        if (out)
+                        {
+                            for (int w = 0; w < server->config->workspace_count;
+                                 w++)
+                            {
+                                if (out->last_focused[w] == dtl
+                                    && w != target_ws)
                                     out->last_focused[w] = nullptr;
-                                if (out->prev_focused[w] == dtl && w != target_ws)
+                                if (out->prev_focused[w] == dtl
+                                    && w != target_ws)
                                     out->prev_focused[w] = nullptr;
                             }
                         }
@@ -956,23 +1038,32 @@ server_cursor_button(wl_listener *listener, void *data)
 
                     /* Re-arrange and re-render overview */
                     render_overview(server, hov);
-                } else {
+                }
+                else
+                {
                     /* Click on empty space: switch workspace and exit */
                     const double OV_OUTER = 32.0;
                     const double OV_INNER = 12.0;
-                    const int    OV_COLS  = 3;
-                    const int    num_ws   = server->config->workspace_count;
-                    const int    OV_ROWS  = (num_ws + OV_COLS - 1) / OV_COLS;
-                    double slot_w = (ob.width  - 2.0 * OV_OUTER - (OV_COLS - 1) * OV_INNER) / OV_COLS;
-                    double slot_h = (ob.height - 2.0 * OV_OUTER - (OV_ROWS - 1) * OV_INNER) / OV_ROWS;
+                    const int OV_COLS     = 3;
+                    const int num_ws      = server->config->workspace_count;
+                    const int OV_ROWS     = (num_ws + OV_COLS - 1) / OV_COLS;
+                    double slot_w
+                        = (ob.width - 2.0 * OV_OUTER - (OV_COLS - 1) * OV_INNER)
+                          / OV_COLS;
+                    double slot_h = (ob.height - 2.0 * OV_OUTER
+                                     - (OV_ROWS - 1) * OV_INNER)
+                                    / OV_ROWS;
 
                     int target_ws = -1;
-                    for (int ws = 0; ws < num_ws; ws++) {
-                        int    col = ws % OV_COLS;
-                        int    row = ws / OV_COLS;
-                        double sx  = OV_OUTER + col * (slot_w + OV_INNER);
-                        double sy  = OV_OUTER + row * (slot_h + OV_INNER);
-                        if (cx >= sx && cx < sx + slot_w && cy >= sy && cy < sy + slot_h) {
+                    for (int ws = 0; ws < num_ws; ws++)
+                    {
+                        int col   = ws % OV_COLS;
+                        int row   = ws / OV_COLS;
+                        double sx = OV_OUTER + col * (slot_w + OV_INNER);
+                        double sy = OV_OUTER + row * (slot_h + OV_INNER);
+                        if (cx >= sx && cx < sx + slot_w && cy >= sy
+                            && cy < sy + slot_h)
+                        {
                             target_ws = ws;
                             break;
                         }
@@ -980,15 +1071,19 @@ server_cursor_button(wl_listener *listener, void *data)
 
                     /* Click on a window: focus it in its workspace */
                     int hit_ws = -1;
-                    nnwm_toplevel *hit = overview_toplevel_at(server, hov, cx, cy, &hit_ws);
+                    nnwm_toplevel *hit
+                        = overview_toplevel_at(server, hov, cx, cy, &hit_ws);
 
                     server->focused_output = hov;
                     exit_overview(server, hov);
-                    if (hit) {
+                    if (hit)
+                    {
                         if (hit_ws >= 0 && hit_ws != hov->active_workspace)
                             nnwm::workspace::switch_to(server, hit_ws);
                         focus_toplevel(hit);
-                    } else if (target_ws >= 0) {
+                    }
+                    else if (target_ws >= 0)
+                    {
                         nnwm::workspace::switch_to(server, target_ws);
                     }
                 }
@@ -1003,10 +1098,10 @@ server_cursor_button(wl_listener *listener, void *data)
     {
         if (server->cursor_mode == nnwm_cursor_mode::TILE_DRAG)
         {
-            nnwm_toplevel *grabbed    = server->grabbed_toplevel;
-            nnwm_toplevel *target     = server->tile_drag_target;
-            nnwm_output   *target_out = target ? target->output
-                                               : server->tile_drag_target_output;
+            nnwm_toplevel *grabbed = server->grabbed_toplevel;
+            nnwm_toplevel *target  = server->tile_drag_target;
+            nnwm_output *target_out
+                = target ? target->output : server->tile_drag_target_output;
             tile_drop_border_hide(server);
             nnwm_output *grabbed_out = grabbed ? grabbed->output : nullptr;
 
@@ -1015,7 +1110,7 @@ server_cursor_button(wl_listener *listener, void *data)
                 /* Swap grabbed and target in the toplevel list so they exchange
                  * tile slots on the next arrange. */
                 wl_list *before_grabbed = grabbed->link.prev;
-                bool b_before_a = (before_grabbed == &target->link);
+                bool b_before_a         = (before_grabbed == &target->link);
 
                 wl_list_remove(&grabbed->link);
                 wl_list_insert(target->link.prev, &grabbed->link);
@@ -1033,13 +1128,13 @@ server_cursor_button(wl_listener *listener, void *data)
                     || grabbed->workspace != target->workspace)
                 {
                     nnwm_output *tmp_out = grabbed->output;
-                    int          tmp_ws  = grabbed->workspace;
-                    grabbed->output    = target->output;
-                    grabbed->workspace = target->workspace;
-                    target->output     = tmp_out;
-                    target->workspace  = tmp_ws;
+                    int tmp_ws           = grabbed->workspace;
+                    grabbed->output      = target->output;
+                    grabbed->workspace   = target->workspace;
+                    target->output       = tmp_out;
+                    target->workspace    = tmp_ws;
                     grabbed->cur_w = grabbed->cur_h = 0;
-                    target->cur_w  = target->cur_h  = 0;
+                    target->cur_w = target->cur_h = 0;
                     ftl_update_output(grabbed, tmp_out);
                     ftl_update_output(target, grabbed->output);
                 }
@@ -1048,9 +1143,9 @@ server_cursor_button(wl_listener *listener, void *data)
             {
                 /* Dropped onto an empty area of another output — move there */
                 nnwm_output *old_out = grabbed->output;
-                grabbed->output    = target_out;
-                grabbed->workspace = target_out->active_workspace;
-                grabbed_out        = old_out; /* arrange old output too */
+                grabbed->output      = target_out;
+                grabbed->workspace   = target_out->active_workspace;
+                grabbed_out          = old_out; /* arrange old output too */
                 ftl_update_output(grabbed, old_out);
             }
 
@@ -1062,7 +1157,8 @@ server_cursor_button(wl_listener *listener, void *data)
                  * animation from-position is then computed relative to the
                  * destination on the new output instead of the old output's
                  * coordinates, which would be outside the new viewport. */
-                if (grabbed->output != grabbed_out) {
+                if (grabbed->output != grabbed_out)
+                {
                     grabbed->cur_x = 0;
                     grabbed->cur_y = 0;
                     grabbed->cur_w = 0;
@@ -1073,7 +1169,7 @@ server_cursor_button(wl_listener *listener, void *data)
                 if (grabbed_out && grabbed_out != grabbed->output)
                     arrange_windows(server, grabbed_out);
                 if (target_out && target_out != grabbed->output
-                               && target_out != grabbed_out)
+                    && target_out != grabbed_out)
                     arrange_windows(server, target_out);
             }
         }
@@ -1093,8 +1189,7 @@ server_cursor_button(wl_listener *listener, void *data)
 
     /* Status bar click: dispatch to the module or bar-level handler. */
     if (!server->session_lock
-        && bar_handle_button(server,
-                             server->cursor->x, server->cursor->y,
+        && bar_handle_button(server, server->cursor->x, server->cursor->y,
                              event->button,
                              event->state == WL_POINTER_BUTTON_STATE_PRESSED))
     {
@@ -1169,11 +1264,10 @@ server_cursor_axis(wl_listener *listener, void *data)
     }
 
     float factor = server->config->touchpad.scroll_factor;
-    wlr_seat_pointer_notify_axis(
-        server->seat, event->time_msec, event->orientation,
-        event->delta * factor,
-        (int32_t)(event->delta_discrete * factor),
-        event->source, event->relative_direction);
+    wlr_seat_pointer_notify_axis(server->seat, event->time_msec,
+                                 event->orientation, event->delta * factor,
+                                 (int32_t)(event->delta_discrete * factor),
+                                 event->source, event->relative_direction);
 }
 
 void

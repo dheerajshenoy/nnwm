@@ -51,40 +51,42 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
 
 #ifdef HAVE_SCENEFX
         nnwm_config *cfg = server->config;
-        bool do_anim = cfg->fx.animation.enabled
-                    && cfg->fx.animation.duration_ms > 0
-                    && cfg->fx.animation.layout_style != nnwm_layout_anim::NONE
-                    && tl->cur_w > 0;
+        bool do_anim
+            = cfg->fx.animation.enabled && cfg->fx.animation.duration_ms > 0
+              && cfg->fx.animation.layout_style != nnwm_layout_anim::NONE
+              && tl->cur_w > 0;
         if (do_anim)
         {
-            tl->geo_from_x = tl->cur_x;
-            tl->geo_from_y = tl->cur_y;
-            tl->geo_from_w = tl->cur_w;
-            tl->geo_from_h = tl->cur_h;
-            tl->geo_to_x   = area.x;
-            tl->geo_to_y   = area.y;
-            tl->geo_to_w   = area.width;
-            tl->geo_to_h   = area.height;
-            tl->geo_bw          = 0;
-            tl->geo_anim        = true;
-            tl->geo_t0          = anim_now();
-            tl->geo_then_hide   = false;
-            tl->geo_duration_ms = eff_duration(cfg, cfg->fx.animation.layout_duration_ms);
-            tl->geo_easing      = eff_easing(cfg, cfg->fx.animation.layout_easing);
+            tl->geo_from_x    = tl->cur_x;
+            tl->geo_from_y    = tl->cur_y;
+            tl->geo_from_w    = tl->cur_w;
+            tl->geo_from_h    = tl->cur_h;
+            tl->geo_to_x      = area.x;
+            tl->geo_to_y      = area.y;
+            tl->geo_to_w      = area.width;
+            tl->geo_to_h      = area.height;
+            tl->geo_bw        = 0;
+            tl->geo_anim      = true;
+            tl->geo_t0        = anim_now();
+            tl->geo_then_hide = false;
+            tl->geo_duration_ms
+                = eff_duration(cfg, cfg->fx.animation.layout_duration_ms);
+            tl->geo_easing = eff_easing(cfg, cfg->fx.animation.layout_easing);
             /* Start visually at the from state */
-            wlr_scene_node_set_position(&tl->scene_tree->node,
-                                        tl->geo_from_x, tl->geo_from_y);
+            wlr_scene_node_set_position(&tl->scene_tree->node, tl->geo_from_x,
+                                        tl->geo_from_y);
             update_borders(tl, tl->geo_from_w, tl->geo_from_h, 0);
             tl->cur_x = tl->geo_from_x;
             tl->cur_y = tl->geo_from_y;
             tl->cur_w = tl->geo_from_w;
             tl->cur_h = tl->geo_from_h;
             tl_xdg_set_size(tl, area.width, area.height);
-#ifdef HAVE_XWAYLAND
+    #ifdef HAVE_XWAYLAND
             if (tl->is_xwayland)
-                nnwm_xw_configure(tl->xwayland_surface, (int16_t)area.x, (int16_t)area.y,
-                                  (uint16_t)area.width, (uint16_t)area.height);
-#endif
+                nnwm_xw_configure(tl->xwayland_surface, (int16_t)area.x,
+                                  (int16_t)area.y, (uint16_t)area.width,
+                                  (uint16_t)area.height);
+    #endif
             apply_fx_decorations(tl);
             arrange_windows(server, out);
             bar_update_fullscreen_visibility(server, out);
@@ -95,8 +97,9 @@ do_toggle_fullscreen(nnwm_toplevel *tl)
         tl_xdg_set_size(tl, area.width, area.height);
 #ifdef HAVE_XWAYLAND
         if (tl->is_xwayland)
-            nnwm_xw_configure(tl->xwayland_surface, (int16_t)area.x, (int16_t)area.y,
-                              (uint16_t)area.width, (uint16_t)area.height);
+            nnwm_xw_configure(tl->xwayland_surface, (int16_t)area.x,
+                              (int16_t)area.y, (uint16_t)area.width,
+                              (uint16_t)area.height);
 #endif
         update_borders(tl, area.width, area.height, 0);
         tl->cur_x = area.x;
@@ -128,8 +131,9 @@ do_toggle_fake_fullscreen(nnwm_toplevel *tl)
         tl_xdg_set_size(tl, area.width, area.height);
 #ifdef HAVE_XWAYLAND
         if (tl->is_xwayland)
-            nnwm_xw_configure(tl->xwayland_surface, (int16_t)area.x, (int16_t)area.y,
-                              (uint16_t)area.width, (uint16_t)area.height);
+            nnwm_xw_configure(tl->xwayland_surface, (int16_t)area.x,
+                              (int16_t)area.y, (uint16_t)area.width,
+                              (uint16_t)area.height);
 #endif
         update_borders(tl, area.width, area.height, 0);
     }
@@ -526,7 +530,8 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
 
     if (ws == out->active_workspace)
     {
-        if (server->config->workspace_back_and_forth && out->prev_workspace != ws)
+        if (server->config->workspace_back_and_forth
+            && out->prev_workspace != ws)
             ws = out->prev_workspace;
         else
             return;
@@ -542,11 +547,13 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
     nnwm_toplevel *tl;
     wl_list_for_each(tl, &server->toplevels, link)
     {
-        if (tl->in_scratchpad) continue;
+        if (tl->in_scratchpad)
+            continue;
         wlr_scene_node_set_enabled(
             &tl->scene_tree->node,
             tl->sticky
-                || (tl->output && tl->output->active_workspace == tl->workspace));
+                || (tl->output
+                    && tl->output->active_workspace == tl->workspace));
     }
 
     /* Prefer the last-focused window on the target workspace (may be fullscreen
@@ -565,8 +572,7 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
 
 #ifdef HAVE_SCENEFX
     /* Workspace animation — suppressed in overview (layout is static there) */
-    if (!out->overview
-        && server->config->fx.animation.enabled
+    if (!out->overview && server->config->fx.animation.enabled
         && server->config->fx.animation.duration_ms > 0)
     {
         nnwm_config *cfg       = server->config;
@@ -617,7 +623,8 @@ nnwm::workspace::switch_to(nnwm_server *server, int ws)
                 /* Fullscreen and floating windows are handled by the
                  * visibility sweep; skip the geo animation for them.
                  * Floating windows have no stable geo_to_x (it gets polluted
-                 * by slide-out), so animating them would move them off-screen. */
+                 * by slide-out), so animating them would move them off-screen.
+                 */
                 if (tl->fullscreen || tl->fake_fullscreen || tl->floating)
                     continue;
 
@@ -730,15 +737,18 @@ static constexpr int OV_COLS = 3;
 static void
 ov_switch_ws(nnwm_server *server, nnwm_output *out, int ws)
 {
-    if (out->active_workspace == ws) return;
+    if (out->active_workspace == ws)
+        return;
     out->active_workspace = ws;
     nnwm_toplevel *t;
     wl_list_for_each(t, &server->toplevels, link)
     {
-        if (t->in_scratchpad) continue;
+        if (t->in_scratchpad)
+            continue;
         wlr_scene_node_set_enabled(
             &t->scene_tree->node,
-            t->sticky || (t->output && t->output->active_workspace == t->workspace));
+            t->sticky
+                || (t->output && t->output->active_workspace == t->workspace));
     }
     nnwm::ext_workspace_notify(server);
 }
@@ -755,41 +765,66 @@ ov_switch_ws(nnwm_server *server, nnwm_output *out, int ws)
  * from the last stack window downward in VTILE), accept any candidate within
  * a ~63° cone (pri*2 > sec). */
 static nnwm_toplevel *
-find_dir_target(nnwm_server *server, nnwm_output *out,
-                nnwm_toplevel *focused,
+find_dir_target(nnwm_server *server, nnwm_output *out, nnwm_toplevel *focused,
                 bool is_left, bool is_right, bool is_up, bool is_down)
 {
     int ws  = out->active_workspace;
     int fcx = focused->cur_x + focused->cur_w / 2;
     int fcy = focused->cur_y + focused->cur_h / 2;
 
-    nnwm_toplevel *best      = nullptr;
-    int            best_pri  = INT_MAX;
-    int            best_sec  = INT_MAX;
-    bool           best_over = false; /* does best have perpendicular overlap? */
+    nnwm_toplevel *best = nullptr;
+    int best_pri        = INT_MAX;
+    int best_sec        = INT_MAX;
+    bool best_over      = false; /* does best have perpendicular overlap? */
 
     nnwm_toplevel *tl;
     wl_list_for_each(tl, &server->toplevels, link)
     {
-        if (tl == focused) continue;
-        if (tl->output != out) continue;
-        if (tl->workspace != ws && !tl->sticky) continue;
-        if (tl->floating) continue;
-        if (tl->in_scratchpad) continue;
+        if (tl == focused)
+            continue;
+        if (tl->output != out)
+            continue;
+        if (tl->workspace != ws && !tl->sticky)
+            continue;
+        if (tl->floating)
+            continue;
+        if (tl->in_scratchpad)
+            continue;
 
         int cx = tl->cur_x + tl->cur_w / 2;
         int cy = tl->cur_y + tl->cur_h / 2;
 
-        int  pri   = 0;
-        int  sec   = 0;
+        int pri    = 0;
+        int sec    = 0;
         bool valid = false;
 
-        if (is_left  && cx < fcx) { pri = fcx - cx; sec = std::abs(cy - fcy); valid = true; }
-        if (is_right && cx > fcx) { pri = cx - fcx; sec = std::abs(cy - fcy); valid = true; }
-        if (is_up    && cy < fcy) { pri = fcy - cy; sec = std::abs(cx - fcx); valid = true; }
-        if (is_down  && cy > fcy) { pri = cy - fcy; sec = std::abs(cx - fcx); valid = true; }
+        if (is_left && cx < fcx)
+        {
+            pri   = fcx - cx;
+            sec   = std::abs(cy - fcy);
+            valid = true;
+        }
+        if (is_right && cx > fcx)
+        {
+            pri   = cx - fcx;
+            sec   = std::abs(cy - fcy);
+            valid = true;
+        }
+        if (is_up && cy < fcy)
+        {
+            pri   = fcy - cy;
+            sec   = std::abs(cx - fcx);
+            valid = true;
+        }
+        if (is_down && cy > fcy)
+        {
+            pri   = cy - fcy;
+            sec   = std::abs(cx - fcx);
+            valid = true;
+        }
 
-        if (!valid) continue;
+        if (!valid)
+            continue;
 
         /* Perpendicular-axis overlap between focused and candidate */
         bool overlap;
@@ -803,17 +838,27 @@ find_dir_target(nnwm_server *server, nnwm_output *out,
         /* Angular fallback gate: candidate must be within ~63° of direction */
         bool in_cone = (pri * 2 > sec);
 
-        /* Accept if: overlapping candidate (always preferred over non-overlapping),
-         * or no overlapping candidate yet and within cone. */
-        if (!overlap && !in_cone) continue;
-        if (!overlap && best_over) continue; /* already have an overlapping candidate */
+        /* Accept if: overlapping candidate (always preferred over
+         * non-overlapping), or no overlapping candidate yet and within cone. */
+        if (!overlap && !in_cone)
+            continue;
+        if (!overlap && best_over)
+            continue; /* already have an overlapping candidate */
 
-        if (overlap && !best_over) {
+        if (overlap && !best_over)
+        {
             /* First overlapping candidate — unconditionally take it */
-            best = tl; best_pri = pri; best_sec = sec; best_over = true;
-        } else if ((overlap == best_over)
-                   && (pri < best_pri || (pri == best_pri && sec < best_sec))) {
-            best = tl; best_pri = pri; best_sec = sec;
+            best      = tl;
+            best_pri  = pri;
+            best_sec  = sec;
+            best_over = true;
+        }
+        else if ((overlap == best_over)
+                 && (pri < best_pri || (pri == best_pri && sec < best_sec)))
+        {
+            best     = tl;
+            best_pri = pri;
+            best_sec = sec;
         }
     }
     return best;
@@ -823,30 +868,36 @@ void
 nnwm::focus::dir(nnwm_server *server, const char *direction)
 {
     nnwm_output *out = server->focused_output;
-    if (!out) return;
+    if (!out)
+        return;
 
-    bool is_left  = strcmp(direction, "left")  == 0;
+    bool is_left  = strcmp(direction, "left") == 0;
     bool is_right = strcmp(direction, "right") == 0;
-    bool is_up    = strcmp(direction, "up")    == 0;
-    bool is_down  = strcmp(direction, "down")  == 0;
-    if (!is_left && !is_right && !is_up && !is_down) return;
+    bool is_up    = strcmp(direction, "up") == 0;
+    bool is_down  = strcmp(direction, "down") == 0;
+    if (!is_left && !is_right && !is_up && !is_down)
+        return;
 
     /* ---- Overview mode: navigate between workspace slots in the grid ---- */
     if (out->overview)
     {
-        int cur = out->active_workspace;
+        int cur     = out->active_workspace;
         int cur_col = cur % OV_COLS;
         int cur_row = cur / OV_COLS;
-        int target = -1;
+        int target  = -1;
 
         int num_ws = server->config->workspace_count;
-        if (is_left  && cur_col > 0)                  target = cur - 1;
-        if (is_right && cur_col < OV_COLS - 1
-                     && cur + 1 < num_ws)              target = cur + 1;
-        if (is_up    && cur_row > 0)                   target = cur - OV_COLS;
-        if (is_down  && cur + OV_COLS < num_ws)        target = cur + OV_COLS;
+        if (is_left && cur_col > 0)
+            target = cur - 1;
+        if (is_right && cur_col < OV_COLS - 1 && cur + 1 < num_ws)
+            target = cur + 1;
+        if (is_up && cur_row > 0)
+            target = cur - OV_COLS;
+        if (is_down && cur + OV_COLS < num_ws)
+            target = cur + OV_COLS;
 
-        if (target < 0) return;
+        if (target < 0)
+            return;
         ov_switch_ws(server, out, target);
 
         nnwm_toplevel *next = ws_first(server, out);
@@ -869,7 +920,8 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
         bool go_prev = is_left || is_up;
         if (go_prev)
         {
-            nnwm_toplevel *prev = focused ? scratch_prev(server, focused) : nullptr;
+            nnwm_toplevel *prev
+                = focused ? scratch_prev(server, focused) : nullptr;
             if (!prev)
                 prev = scratch_last(server);
             if (prev)
@@ -877,7 +929,8 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
         }
         else
         {
-            nnwm_toplevel *next = focused ? scratch_next(server, focused) : nullptr;
+            nnwm_toplevel *next
+                = focused ? scratch_next(server, focused) : nullptr;
             if (!next)
                 next = scratch_first(server);
             if (next)
@@ -890,33 +943,51 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
 
     /* ---- Tabbed mode: cycle to the adjacent tab ---- */
     bool skip_on_output_search = false;
-    if (out->layout_mode[ws] == nnwm_layout_mode::TABBED) {
+    if (out->layout_mode[ws] == nnwm_layout_mode::TABBED)
+    {
         bool go_prev = is_left || is_up;
 
-        /* Find the tiled window immediately before or after focused in list order */
+        /* Find the tiled window immediately before or after focused in list
+         * order */
         nnwm_toplevel *tab_target = nullptr;
-        if (go_prev) {
+        if (go_prev)
+        {
             nnwm_toplevel *tl, *prev = nullptr;
-            wl_list_for_each(tl, &server->toplevels, link) {
-                if (tl->output != out || tl->floating) continue;
-                if (tl->workspace != ws && !tl->sticky) continue;
-                if (tl == focused) { tab_target = prev; break; }
+            wl_list_for_each(tl, &server->toplevels, link)
+            {
+                if (tl->output != out || tl->floating)
+                    continue;
+                if (tl->workspace != ws && !tl->sticky)
+                    continue;
+                if (tl == focused)
+                {
+                    tab_target = prev;
+                    break;
+                }
                 prev = tl;
             }
-        } else {
+        }
+        else
+        {
             nnwm_toplevel *tl;
             bool found = false;
-            wl_list_for_each(tl, &server->toplevels, link) {
-                if (found) {
-                    if (tl->output != out || tl->floating) continue;
-                    if (tl->workspace != ws && !tl->sticky) continue;
+            wl_list_for_each(tl, &server->toplevels, link)
+            {
+                if (found)
+                {
+                    if (tl->output != out || tl->floating)
+                        continue;
+                    if (tl->workspace != ws && !tl->sticky)
+                        continue;
                     tab_target = tl;
                     break;
                 }
-                if (tl == focused) found = true;
+                if (tl == focused)
+                    found = true;
             }
         }
-        if (tab_target) {
+        if (tab_target)
+        {
             focus_toplevel(tab_target);
             return;
         }
@@ -924,7 +995,7 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
     }
 
     /* Reference point: center of focused window, or center of usable area */
-    int fcx = out->usable_area.x + out->usable_area.width  / 2;
+    int fcx = out->usable_area.x + out->usable_area.width / 2;
     int fcy = out->usable_area.y + out->usable_area.height / 2;
     if (focused && focused->output == out)
     {
@@ -932,11 +1003,12 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
         fcy = focused->cur_y + focused->cur_h / 2;
     }
 
-    /* Find the nearest window in the requested direction on the current output */
+    /* Find the nearest window in the requested direction on the current output
+     */
     nnwm_toplevel *best = nullptr;
     if (!skip_on_output_search && focused && focused->output == out)
-        best = find_dir_target(server, out, focused,
-                               is_left, is_right, is_up, is_down);
+        best = find_dir_target(server, out, focused, is_left, is_right, is_up,
+                               is_down);
 
     if (best)
     {
@@ -947,31 +1019,54 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
     /* No window in that direction — look for an adjacent monitor */
     wlr_box cur_box;
     wlr_output_layout_get_box(server->output_layout, out->wlr_output, &cur_box);
-    int cur_cx = cur_box.x + cur_box.width  / 2;
+    int cur_cx = cur_box.x + cur_box.width / 2;
     int cur_cy = cur_box.y + cur_box.height / 2;
 
-    nnwm_output *best_out     = nullptr;
-    int          best_out_pri = INT_MAX;
-    int          best_out_sec = INT_MAX;
+    nnwm_output *best_out = nullptr;
+    int best_out_pri      = INT_MAX;
+    int best_out_sec      = INT_MAX;
 
     nnwm_output *o;
     wl_list_for_each(o, &server->outputs, link)
     {
-        if (o == out) continue;
+        if (o == out)
+            continue;
         wlr_box ob;
         wlr_output_layout_get_box(server->output_layout, o->wlr_output, &ob);
-        int ocx = ob.x + ob.width  / 2;
+        int ocx = ob.x + ob.width / 2;
         int ocy = ob.y + ob.height / 2;
 
         int pri, sec;
         bool valid = false;
 
-        if (is_left  && ocx < cur_cx) { pri = cur_cx - ocx; sec = abs(ocy - cur_cy); valid = true; }
-        if (is_right && ocx > cur_cx) { pri = ocx - cur_cx; sec = abs(ocy - cur_cy); valid = true; }
-        if (is_up    && ocy < cur_cy) { pri = cur_cy - ocy; sec = abs(ocx - cur_cx); valid = true; }
-        if (is_down  && ocy > cur_cy) { pri = ocy - cur_cy; sec = abs(ocx - cur_cx); valid = true; }
+        if (is_left && ocx < cur_cx)
+        {
+            pri   = cur_cx - ocx;
+            sec   = abs(ocy - cur_cy);
+            valid = true;
+        }
+        if (is_right && ocx > cur_cx)
+        {
+            pri   = ocx - cur_cx;
+            sec   = abs(ocy - cur_cy);
+            valid = true;
+        }
+        if (is_up && ocy < cur_cy)
+        {
+            pri   = cur_cy - ocy;
+            sec   = abs(ocx - cur_cx);
+            valid = true;
+        }
+        if (is_down && ocy > cur_cy)
+        {
+            pri   = ocy - cur_cy;
+            sec   = abs(ocx - cur_cx);
+            valid = true;
+        }
 
-        if (valid && (pri < best_out_pri || (pri == best_out_pri && sec < best_out_sec)))
+        if (valid
+            && (pri < best_out_pri
+                || (pri == best_out_pri && sec < best_out_sec)))
         {
             best_out     = o;
             best_out_pri = pri;
@@ -979,14 +1074,15 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
         }
     }
 
-    if (!best_out) return;
+    if (!best_out)
+        return;
 
     server->focused_output = best_out;
 
     /* Prefer the last-focused window on the target output; fall back to the
-     * direction-appropriate end: last window when entering from the right/bottom,
-     * first when entering from the left/top. */
-    int best_ws = best_out->active_workspace;
+     * direction-appropriate end: last window when entering from the
+     * right/bottom, first when entering from the left/top. */
+    int best_ws         = best_out->active_workspace;
     nnwm_toplevel *hist = best_out->last_focused[best_ws];
     if (hist && hist->output == best_out && hist->workspace == best_ws
         && !hist->floating)
@@ -994,10 +1090,10 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
     else
         hist = nullptr;
 
-    nnwm_toplevel *next = hist
-        ? hist
-        : ((is_left || is_up) ? ws_last(server, best_out)
-                               : ws_first(server, best_out));
+    nnwm_toplevel *next
+        = hist ? hist
+               : ((is_left || is_up) ? ws_last(server, best_out)
+                                     : ws_first(server, best_out));
 
     /* ws_first/ws_last skip fullscreen windows (WS_TILED macro); find one
      * explicitly if nothing else was returned. */
@@ -1029,37 +1125,47 @@ void
 nnwm::focus::move_dir(nnwm_server *server, const char *direction)
 {
     nnwm_output *out = server->focused_output;
-    if (!out) return;
+    if (!out)
+        return;
 
-    bool is_left  = strcmp(direction, "left")  == 0;
+    bool is_left  = strcmp(direction, "left") == 0;
     bool is_right = strcmp(direction, "right") == 0;
-    bool is_up    = strcmp(direction, "up")    == 0;
-    bool is_down  = strcmp(direction, "down")  == 0;
-    if (!is_left && !is_right && !is_up && !is_down) return;
+    bool is_up    = strcmp(direction, "up") == 0;
+    bool is_down  = strcmp(direction, "down") == 0;
+    if (!is_left && !is_right && !is_up && !is_down)
+        return;
 
     nnwm_toplevel *focused = get_focused_toplevel(server);
-    if (!focused || focused->floating) return;
+    if (!focused || focused->floating)
+        return;
 
-    /* ---- Overview mode: move window to adjacent workspace slot in the grid ---- */
+    /* ---- Overview mode: move window to adjacent workspace slot in the grid
+     * ---- */
     if (out->overview)
     {
-        int cur = focused->workspace;
+        int cur     = focused->workspace;
         int cur_col = cur % OV_COLS;
         int cur_row = cur / OV_COLS;
-        int target = -1;
+        int target  = -1;
 
         int num_ws = server->config->workspace_count;
-        if (is_left  && cur_col > 0)                  target = cur - 1;
-        if (is_right && cur_col < OV_COLS - 1
-                     && cur + 1 < num_ws)              target = cur + 1;
-        if (is_up    && cur_row > 0)                   target = cur - OV_COLS;
-        if (is_down  && cur + OV_COLS < num_ws)        target = cur + OV_COLS;
+        if (is_left && cur_col > 0)
+            target = cur - 1;
+        if (is_right && cur_col < OV_COLS - 1 && cur + 1 < num_ws)
+            target = cur + 1;
+        if (is_up && cur_row > 0)
+            target = cur - OV_COLS;
+        if (is_down && cur + OV_COLS < num_ws)
+            target = cur + OV_COLS;
 
-        if (target < 0) return;
+        if (target < 0)
+            return;
 
         int old_ws = focused->workspace;
-        if (out->last_focused[old_ws] == focused) out->last_focused[old_ws] = nullptr;
-        if (out->prev_focused[old_ws] == focused) out->prev_focused[old_ws] = nullptr;
+        if (out->last_focused[old_ws] == focused)
+            out->last_focused[old_ws] = nullptr;
+        if (out->prev_focused[old_ws] == focused)
+            out->prev_focused[old_ws] = nullptr;
         focused->workspace = target;
         ov_switch_ws(server, out, target);
         wlr_scene_node_set_enabled(&focused->scene_tree->node, true);
@@ -1069,8 +1175,8 @@ nnwm::focus::move_dir(nnwm_server *server, const char *direction)
     }
 
     /* Find the nearest tiled window in the requested direction */
-    nnwm_toplevel *best = find_dir_target(server, out, focused,
-                                          is_left, is_right, is_up, is_down);
+    nnwm_toplevel *best = find_dir_target(server, out, focused, is_left,
+                                          is_right, is_up, is_down);
 
     if (best)
     {
@@ -1103,31 +1209,54 @@ nnwm::focus::move_dir(nnwm_server *server, const char *direction)
     /* No tiled window in that direction — move to the adjacent monitor */
     wlr_box cur_box;
     wlr_output_layout_get_box(server->output_layout, out->wlr_output, &cur_box);
-    int cur_cx = cur_box.x + cur_box.width  / 2;
+    int cur_cx = cur_box.x + cur_box.width / 2;
     int cur_cy = cur_box.y + cur_box.height / 2;
 
-    nnwm_output *best_out     = nullptr;
-    int          best_out_pri = INT_MAX;
-    int          best_out_sec = INT_MAX;
+    nnwm_output *best_out = nullptr;
+    int best_out_pri      = INT_MAX;
+    int best_out_sec      = INT_MAX;
 
     nnwm_output *o;
     wl_list_for_each(o, &server->outputs, link)
     {
-        if (o == out) continue;
+        if (o == out)
+            continue;
         wlr_box ob;
         wlr_output_layout_get_box(server->output_layout, o->wlr_output, &ob);
-        int ocx = ob.x + ob.width  / 2;
+        int ocx = ob.x + ob.width / 2;
         int ocy = ob.y + ob.height / 2;
 
         int pri, sec;
         bool valid = false;
 
-        if (is_left  && ocx < cur_cx) { pri = cur_cx - ocx; sec = abs(ocy - cur_cy); valid = true; }
-        if (is_right && ocx > cur_cx) { pri = ocx - cur_cx; sec = abs(ocy - cur_cy); valid = true; }
-        if (is_up    && ocy < cur_cy) { pri = cur_cy - ocy; sec = abs(ocx - cur_cx); valid = true; }
-        if (is_down  && ocy > cur_cy) { pri = ocy - cur_cy; sec = abs(ocx - cur_cx); valid = true; }
+        if (is_left && ocx < cur_cx)
+        {
+            pri   = cur_cx - ocx;
+            sec   = abs(ocy - cur_cy);
+            valid = true;
+        }
+        if (is_right && ocx > cur_cx)
+        {
+            pri   = ocx - cur_cx;
+            sec   = abs(ocy - cur_cy);
+            valid = true;
+        }
+        if (is_up && ocy < cur_cy)
+        {
+            pri   = cur_cy - ocy;
+            sec   = abs(ocx - cur_cx);
+            valid = true;
+        }
+        if (is_down && ocy > cur_cy)
+        {
+            pri   = ocy - cur_cy;
+            sec   = abs(ocx - cur_cx);
+            valid = true;
+        }
 
-        if (valid && (pri < best_out_pri || (pri == best_out_pri && sec < best_out_sec)))
+        if (valid
+            && (pri < best_out_pri
+                || (pri == best_out_pri && sec < best_out_sec)))
         {
             best_out     = o;
             best_out_pri = pri;
@@ -1135,7 +1264,8 @@ nnwm::focus::move_dir(nnwm_server *server, const char *direction)
         }
     }
 
-    if (!best_out) return;
+    if (!best_out)
+        return;
 
     int old_ws = focused->workspace;
     int new_ws = best_out->active_workspace;
@@ -1148,7 +1278,8 @@ nnwm::focus::move_dir(nnwm_server *server, const char *direction)
     focused->output    = best_out;
     focused->workspace = new_ws;
     wlr_scene_node_set_enabled(&focused->scene_tree->node,
-                               focused->output->active_workspace == focused->workspace);
+                               focused->output->active_workspace
+                                   == focused->workspace);
 
     nnwm_toplevel *next = ws_first(server, out);
     if (next)
@@ -1221,7 +1352,7 @@ nnwm::layout::master_ratio_grow(nnwm_server *server)
     if (!out)
         return;
     nnwm_config *cfg = server->config;
-    int ws = out->active_workspace;
+    int ws           = out->active_workspace;
     out->master_ratio[ws] += cfg->layout.master_ratio_step;
     if (out->master_ratio[ws] > cfg->layout.master_ratio_max)
         out->master_ratio[ws] = cfg->layout.master_ratio_max;
@@ -1235,7 +1366,7 @@ nnwm::layout::master_ratio_shrink(nnwm_server *server)
     if (!out)
         return;
     nnwm_config *cfg = server->config;
-    int ws = out->active_workspace;
+    int ws           = out->active_workspace;
     out->master_ratio[ws] -= cfg->layout.master_ratio_step;
     if (out->master_ratio[ws] < cfg->layout.master_ratio_min)
         out->master_ratio[ws] = cfg->layout.master_ratio_min;
@@ -1261,44 +1392,48 @@ nnwm::window::toggle_float(nnwm_server *server)
                                   &area);
         int gw, gh;
 #ifdef HAVE_XWAYLAND
-        if (tl->is_xwayland) {
+        if (tl->is_xwayland)
+        {
             int xww = (int)nnwm_xw_width(tl->xwayland_surface);
             int xwh = (int)nnwm_xw_height(tl->xwayland_surface);
-            gw = xww > 0 ? xww : tl->cur_w;
-            gh = xwh > 0 ? xwh : tl->cur_h;
-        } else
+            gw      = xww > 0 ? xww : tl->cur_w;
+            gh      = xwh > 0 ? xwh : tl->cur_h;
+        }
+        else
 #endif
         {
             wlr_box *geo = &tl->xdg_toplevel->base->geometry;
-            gw = geo->width;
-            gh = geo->height;
+            gw           = geo->width;
+            gh           = geo->height;
         }
         int x = area.x + (area.width - gw) / 2;
         int y = area.y + (area.height - gh) / 2;
 
 #ifdef HAVE_SCENEFX
         nnwm_config *cfg = server->config;
-        if (cfg->fx.animation.enabled && cfg->fx.animation.layout_duration_ms > 0
+        if (cfg->fx.animation.enabled
+            && cfg->fx.animation.layout_duration_ms > 0
             && !(out && out->overview))
         {
             /* Animate from tiled slot to centered float position */
-            int bw           = cfg->border.width;
-            int to_w         = gw + 2 * bw;
-            int to_h         = gh + 2 * bw;
-            tl->geo_from_x   = tl->cur_x;
-            tl->geo_from_y   = tl->cur_y;
-            tl->geo_from_w   = tl->cur_w;
-            tl->geo_from_h   = tl->cur_h;
-            tl->geo_to_x     = x;
-            tl->geo_to_y     = y;
-            tl->geo_to_w     = to_w;
-            tl->geo_to_h     = to_h;
-            tl->geo_bw       = bw;
+            int bw            = cfg->border.width;
+            int to_w          = gw + 2 * bw;
+            int to_h          = gh + 2 * bw;
+            tl->geo_from_x    = tl->cur_x;
+            tl->geo_from_y    = tl->cur_y;
+            tl->geo_from_w    = tl->cur_w;
+            tl->geo_from_h    = tl->cur_h;
+            tl->geo_to_x      = x;
+            tl->geo_to_y      = y;
+            tl->geo_to_w      = to_w;
+            tl->geo_to_h      = to_h;
+            tl->geo_bw        = bw;
             tl->geo_then_hide = false;
-            tl->geo_anim     = true;
-            tl->geo_t0       = anim_now();
-            tl->geo_duration_ms = eff_duration(cfg, cfg->fx.animation.layout_duration_ms);
-            tl->geo_easing      = eff_easing(cfg, cfg->fx.animation.layout_easing);
+            tl->geo_anim      = true;
+            tl->geo_t0        = anim_now();
+            tl->geo_duration_ms
+                = eff_duration(cfg, cfg->fx.animation.layout_duration_ms);
+            tl->geo_easing = eff_easing(cfg, cfg->fx.animation.layout_easing);
             wlr_scene_node_set_position(&tl->scene_tree->node, tl->geo_from_x,
                                         tl->geo_from_y);
             update_borders(tl, tl->geo_from_w, tl->geo_from_h, bw);
@@ -1376,7 +1511,8 @@ nnwm::scratchpad::move_to(nnwm_server *server)
 
     /* Reparent scene tree to scratchpad tree */
     wlr_scene_node_reparent(&tl->scene_tree->node, server->scene_scratchpad);
-    wlr_scene_node_set_enabled(&tl->scene_tree->node, server->scratchpad_visible);
+    wlr_scene_node_set_enabled(&tl->scene_tree->node,
+                               server->scratchpad_visible);
 
     /* Focus next window on current workspace */
     if (out)
@@ -1410,7 +1546,8 @@ nnwm::scratchpad::toggle(nnwm_server *server)
         wlr_scene_node_set_enabled(&server->scene_scratch_dim->node, true);
         wlr_scene_node_set_enabled(&server->scene_scratchpad->node, true);
 
-        /* Enable global scratchpad window nodes (not named scratchpad windows) */
+        /* Enable global scratchpad window nodes (not named scratchpad windows)
+         */
         nnwm_toplevel *tl;
         wl_list_for_each(tl, &server->toplevels, link)
         {
@@ -1463,7 +1600,7 @@ nnwm::named_scratchpad::move_to(nnwm_server *server, const char *name)
         return;
 
     nnwm_named_scratchpad *nsp = get_or_create_named_scratchpad(server, name);
-    nnwm_output *out = tl->output;
+    nnwm_output *out           = tl->output;
 
     if (out)
     {
@@ -1473,9 +1610,9 @@ nnwm::named_scratchpad::move_to(nnwm_server *server, const char *name)
             out->prev_focused[tl->workspace] = nullptr;
     }
 
-    tl->in_scratchpad    = true;
-    tl->scratchpad_name  = name;
-    tl->floating         = false;
+    tl->in_scratchpad   = true;
+    tl->scratchpad_name = name;
+    tl->floating        = false;
 
     wlr_scene_node_reparent(&tl->scene_tree->node, nsp->scene_tree);
     wlr_scene_node_set_enabled(&tl->scene_tree->node, nsp->visible);
@@ -1500,7 +1637,7 @@ void
 nnwm::named_scratchpad::toggle(nnwm_server *server, const char *name)
 {
     nnwm_named_scratchpad *nsp = get_or_create_named_scratchpad(server, name);
-    nsp->visible = !nsp->visible;
+    nsp->visible               = !nsp->visible;
 
     nnwm_output *out = server->focused_output;
     if (!out && !wl_list_empty(&server->outputs))
@@ -1621,7 +1758,7 @@ nnwm::layout::toggle_float_layout(nnwm_server *server)
     nnwm_output *out = server->focused_output;
     if (!out)
         return;
-    int ws = out->active_workspace;
+    int ws               = out->active_workspace;
     out->layout_mode[ws] = (out->layout_mode[ws] == nnwm_layout_mode::FLOAT)
                                ? nnwm_layout_mode::HTILE
                                : nnwm_layout_mode::FLOAT;
@@ -1635,7 +1772,7 @@ nnwm::layout::set_layout(nnwm_server *server, nnwm_layout_mode mode)
     nnwm_output *out = server->focused_output;
     if (!out)
         return;
-    int ws = out->active_workspace;
+    int ws               = out->active_workspace;
     out->layout_mode[ws] = mode;
     arrange_windows(server, out);
     bar_notify_workspace_change(server, out);
@@ -1658,36 +1795,45 @@ cycle_layout(nnwm_server *server, int dir)
         return;
     }
     nnwm_output *out = server->focused_output;
-    if (!out) return;
-    int ws = out->active_workspace;
+    if (!out)
+        return;
+    int ws  = out->active_workspace;
     int cur = (int)out->layout_mode[ws];
 
     nnwm_config *cfg = server->config;
-    int *list = cfg->layout.enabled_layouts;
-    int n     = cfg->layout.enabled_layouts_count;
+    int *list        = cfg->layout.enabled_layouts;
+    int n            = cfg->layout.enabled_layouts_count;
 
     /* Build a temporary "all enum values" list when no user-configured
      * cycle exists. Small and stack-allocated. */
     int fallback[(int)nnwm_layout_mode::COUNT];
-    if (!list || n <= 0) {
+    if (!list || n <= 0)
+    {
         for (int i = 0; i < (int)nnwm_layout_mode::COUNT; i++)
             fallback[i] = i;
         list = fallback;
-        n = (int)nnwm_layout_mode::COUNT;
+        n    = (int)nnwm_layout_mode::COUNT;
     }
 
     /* Find the current layout in the list. */
     int idx = -1;
     for (int i = 0; i < n; i++)
-        if (list[i] == cur) { idx = i; break; }
+        if (list[i] == cur)
+        {
+            idx = i;
+            break;
+        }
 
     int next;
-    if (idx < 0) {
+    if (idx < 0)
+    {
         /* Current layout isn't in the cycle — jump to an edge. */
         next = list[dir >= 0 ? 0 : n - 1];
-    } else {
+    }
+    else
+    {
         int step = dir >= 0 ? 1 : -1;
-        next = list[((idx + step) % n + n) % n];
+        next     = list[((idx + step) % n + n) % n];
     }
 
     out->layout_mode[ws] = static_cast<nnwm_layout_mode>(next);
@@ -1696,10 +1842,16 @@ cycle_layout(nnwm_server *server, int dir)
 }
 
 void
-nnwm::layout::next(nnwm_server *server) { cycle_layout(server, +1); }
+nnwm::layout::next(nnwm_server *server)
+{
+    cycle_layout(server, +1);
+}
 
 void
-nnwm::layout::prev(nnwm_server *server) { cycle_layout(server, -1); }
+nnwm::layout::prev(nnwm_server *server)
+{
+    cycle_layout(server, -1);
+}
 
 void
 nnwm::workspace::move_to(nnwm_server *server, int ws)
@@ -1765,12 +1917,14 @@ static void
 begin_exit_overview(nnwm_server *server, nnwm_output *out)
 {
 #ifdef HAVE_SCENEFX
-    if (server->config->fx.animation.enabled && !out->ov_anim_exiting) {
+    if (server->config->fx.animation.enabled && !out->ov_anim_exiting)
+    {
         nnwm_config *cfg = server->config;
-        out->ov_anim           = true;
-        out->ov_anim_t0        = anim_now();
-        out->ov_anim_duration_ms = eff_duration(cfg, cfg->fx.animation.close_duration_ms);
-        out->ov_anim_exiting   = true;
+        out->ov_anim     = true;
+        out->ov_anim_t0  = anim_now();
+        out->ov_anim_duration_ms
+            = eff_duration(cfg, cfg->fx.animation.close_duration_ms);
+        out->ov_anim_exiting = true;
         return;
     }
 #endif
@@ -1781,22 +1935,28 @@ void
 nnwm::toggle_overview(nnwm_server *server)
 {
     nnwm_output *out = server->focused_output;
-    if (!out) return;
+    if (!out)
+        return;
 
-    if (out->overview) {
+    if (out->overview)
+    {
         begin_exit_overview(server, out);
-    } else {
+    }
+    else
+    {
         out->overview = true;
         render_overview(server, out);
 #ifdef HAVE_SCENEFX
-        if (server->config->fx.animation.enabled) {
+        if (server->config->fx.animation.enabled)
+        {
             nnwm_config *cfg = server->config;
             wlr_scene_buffer_set_opacity(out->overview_buf, 0.0f);
             wlr_scene_buffer_set_opacity(out->overview_labels, 0.0f);
-            out->ov_anim             = true;
-            out->ov_anim_t0          = anim_now();
-            out->ov_anim_duration_ms = eff_duration(cfg, cfg->fx.animation.open_duration_ms);
-            out->ov_anim_exiting     = false;
+            out->ov_anim    = true;
+            out->ov_anim_t0 = anim_now();
+            out->ov_anim_duration_ms
+                = eff_duration(cfg, cfg->fx.animation.open_duration_ms);
+            out->ov_anim_exiting = false;
         }
 #endif
     }
@@ -1880,10 +2040,13 @@ keyboard_handle_key(wl_listener *listener, void *data)
         int n_base = xkb_keymap_key_get_syms_by_level(
             keyboard->wlr_keyboard->keymap, keycode, layout, 0, &base_syms);
         int match = 0;
-        for (int i = 0; i < n_base; i++) {
+        for (int i = 0; i < n_base; i++)
+        {
             int r = handle_keybinding(server, modifiers, base_syms[i]);
-            if (r == 2) match = 2;
-            else if (r == 1 && match == 0) match = 1;
+            if (r == 2)
+                match = 2;
+            else if (r == 1 && match == 0)
+                match = 1;
         }
         handled = handled || (match > 0);
         if (match > 0 && n_base > 0)
@@ -1903,10 +2066,13 @@ keyboard_handle_key(wl_listener *listener, void *data)
         && event->state == WL_KEYBOARD_KEY_STATE_PRESSED)
     {
         int match = 0;
-        for (int i = 0; i < nsyms; i++) {
+        for (int i = 0; i < nsyms; i++)
+        {
             int r = handle_keybinding(server, modifiers, syms[i]);
-            if (r == 2) match = 2;
-            else if (r == 1 && match == 0) match = 1;
+            if (r == 2)
+                match = 2;
+            else if (r == 1 && match == 0)
+                match = 1;
         }
         handled = handled || (match > 0);
         if (match > 0 && nsyms > 0)
@@ -1983,35 +2149,37 @@ apply_keymap(wlr_keyboard *wlr_keyboard, nnwm_config *cfg)
         if (f)
         {
             keymap = xkb_keymap_new_from_file(context, f,
-                         XKB_KEYMAP_FORMAT_TEXT_V1,
-                         XKB_KEYMAP_COMPILE_NO_FLAGS);
+                                              XKB_KEYMAP_FORMAT_TEXT_V1,
+                                              XKB_KEYMAP_COMPILE_NO_FLAGS);
             fclose(f);
             if (!keymap)
                 std::fprintf(stderr,
-                    "nnwm: failed to load XKB keymap from '%s', "
-                    "falling back to rules\n", cfg->keyboard.xkb_file);
+                             "nnwm: failed to load XKB keymap from '%s', "
+                             "falling back to rules\n",
+                             cfg->keyboard.xkb_file);
         }
         else
         {
             std::fprintf(stderr,
-                "nnwm: cannot open XKB keymap file '%s': %s, "
-                "falling back to rules\n",
-                cfg->keyboard.xkb_file, strerror(errno));
+                         "nnwm: cannot open XKB keymap file '%s': %s, "
+                         "falling back to rules\n",
+                         cfg->keyboard.xkb_file, strerror(errno));
         }
     }
 
     if (!keymap)
     {
         xkb_rule_names names = {};
-        auto nonempty        = [](const char *s) -> const char * {
+        auto nonempty        = [](const char *s) -> const char *
+        {
             return (s && s[0]) ? s : nullptr;
         };
         names.rules   = nonempty(cfg->keyboard.xkb_rules);
         names.layout  = nonempty(cfg->keyboard.xkb_layout);
         names.variant = nonempty(cfg->keyboard.xkb_variant);
         names.options = nonempty(cfg->keyboard.xkb_options);
-        keymap = xkb_keymap_new_from_names(context, &names,
-                     XKB_KEYMAP_COMPILE_NO_FLAGS);
+        keymap        = xkb_keymap_new_from_names(context, &names,
+                                                  XKB_KEYMAP_COMPILE_NO_FLAGS);
     }
 
     wlr_keyboard_set_keymap(wlr_keyboard, keymap);
@@ -2030,8 +2198,8 @@ server_new_keyboard(nnwm_server *server, wlr_input_device *device)
     keyboard->wlr_keyboard  = wlr_keyboard_from_input_device(device);
 
     struct wl_event_loop *loop = wl_display_get_event_loop(server->wl_display);
-    keyboard->repeat_timer = wl_event_loop_add_timer(loop, keyboard_repeat_cb,
-                                                     keyboard);
+    keyboard->repeat_timer
+        = wl_event_loop_add_timer(loop, keyboard_repeat_cb, keyboard);
 
     apply_keymap(keyboard->wlr_keyboard, server->config);
 
@@ -2054,8 +2222,8 @@ server_new_pointer(nnwm_server *server, wlr_input_device *device)
 {
     if (wlr_input_device_is_libinput(device))
     {
-        libinput_device *li     = wlr_libinput_get_device_handle(device);
-        bool is_touchpad        = libinput_device_config_tap_get_finger_count(li) > 0;
+        libinput_device *li = wlr_libinput_get_device_handle(device);
+        bool is_touchpad = libinput_device_config_tap_get_finger_count(li) > 0;
 
         if (is_touchpad)
         {
@@ -2083,10 +2251,12 @@ server_new_pointer(nnwm_server *server, wlr_input_device *device)
                 uint32_t mode = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
                 if (!tp.enabled)
                     mode = LIBINPUT_CONFIG_SEND_EVENTS_DISABLED;
-                else if (tp.disable_on_external_mouse
-                         && (available
-                             & LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE))
-                    mode = LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE;
+                else if (
+                    tp.disable_on_external_mouse
+                    && (available
+                        & LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE))
+                    mode
+                        = LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE;
                 libinput_device_config_send_events_set_mode(li, mode);
             }
 
@@ -2132,7 +2302,7 @@ server_new_pointer(nnwm_server *server, wlr_input_device *device)
             if (libinput_device_config_dwt_is_available(li))
                 libinput_device_config_dwt_set_enabled(
                     li, m.disable_while_typing ? LIBINPUT_CONFIG_DWT_ENABLED
-                                              : LIBINPUT_CONFIG_DWT_DISABLED);
+                                               : LIBINPUT_CONFIG_DWT_DISABLED);
         }
     }
 

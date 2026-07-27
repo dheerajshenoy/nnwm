@@ -1,10 +1,11 @@
 #ifdef HAVE_XWAYLAND
 
-#include "nnwm.hpp"
-#include "nnwm_internal.hpp"
+    #include "nnwm.hpp"
+    #include "nnwm_internal.hpp"
 
-extern "C" {
-#include <wlr/types/wlr_layer_shell_v1.h>
+extern "C"
+{
+    #include <wlr/types/wlr_layer_shell_v1.h>
 }
 
 /* ---- Override-redirect (unmanaged) XWayland windows ---- */
@@ -12,8 +13,8 @@ extern "C" {
 static void
 xwayland_or_map(wl_listener *listener, void * /*data*/)
 {
-    nnwm_xwayland_or *or_win = wl_container_of(listener, or_win, map);
-    nnwm_server *server      = or_win->server;
+    nnwm_xwayland_or *or_win        = wl_container_of(listener, or_win, map);
+    nnwm_server *server             = or_win->server;
     struct wlr_xwayland_surface *xw = or_win->xwayland_surface;
 
     if (!nnwm_xw_surface(xw))
@@ -25,8 +26,8 @@ xwayland_or_map(wl_listener *listener, void * /*data*/)
         return;
 
     wlr_scene_surface_create(or_win->scene_tree, nnwm_xw_surface(xw));
-    wlr_scene_node_set_position(&or_win->scene_tree->node,
-                                nnwm_xw_x(xw), nnwm_xw_y(xw));
+    wlr_scene_node_set_position(&or_win->scene_tree->node, nnwm_xw_x(xw),
+                                nnwm_xw_y(xw));
     wlr_scene_node_set_enabled(&or_win->scene_tree->node, true);
 }
 
@@ -59,11 +60,12 @@ xwayland_or_destroy(wl_listener *listener, void * /*data*/)
 static void
 xwayland_or_request_configure(wl_listener *listener, void *data)
 {
-    nnwm_xwayland_or *or_win = wl_container_of(listener, or_win, request_configure);
+    nnwm_xwayland_or *or_win
+        = wl_container_of(listener, or_win, request_configure);
     struct wlr_xwayland_surface *xw = or_win->xwayland_surface;
 
-    int16_t ex = nnwm_xw_configure_ev_x(data);
-    int16_t ey = nnwm_xw_configure_ev_y(data);
+    int16_t ex  = nnwm_xw_configure_ev_x(data);
+    int16_t ey  = nnwm_xw_configure_ev_y(data);
     uint16_t ew = nnwm_xw_configure_ev_width(data);
     uint16_t eh = nnwm_xw_configure_ev_height(data);
 
@@ -77,8 +79,8 @@ xwayland_or_request_configure(wl_listener *listener, void *data)
 static void
 xwayland_surface_map(wl_listener *listener, void * /*data*/)
 {
-    nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, map);
-    nnwm_server *server     = toplevel->server;
+    nnwm_toplevel *toplevel         = wl_container_of(listener, toplevel, map);
+    nnwm_server *server             = toplevel->server;
     struct wlr_xwayland_surface *xw = toplevel->xwayland_surface;
 
     if (!nnwm_xw_surface(xw))
@@ -107,11 +109,11 @@ xwayland_surface_map(wl_listener *listener, void * /*data*/)
     toplevel->titlebar = wlr_scene_buffer_create(toplevel->scene_tree, nullptr);
     wlr_scene_node_set_enabled(&toplevel->titlebar->node, false);
 
-#ifdef HAVE_SCENEFX
+    #ifdef HAVE_SCENEFX
     toplevel->border_bg = nullptr;
     toplevel->fx_shadow = nullptr;
     toplevel->fx_blur   = nullptr;
-#endif
+    #endif
 
     /* Output and workspace */
     nnwm_output *out    = server->focused_output;
@@ -123,9 +125,9 @@ xwayland_surface_map(wl_listener *listener, void * /*data*/)
         toplevel->floating = true;
 
     apply_window_rules(server, toplevel);
-#ifdef HAVE_SCENEFX
+    #ifdef HAVE_SCENEFX
     tl_open_anim(toplevel);
-#endif
+    #endif
     apply_fx_decorations(toplevel);
 
     if (!toplevel->output)
@@ -135,25 +137,27 @@ xwayland_surface_map(wl_listener *listener, void * /*data*/)
     /* Center new floating windows */
     if (toplevel->floating && out && server->config->center_new_floating)
     {
-        int bw = server->config->border.width;
-        int th = server->config->titlebar.height;
+        int bw       = server->config->border.width;
+        int th       = server->config->titlebar.height;
         wlr_box area = out->usable_area;
-        int w = nnwm_xw_width(xw) > 0 ? nnwm_xw_width(xw) : 400;
-        int h = nnwm_xw_height(xw) > 0 ? nnwm_xw_height(xw) : 300;
-        int fx = area.x + (area.width - w - 2 * bw) / 2;
-        int fy = area.y + (area.height - h - 2 * bw - th) / 2;
-        if (fx < area.x) fx = area.x;
-        if (fy < area.y) fy = area.y;
-        nnwm_xw_configure(xw, (int16_t)fx, (int16_t)fy,
-                           (uint16_t)w, (uint16_t)h);
+        int w        = nnwm_xw_width(xw) > 0 ? nnwm_xw_width(xw) : 400;
+        int h        = nnwm_xw_height(xw) > 0 ? nnwm_xw_height(xw) : 300;
+        int fx       = area.x + (area.width - w - 2 * bw) / 2;
+        int fy       = area.y + (area.height - h - 2 * bw - th) / 2;
+        if (fx < area.x)
+            fx = area.x;
+        if (fy < area.y)
+            fy = area.y;
+        nnwm_xw_configure(xw, (int16_t)fx, (int16_t)fy, (uint16_t)w,
+                          (uint16_t)h);
         wlr_scene_node_set_position(&toplevel->scene_tree->node, fx, fy);
         update_borders(toplevel, w + 2 * bw, h + 2 * bw + th, bw);
     }
     else
     {
         /* Confirm position */
-        nnwm_xw_configure(xw, nnwm_xw_x(xw), nnwm_xw_y(xw),
-                           nnwm_xw_width(xw), nnwm_xw_height(xw));
+        nnwm_xw_configure(xw, nnwm_xw_x(xw), nnwm_xw_y(xw), nnwm_xw_width(xw),
+                          nnwm_xw_height(xw));
     }
 
     if (server->config->new_window_master)
@@ -192,9 +196,9 @@ xwayland_surface_unmap(wl_listener *listener, void * /*data*/)
     bar_notify_windows_changed(server);
     ftl_unmap(toplevel);
 
-#ifdef HAVE_SCENEFX
+    #ifdef HAVE_SCENEFX
     tl_close_anim(toplevel);
-#endif
+    #endif
 
     if (toplevel == server->grabbed_toplevel)
         reset_cursor_mode(server);
@@ -204,14 +208,14 @@ xwayland_surface_unmap(wl_listener *listener, void * /*data*/)
 
     if (toplevel->in_scratchpad)
     {
-        bool was_focused_scratch =
-            (server->seat->keyboard_state.focused_surface == tl_wlr_surface(toplevel));
+        bool was_focused_scratch = (server->seat->keyboard_state.focused_surface
+                                    == tl_wlr_surface(toplevel));
 
         wl_list_remove(&toplevel->link);
-#ifdef HAVE_SCENEFX
+    #ifdef HAVE_SCENEFX
         if (toplevel->dying)
             wl_list_insert(&server->dying_toplevels, &toplevel->dying_link);
-#endif
+    #endif
 
         if (was_focused_scratch && server->scratchpad_visible)
         {
@@ -219,14 +223,20 @@ xwayland_surface_unmap(wl_listener *listener, void * /*data*/)
             nnwm_toplevel *t;
             wl_list_for_each(t, &server->toplevels, link)
             {
-                if (t->in_scratchpad) { next = t; break; }
+                if (t->in_scratchpad)
+                {
+                    next = t;
+                    break;
+                }
             }
             if (next)
                 focus_toplevel(next);
             else if (out)
             {
-                nnwm_toplevel *wsnext = out->last_focused[out->active_workspace];
-                if (!wsnext) wsnext = ws_first(server, out);
+                nnwm_toplevel *wsnext
+                    = out->last_focused[out->active_workspace];
+                if (!wsnext)
+                    wsnext = ws_first(server, out);
                 if (wsnext)
                     focus_toplevel(wsnext);
                 else
@@ -237,7 +247,8 @@ xwayland_surface_unmap(wl_listener *listener, void * /*data*/)
 
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
-        process_cursor_motion(server, (uint32_t)(now.tv_sec * 1000 + now.tv_nsec / 1000000));
+        process_cursor_motion(
+            server, (uint32_t)(now.tv_sec * 1000 + now.tv_nsec / 1000000));
         return;
     }
 
@@ -256,17 +267,17 @@ xwayland_surface_unmap(wl_listener *listener, void * /*data*/)
     }
 
     wl_list_remove(&toplevel->link);
-#ifdef HAVE_SCENEFX
+    #ifdef HAVE_SCENEFX
     if (toplevel->dying)
         wl_list_insert(&server->dying_toplevels, &toplevel->dying_link);
-#endif
+    #endif
 
     /* Destroy scene tree (created in map, so destroy in unmap) */
     if (toplevel->scene_tree)
     {
-#ifdef HAVE_SCENEFX
+    #ifdef HAVE_SCENEFX
         if (!toplevel->dying)
-#endif
+    #endif
         {
             wlr_scene_node_destroy(&toplevel->scene_tree->node);
             toplevel->scene_tree    = nullptr;
@@ -280,8 +291,10 @@ xwayland_surface_unmap(wl_listener *listener, void * /*data*/)
         if (was_focused)
         {
             next = stack_next;
-            if (!next) next = ws_first(server, out);
-            if (!next) next = ws_first_float(server, out);
+            if (!next)
+                next = ws_first(server, out);
+            if (!next)
+                next = ws_first_float(server, out);
         }
         if (next)
             focus_toplevel(next);
@@ -292,7 +305,8 @@ xwayland_surface_unmap(wl_listener *listener, void * /*data*/)
 
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
-    process_cursor_motion(server, (uint32_t)(now.tv_sec * 1000 + now.tv_nsec / 1000000));
+    process_cursor_motion(
+        server, (uint32_t)(now.tv_sec * 1000 + now.tv_nsec / 1000000));
 }
 
 static void
@@ -300,10 +314,10 @@ xwayland_surface_destroy(wl_listener *listener, void * /*data*/)
 {
     nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, destroy);
 
-#ifdef HAVE_SCENEFX
+    #ifdef HAVE_SCENEFX
     if (toplevel->dying)
         wl_list_remove(&toplevel->dying_link);
-#endif
+    #endif
 
     wl_list_remove(&toplevel->map.link);
     wl_list_remove(&toplevel->unmap.link);
@@ -332,7 +346,7 @@ xwayland_request_configure(wl_listener *listener, void *data)
 {
     nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, commit);
     struct wlr_xwayland_surface *xw = toplevel->xwayland_surface;
-    nnwm_server *server = toplevel->server;
+    nnwm_server *server             = toplevel->server;
 
     /* While the compositor is actively moving/resizing this window, ignore
      * client-initiated configure requests — otherwise the client's stale
@@ -342,8 +356,8 @@ xwayland_request_configure(wl_listener *listener, void *data)
             || server->cursor_mode == nnwm_cursor_mode::MOVE))
         return;
 
-    int16_t ex = nnwm_xw_configure_ev_x(data);
-    int16_t ey = nnwm_xw_configure_ev_y(data);
+    int16_t ex  = nnwm_xw_configure_ev_x(data);
+    int16_t ey  = nnwm_xw_configure_ev_y(data);
     uint16_t ew = nnwm_xw_configure_ev_width(data);
     uint16_t eh = nnwm_xw_configure_ev_height(data);
 
@@ -352,14 +366,18 @@ xwayland_request_configure(wl_listener *listener, void *data)
         /* If the compositor has an authoritative size (from an interactive
          * resize or programmatic placement), hold it against stale client
          * requests. Only accept the client's size before we've tracked one. */
-        int bw = server->config->border.width;
-        int th = server->config->titlebar.height;
+        int bw         = server->config->border.width;
+        int th         = server->config->titlebar.height;
         uint16_t use_w = ew, use_h = eh;
         int16_t use_x = ex, use_y = ey;
         if (toplevel->cur_w > 0 && toplevel->cur_h > 0)
         {
-            use_w = (uint16_t)(toplevel->cur_w > 2*bw ? toplevel->cur_w - 2*bw : 1);
-            use_h = (uint16_t)(toplevel->cur_h > 2*bw+th ? toplevel->cur_h - 2*bw - th : 1);
+            use_w
+                = (uint16_t)(toplevel->cur_w > 2 * bw ? toplevel->cur_w - 2 * bw
+                                                      : 1);
+            use_h = (uint16_t)(toplevel->cur_h > 2 * bw + th
+                                   ? toplevel->cur_h - 2 * bw - th
+                                   : 1);
             use_x = (int16_t)(toplevel->cur_x + bw);
             use_y = (int16_t)(toplevel->cur_y + bw + th);
         }
@@ -370,23 +388,24 @@ xwayland_request_configure(wl_listener *listener, void *data)
                 wlr_scene_node_set_position(&toplevel->scene_tree->node,
                                             toplevel->cur_x, toplevel->cur_y);
             else
-                wlr_scene_node_set_position(&toplevel->scene_tree->node, ex, ey);
+                wlr_scene_node_set_position(&toplevel->scene_tree->node, ex,
+                                            ey);
         }
     }
     else
     {
         /* Tiled: keep current position/size */
         nnwm_xw_configure(xw, (int16_t)toplevel->cur_x,
-                           (int16_t)toplevel->cur_y,
-                           (uint16_t)toplevel->cur_w,
-                           (uint16_t)toplevel->cur_h);
+                          (int16_t)toplevel->cur_y, (uint16_t)toplevel->cur_w,
+                          (uint16_t)toplevel->cur_h);
     }
 }
 
 static void
 xwayland_surface_request_fullscreen(wl_listener *listener, void * /*data*/)
 {
-    nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, request_fullscreen);
+    nnwm_toplevel *toplevel
+        = wl_container_of(listener, toplevel, request_fullscreen);
     do_toggle_fullscreen(toplevel);
 }
 
@@ -403,15 +422,15 @@ xwayland_surface_set_hints(wl_listener *listener, void * /*data*/)
     if (tl_wlr_surface(toplevel) == focused)
         return;
 
-    nnwm_config *cfg  = server->config;
-    toplevel->urgent  = true;
+    nnwm_config *cfg = server->config;
+    toplevel->urgent = true;
 
-#ifdef HAVE_SCENEFX
+    #ifdef HAVE_SCENEFX
     tl_start_border_color(toplevel, cfg->border.urgent_color);
-#else
+    #else
     for (int b = 0; b < 4; b++)
         wlr_scene_rect_set_color(toplevel->border[b], cfg->border.urgent_color);
-#endif
+    #endif
     if (cfg->titlebar.height > 0 && toplevel->titlebar_width > 0)
         render_titlebar(toplevel, toplevel->titlebar_width, false);
     if (toplevel->output && !toplevel->floating
@@ -437,7 +456,8 @@ xwayland_surface_request_move(wl_listener *listener, void * /*data*/)
 static void
 xwayland_surface_request_resize(wl_listener *listener, void *data)
 {
-    nnwm_toplevel *toplevel = wl_container_of(listener, toplevel, request_resize);
+    nnwm_toplevel *toplevel
+        = wl_container_of(listener, toplevel, request_resize);
     uint32_t edges = nnwm_xw_resize_ev_edges(data);
     if (!toplevel->floating)
     {
@@ -452,13 +472,14 @@ xwayland_surface_request_resize(wl_listener *listener, void *data)
 void
 server_new_xwayland_surface(wl_listener *listener, void *data)
 {
-    nnwm_server *server = wl_container_of(listener, server, new_xwayland_surface);
+    nnwm_server *server
+        = wl_container_of(listener, server, new_xwayland_surface);
     struct wlr_xwayland_surface *xw = (struct wlr_xwayland_surface *)data;
 
     if (nnwm_xw_override_redirect(xw))
     {
         /* Unmanaged window: tooltip, menu, etc. */
-        auto *or_win = new nnwm_xwayland_or{};
+        auto *or_win             = new nnwm_xwayland_or{};
         or_win->xwayland_surface = xw;
         or_win->server           = server;
         or_win->scene_tree       = nullptr;
@@ -470,12 +491,13 @@ server_new_xwayland_surface(wl_listener *listener, void *data)
         or_win->destroy.notify = xwayland_or_destroy;
         wl_signal_add(nnwm_xw_events_destroy(xw), &or_win->destroy);
         or_win->request_configure.notify = xwayland_or_request_configure;
-        wl_signal_add(nnwm_xw_events_request_configure(xw), &or_win->request_configure);
+        wl_signal_add(nnwm_xw_events_request_configure(xw),
+                      &or_win->request_configure);
         return;
     }
 
     /* Managed window */
-    nnwm_toplevel *toplevel = new nnwm_toplevel{};
+    nnwm_toplevel *toplevel    = new nnwm_toplevel{};
     toplevel->server           = server;
     toplevel->xdg_toplevel     = nullptr;
     toplevel->is_xwayland      = true;
@@ -483,7 +505,7 @@ server_new_xwayland_surface(wl_listener *listener, void *data)
     toplevel->rule_opacity     = -1.0f;
     toplevel->rule_blur        = -1;
     toplevel->rule_focused     = false;
-#ifdef HAVE_SCENEFX
+    #ifdef HAVE_SCENEFX
     toplevel->rule_anim_open_style  = -1;
     toplevel->rule_anim_close_style = -1;
     toplevel->rule_no_anim          = -1;
@@ -494,7 +516,7 @@ server_new_xwayland_surface(wl_listener *listener, void *data)
         = nnwm_easing::OUT;
     toplevel->dying = false;
     wl_list_init(&toplevel->dying_link);
-#endif
+    #endif
     toplevel->cur_x = toplevel->cur_y = toplevel->cur_w = toplevel->cur_h = 0;
 
     /* scene_tree is created in map because surface is NULL here */
@@ -525,7 +547,8 @@ server_new_xwayland_surface(wl_listener *listener, void *data)
             render_titlebar(tl, tl->titlebar_width, tl_wlr_surface(tl) == fs);
         }
         if (tl->output && !tl->floating
-            && tl->output->layout_mode[tl->workspace] == nnwm_layout_mode::TABBED)
+            && tl->output->layout_mode[tl->workspace]
+                   == nnwm_layout_mode::TABBED)
         {
             rerender_tab_bar(server, tl->output);
         }
@@ -542,10 +565,12 @@ server_new_xwayland_surface(wl_listener *listener, void *data)
 
     /* request_maximize reuses listener slot */
     toplevel->request_maximize.notify = [](wl_listener * /*l*/, void * /*data*/) {};
-    wl_signal_add(nnwm_xw_events_request_maximize(xw), &toplevel->request_maximize);
+    wl_signal_add(nnwm_xw_events_request_maximize(xw),
+                  &toplevel->request_maximize);
 
     toplevel->request_fullscreen.notify = xwayland_surface_request_fullscreen;
-    wl_signal_add(nnwm_xw_events_request_fullscreen(xw), &toplevel->request_fullscreen);
+    wl_signal_add(nnwm_xw_events_request_fullscreen(xw),
+                  &toplevel->request_fullscreen);
 
     toplevel->set_hints.notify = xwayland_surface_set_hints;
     wl_signal_add(nnwm_xw_events_set_hints(xw), &toplevel->set_hints);
@@ -553,10 +578,11 @@ server_new_xwayland_surface(wl_listener *listener, void *data)
 
 /* ---- XWayland init / fini (called from main.cpp) ---- */
 
-bool nnwm_xwayland_init(nnwm_server *server)
+bool
+nnwm_xwayland_init(nnwm_server *server)
 {
-    server->xwayland = nnwm_xwl_create(server->wl_display,
-                                        server->compositor, 1);
+    server->xwayland
+        = nnwm_xwl_create(server->wl_display, server->compositor, 1);
     if (!server->xwayland)
         return false;
 
@@ -568,9 +594,11 @@ bool nnwm_xwayland_init(nnwm_server *server)
     return true;
 }
 
-void nnwm_xwayland_fini(nnwm_server *server)
+void
+nnwm_xwayland_fini(nnwm_server *server)
 {
-    if (server->xwayland) {
+    if (server->xwayland)
+    {
         wl_list_remove(&server->new_xwayland_surface.link);
         nnwm_xwl_destroy(server->xwayland);
         server->xwayland = nullptr;

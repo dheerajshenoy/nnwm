@@ -1,16 +1,18 @@
+#include "ipc.hpp"
+#include "lua/config.hpp"
 #include "nnwm.hpp"
 #include "nnwm_internal.hpp"
-#include "lua/config.hpp"
 #include "tray.hpp"
-#include "ipc.hpp"
+
 #include <argparse.hpp>
 #include <cstdio>
 
-extern "C" {
-#include <sys/stat.h>
-#include <sys/inotify.h>
+extern "C"
+{
 #include <fcntl.h>
 #include <signal.h>
+#include <sys/inotify.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <wlr/types/wlr_foreign_toplevel_management_v1.h>
 }
@@ -18,14 +20,14 @@ extern "C" {
 static int
 handle_signal(int /*sig*/, void *data)
 {
-    wl_display_terminate(static_cast<wl_display*>(data));
+    wl_display_terminate(static_cast<wl_display *>(data));
     return 0;
 }
 
 static int
 config_file_changed(int /*fd*/, uint32_t /*mask*/, void *data)
 {
-    auto *server = static_cast<nnwm_server*>(data);
+    auto *server = static_cast<nnwm_server *>(data);
 
     /* Drain inotify events */
     char buf[sizeof(struct inotify_event) + 256];
@@ -46,7 +48,8 @@ main(int argc, char *argv[])
 
     argparse::ArgumentParser program("nnwm", NNWM_VERSION);
     program.add_argument("-c", "--config")
-        .help("path to config file (default: $NNWM_CONFIG or ~/.config/nnwm/init.lua)")
+        .help("path to config file (default: $NNWM_CONFIG or "
+              "~/.config/nnwm/init.lua)")
         .nargs(1)
         .default_value(std::string(""));
     program.add_argument("-s", "--startup")
@@ -54,17 +57,22 @@ main(int argc, char *argv[])
         .nargs(1)
         .default_value(std::string(""));
 
-    try {
+    try
+    {
         program.parse_args(argc, argv);
-    } catch (const std::runtime_error &err) {
+    }
+    catch (const std::runtime_error &err)
+    {
         std::fprintf(stderr, "%s\n", err.what());
         return 1;
     }
 
-    std::string config_str = program.get<std::string>("--config");
+    std::string config_str  = program.get<std::string>("--config");
     std::string startup_str = program.get<std::string>("--startup");
-    char *config_path  = config_str.empty() ? nullptr : strdup(config_str.c_str());
-    char *startup_cmd  = startup_str.empty() ? nullptr : strdup(startup_str.c_str());
+    char *config_path
+        = config_str.empty() ? nullptr : strdup(config_str.c_str());
+    char *startup_cmd
+        = startup_str.empty() ? nullptr : strdup(startup_str.c_str());
 
     nnwm_server server = {};
     wl_list_init(&server.layer_surfaces);
@@ -80,7 +88,8 @@ main(int argc, char *argv[])
     server.pending_config_error = nullptr;
     nnwm::lua_init(&server);
 
-    /* Load config: explicit -c path, then ~/.config/nnwm/init.lua, then defaults */
+    /* Load config: explicit -c path, then ~/.config/nnwm/init.lua, then
+     * defaults */
     server.config = nnwm::config_defaults();
     if (config_path)
     {
@@ -107,13 +116,13 @@ main(int argc, char *argv[])
     server.wl_display = wl_display_create();
     tray_init(&server);
     struct wl_event_loop *loop = wl_display_get_event_loop(server.wl_display);
-    wl_event_loop_add_signal(loop, SIGINT,  handle_signal, server.wl_display);
+    wl_event_loop_add_signal(loop, SIGINT, handle_signal, server.wl_display);
     wl_event_loop_add_signal(loop, SIGTERM, handle_signal, server.wl_display);
     /* The backend is a wlroots feature which abstracts the underlying input and
      * output hardware. The autocreate option will choose the most suitable
      * backend based on the current environment, such as opening an X11 window
      * if an X11 server is running. */
-    server.backend              = wlr_backend_autocreate(
+    server.backend = wlr_backend_autocreate(
         wl_display_get_event_loop(server.wl_display), &server.session);
     if (server.backend == nullptr)
     {
@@ -131,13 +140,17 @@ main(int argc, char *argv[])
      * backend opens a render node for EGL but wlr_backend_get_drm_fd still
      * returns a valid fd, so we cannot use that to distinguish. Instead check
      * the environment: if we are nested, fall back to the standard renderer. */
-    if (!getenv("WAYLAND_DISPLAY") && !getenv("DISPLAY")) {
+    if (!getenv("WAYLAND_DISPLAY") && !getenv("DISPLAY"))
+    {
         int drm_fd = wlr_backend_get_drm_fd(server.backend);
         if (drm_fd >= 0)
             server.renderer = fx_renderer_create_with_drm_fd(drm_fd);
     }
-    if (!server.renderer) {
-        wlr_log(WLR_INFO, "scenefx: nested or no DRM fd — falling back to default renderer");
+    if (!server.renderer)
+    {
+        wlr_log(
+            WLR_INFO,
+            "scenefx: nested or no DRM fd — falling back to default renderer");
         server.renderer = wlr_renderer_autocreate(server.backend);
     }
 #else
@@ -170,7 +183,8 @@ main(int argc, char *argv[])
      * to dig your fingers in and play with their behavior if you want. Note
      * that the clients cannot set the selection directly without compositor
      * approval, see the handling of the request_set_selection event below.*/
-    server.compositor = wlr_compositor_create(server.wl_display, 5, server.renderer);
+    server.compositor
+        = wlr_compositor_create(server.wl_display, 5, server.renderer);
     wlr_subcompositor_create(server.wl_display);
     wlr_data_device_manager_create(server.wl_display);
     wlr_viewporter_create(server.wl_display);
@@ -187,7 +201,8 @@ main(int argc, char *argv[])
     wl_signal_add(&server.backend->events.new_output, &server.new_output);
 
     /* Re-tile all outputs on VT resume (session re-activation) */
-    if (server.session) {
+    if (server.session)
+    {
         server.session_active.notify = server_session_active;
         wl_signal_add(&server.session->events.active, &server.session_active);
     }
@@ -208,13 +223,13 @@ main(int argc, char *argv[])
         = wlr_scene_tree_create(&server.scene->tree);
     server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM]
         = wlr_scene_tree_create(&server.scene->tree);
-    server.scene_windows
-        = wlr_scene_tree_create(&server.scene->tree);
-    /* Scratchpad overlay: dim rect + scratchpad window tree, above normal windows */
+    server.scene_windows = wlr_scene_tree_create(&server.scene->tree);
+    /* Scratchpad overlay: dim rect + scratchpad window tree, above normal
+     * windows */
     {
         const float dim_color[4] = {0.0f, 0.0f, 0.0f, 0.5f};
-        server.scene_scratch_dim = wlr_scene_rect_create(
-            &server.scene->tree, 0, 0, dim_color);
+        server.scene_scratch_dim
+            = wlr_scene_rect_create(&server.scene->tree, 0, 0, dim_color);
         wlr_scene_node_set_enabled(&server.scene_scratch_dim->node, false);
     }
     /* Tile drag drop preview: translucent overlay covering the drop target */
@@ -229,23 +244,24 @@ main(int argc, char *argv[])
 
     server.scene_scratchpad = wlr_scene_tree_create(&server.scene->tree);
     wlr_scene_node_set_enabled(&server.scene_scratchpad->node, false);
-    server.scratchpad_visible = false;
-    server.scratchpad_layout  = nnwm_layout_mode::HTILE;
+    server.scratchpad_visible      = false;
+    server.scratchpad_layout       = nnwm_layout_mode::HTILE;
     server.scene_named_scratchpads = wlr_scene_tree_create(&server.scene->tree);
     server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP]
         = wlr_scene_tree_create(&server.scene->tree);
     server.scene_layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY]
         = wlr_scene_tree_create(&server.scene->tree);
-    server.scene_locks
-        = wlr_scene_tree_create(&server.scene->tree);
+    server.scene_locks = wlr_scene_tree_create(&server.scene->tree);
 
     /* Keybinding overlay — sits above session lock surfaces */
     server.keybind_ov_tree = wlr_scene_tree_create(&server.scene->tree);
     wlr_scene_node_set_enabled(&server.keybind_ov_tree->node, false);
     {
         const float ov_bg[4] = {0.08f, 0.09f, 0.14f, 0.93f};
-        server.keybind_ov_bg  = wlr_scene_rect_create(server.keybind_ov_tree, 1, 1, ov_bg);
-        server.keybind_ov_buf = wlr_scene_buffer_create(server.keybind_ov_tree, nullptr);
+        server.keybind_ov_bg
+            = wlr_scene_rect_create(server.keybind_ov_tree, 1, 1, ov_bg);
+        server.keybind_ov_buf
+            = wlr_scene_buffer_create(server.keybind_ov_tree, nullptr);
         server.keybind_ov_scroll     = 0;
         server.keybind_ov_content_h  = 0;
         server.keybind_ov_viewport_h = 0;
@@ -253,12 +269,13 @@ main(int argc, char *argv[])
     }
 
     /* Layer shell (needed by rofi, waybar, etc.) */
-    server.layer_shell               = wlr_layer_shell_v1_create(server.wl_display, 4);
-    server.new_layer_surface.notify  = server_new_layer_surface;
-    wl_signal_add(&server.layer_shell->events.new_surface, &server.new_layer_surface);
+    server.layer_shell = wlr_layer_shell_v1_create(server.wl_display, 4);
+    server.new_layer_surface.notify = server_new_layer_surface;
+    wl_signal_add(&server.layer_shell->events.new_surface,
+                  &server.new_layer_surface);
 
     /* Output management (wlr-randr, kanshi, etc.) */
-    server.output_manager              = wlr_output_manager_v1_create(server.wl_display);
+    server.output_manager = wlr_output_manager_v1_create(server.wl_display);
     server.output_manager_apply.notify = output_manager_apply;
     wl_signal_add(&server.output_manager->events.apply,
                   &server.output_manager_apply);
@@ -275,12 +292,14 @@ main(int argc, char *argv[])
     wlr_data_control_manager_v1_create(server.wl_display);
 
     /* screencopy: allows clients like grim to capture screen contents */
-    server.screencopy_manager = wlr_screencopy_manager_v1_create(server.wl_display);
-    server.foreign_toplevel_manager =
-        wlr_foreign_toplevel_manager_v1_create(server.wl_display);
+    server.screencopy_manager
+        = wlr_screencopy_manager_v1_create(server.wl_display);
+    server.foreign_toplevel_manager
+        = wlr_foreign_toplevel_manager_v1_create(server.wl_display);
 
     /* output power management: allows clients to DPMS-blank outputs */
-    server.output_power_manager = wlr_output_power_manager_v1_create(server.wl_display);
+    server.output_power_manager
+        = wlr_output_power_manager_v1_create(server.wl_display);
     server.output_power_set_mode.notify = output_power_set_mode;
     wl_signal_add(&server.output_power_manager->events.set_mode,
                   &server.output_power_set_mode);
@@ -310,34 +329,39 @@ main(int argc, char *argv[])
                   &server.gamma_control_set_gamma);
 
     /* session-lock: allows screen lockers like swaylock/waylock */
-    server.lock_manager   = wlr_session_lock_manager_v1_create(server.wl_display);
+    server.lock_manager = wlr_session_lock_manager_v1_create(server.wl_display);
     server.new_lock.notify = server_new_lock;
     wl_signal_add(&server.lock_manager->events.new_lock, &server.new_lock);
 
     /* export-dmabuf: DMA-BUF based capture for wf-recorder and similar tools */
-    server.export_dmabuf_manager = wlr_export_dmabuf_manager_v1_create(server.wl_display);
+    server.export_dmabuf_manager
+        = wlr_export_dmabuf_manager_v1_create(server.wl_display);
 
     /* ext-image-copy-capture + ext-image-capture-source: modern screen capture
      * protocol used by wl-screenrec, OBS, and future recording tools */
-    server.image_copy_capture_manager =
-        wlr_ext_image_copy_capture_manager_v1_create(server.wl_display, 1);
-    server.output_capture_source_manager =
-        wlr_ext_output_image_capture_source_manager_v1_create(server.wl_display, 1);
+    server.image_copy_capture_manager
+        = wlr_ext_image_copy_capture_manager_v1_create(server.wl_display, 1);
+    server.output_capture_source_manager
+        = wlr_ext_output_image_capture_source_manager_v1_create(
+            server.wl_display, 1);
 
-    /* ext-workspace-v1: workspace protocol used by waybar's ext/workspaces module */
+    /* ext-workspace-v1: workspace protocol used by waybar's ext/workspaces
+     * module */
     nnwm::ext_workspace_init(&server);
 
     /* XDG decoration (zxdg_decoration_manager_v1): newer protocol used by GTK4
      * and other clients to negotiate SSD vs CSD. */
-    server.decoration_manager       = wlr_xdg_decoration_manager_v1_create(server.wl_display);
-    server.new_decoration.notify    = server_new_decoration;
+    server.decoration_manager
+        = wlr_xdg_decoration_manager_v1_create(server.wl_display);
+    server.new_decoration.notify = server_new_decoration;
     wl_signal_add(&server.decoration_manager->events.new_toplevel_decoration,
                   &server.new_decoration);
 
     /* KDE server decoration (org_kde_kwin_server_decoration_manager): the older
      * protocol that GTK3/Emacs pgtk checks first. Set default to SERVER so
      * GTK3 apps disable CSD without needing per-window negotiation. */
-    server.kde_decoration_manager = wlr_server_decoration_manager_create(server.wl_display);
+    server.kde_decoration_manager
+        = wlr_server_decoration_manager_create(server.wl_display);
     wlr_server_decoration_manager_set_default_mode(
         server.kde_decoration_manager,
         server.config->client_decorations
@@ -358,8 +382,10 @@ main(int argc, char *argv[])
     server.xdg_activation = wlr_xdg_activation_v1_create(server.wl_display);
     server.request_activate.notify = [](wl_listener *listener, void *data)
     {
-        nnwm_server *server = wl_container_of(listener, server, request_activate);
-        auto *event = static_cast<wlr_xdg_activation_v1_request_activate_event *>(data);
+        nnwm_server *server
+            = wl_container_of(listener, server, request_activate);
+        auto *event
+            = static_cast<wlr_xdg_activation_v1_request_activate_event *>(data);
         wlr_xdg_toplevel *xdg_tl
             = wlr_xdg_toplevel_try_from_wlr_surface(event->surface);
         if (!xdg_tl)
@@ -390,7 +416,8 @@ main(int argc, char *argv[])
             tl_start_border_color(tl, cfg->border.urgent_color);
 #else
             for (int b = 0; b < 4; b++)
-                wlr_scene_rect_set_color(tl->border[b], cfg->border.urgent_color);
+                wlr_scene_rect_set_color(tl->border[b],
+                                         cfg->border.urgent_color);
 #endif
             if (cfg->titlebar.height > 0 && tl->titlebar_width > 0)
                 render_titlebar(tl, tl->titlebar_width, false);
@@ -416,8 +443,8 @@ main(int argc, char *argv[])
      * Xcursor themes to source cursor images from and makes sure that cursor
      * images are available at all scale factors on the screen (necessary for
      * HiDPI support). */
-    server.cursor_mgr = wlr_xcursor_manager_create(
-        server.config->cursor_theme, server.config->cursor_size);
+    server.cursor_mgr = wlr_xcursor_manager_create(server.config->cursor_theme,
+                                                   server.config->cursor_size);
     wlr_cursor_set_xcursor(server.cursor, server.cursor_mgr, "default");
 
     /*
@@ -448,61 +475,65 @@ main(int argc, char *argv[])
 
     server.cursor_swipe_begin.notify = [](wl_listener *l, void *data)
     {
-        nnwm_server *s = wl_container_of(l, s, cursor_swipe_begin);
-        auto *e = static_cast<wlr_pointer_swipe_begin_event *>(data);
+        nnwm_server *s   = wl_container_of(l, s, cursor_swipe_begin);
+        auto *e          = static_cast<wlr_pointer_swipe_begin_event *>(data);
         s->swipe_fingers = (int)e->fingers;
         s->swipe_dx = s->swipe_dy = 0.0;
         wlr_pointer_gestures_v1_send_swipe_begin(s->pointer_gestures, s->seat,
                                                  e->time_msec, e->fingers);
     };
-    wl_signal_add(&server.cursor->events.swipe_begin, &server.cursor_swipe_begin);
+    wl_signal_add(&server.cursor->events.swipe_begin,
+                  &server.cursor_swipe_begin);
 
     server.cursor_swipe_update.notify = [](wl_listener *l, void *data)
     {
         nnwm_server *s = wl_container_of(l, s, cursor_swipe_update);
-        auto *e = static_cast<wlr_pointer_swipe_update_event *>(data);
+        auto *e        = static_cast<wlr_pointer_swipe_update_event *>(data);
         s->swipe_dx += e->dx;
         s->swipe_dy += e->dy;
         wlr_pointer_gestures_v1_send_swipe_update(s->pointer_gestures, s->seat,
                                                   e->time_msec, e->dx, e->dy);
     };
-    wl_signal_add(&server.cursor->events.swipe_update, &server.cursor_swipe_update);
+    wl_signal_add(&server.cursor->events.swipe_update,
+                  &server.cursor_swipe_update);
 
     server.cursor_swipe_end.notify = [](wl_listener *l, void *data)
     {
         nnwm_server *s = wl_container_of(l, s, cursor_swipe_end);
-        auto *e = static_cast<wlr_pointer_swipe_end_event *>(data);
+        auto *e        = static_cast<wlr_pointer_swipe_end_event *>(data);
         wlr_pointer_gestures_v1_send_swipe_end(s->pointer_gestures, s->seat,
                                                e->time_msec, e->cancelled);
         if (!e->cancelled)
-            nnwm::lua_handle_gesture(s, s->swipe_fingers,
-                                     s->swipe_dx, s->swipe_dy);
+            nnwm::lua_handle_gesture(s, s->swipe_fingers, s->swipe_dx,
+                                     s->swipe_dy);
     };
     wl_signal_add(&server.cursor->events.swipe_end, &server.cursor_swipe_end);
 
     server.cursor_pinch_begin.notify = [](wl_listener *l, void *data)
     {
         nnwm_server *s = wl_container_of(l, s, cursor_pinch_begin);
-        auto *e = static_cast<wlr_pointer_pinch_begin_event *>(data);
+        auto *e        = static_cast<wlr_pointer_pinch_begin_event *>(data);
         wlr_pointer_gestures_v1_send_pinch_begin(s->pointer_gestures, s->seat,
                                                  e->time_msec, e->fingers);
     };
-    wl_signal_add(&server.cursor->events.pinch_begin, &server.cursor_pinch_begin);
+    wl_signal_add(&server.cursor->events.pinch_begin,
+                  &server.cursor_pinch_begin);
 
     server.cursor_pinch_update.notify = [](wl_listener *l, void *data)
     {
         nnwm_server *s = wl_container_of(l, s, cursor_pinch_update);
-        auto *e = static_cast<wlr_pointer_pinch_update_event *>(data);
+        auto *e        = static_cast<wlr_pointer_pinch_update_event *>(data);
         wlr_pointer_gestures_v1_send_pinch_update(s->pointer_gestures, s->seat,
                                                   e->time_msec, e->dx, e->dy,
                                                   e->scale, e->rotation);
     };
-    wl_signal_add(&server.cursor->events.pinch_update, &server.cursor_pinch_update);
+    wl_signal_add(&server.cursor->events.pinch_update,
+                  &server.cursor_pinch_update);
 
     server.cursor_pinch_end.notify = [](wl_listener *l, void *data)
     {
         nnwm_server *s = wl_container_of(l, s, cursor_pinch_end);
-        auto *e = static_cast<wlr_pointer_pinch_end_event *>(data);
+        auto *e        = static_cast<wlr_pointer_pinch_end_event *>(data);
         wlr_pointer_gestures_v1_send_pinch_end(s->pointer_gestures, s->seat,
                                                e->time_msec, e->cancelled);
     };
@@ -511,7 +542,7 @@ main(int argc, char *argv[])
     server.cursor_hold_begin.notify = [](wl_listener *l, void *data)
     {
         nnwm_server *s = wl_container_of(l, s, cursor_hold_begin);
-        auto *e = static_cast<wlr_pointer_hold_begin_event *>(data);
+        auto *e        = static_cast<wlr_pointer_hold_begin_event *>(data);
         wlr_pointer_gestures_v1_send_hold_begin(s->pointer_gestures, s->seat,
                                                 e->time_msec, e->fingers);
     };
@@ -520,7 +551,7 @@ main(int argc, char *argv[])
     server.cursor_hold_end.notify = [](wl_listener *l, void *data)
     {
         nnwm_server *s = wl_container_of(l, s, cursor_hold_end);
-        auto *e = static_cast<wlr_pointer_hold_end_event *>(data);
+        auto *e        = static_cast<wlr_pointer_hold_end_event *>(data);
         wlr_pointer_gestures_v1_send_hold_end(s->pointer_gestures, s->seat,
                                               e->time_msec, e->cancelled);
     };
@@ -536,8 +567,7 @@ main(int argc, char *argv[])
     wl_list_init(&server.switches);
     server.new_input.notify = server_new_input;
     wl_signal_add(&server.backend->events.new_input, &server.new_input);
-    server.seat                  = wlr_seat_create(server.wl_display,
-                                                    server.config->seat_name);
+    server.seat = wlr_seat_create(server.wl_display, server.config->seat_name);
     server.request_cursor.notify = seat_request_cursor;
     wl_signal_add(&server.seat->events.request_set_cursor,
                   &server.request_cursor);
@@ -554,14 +584,15 @@ main(int argc, char *argv[])
     wl_signal_add(&server.seat->events.start_drag, &server.start_drag);
     wl_list_init(&server.drag_icon_destroy.link);
     wl_list_init(&server.drag_destroy.link);
-    server.drag_icon_tree            = nullptr;
-    server.current_drag              = nullptr;
-    server.overview_drag_toplevel    = nullptr;
+    server.drag_icon_tree         = nullptr;
+    server.current_drag           = nullptr;
+    server.overview_drag_toplevel = nullptr;
 
     /* idle-inhibit-v1: lets clients (video players, games) prevent screen
      * blanking / locking while they hold an inhibitor object. */
     server.idle_inhibit_manager = wlr_idle_inhibit_v1_create(server.wl_display);
-    server.new_idle_inhibitor.notify = [](wl_listener *, void *) {
+    server.new_idle_inhibitor.notify = [](wl_listener *, void *)
+    {
         /* wlroots manages the inhibitor list internally; idle daemons such as
          * hypridle query wlr_idle_inhibit_manager_v1 directly to check whether
          * any active inhibitor exists. No extra bookkeeping needed here. */
@@ -574,10 +605,11 @@ main(int argc, char *argv[])
      * nnwm_notify_activity(). */
     server.idle_notifier = wlr_idle_notifier_v1_create(server.wl_display);
     server.is_idle       = false;
-    server.idle_source   = wl_event_loop_add_timer(loop, idle_timer_cb, &server);
+    server.idle_source = wl_event_loop_add_timer(loop, idle_timer_cb, &server);
     idle_apply_config(&server);
 
-    server.hot_corner_timer    = wl_event_loop_add_timer(loop, hot_corner_timer_cb, &server);
+    server.hot_corner_timer
+        = wl_event_loop_add_timer(loop, hot_corner_timer_cb, &server);
     server.hot_corner_active   = -1;
     server.hot_corner_cooldown = 0;
     server.hot_corner_output   = nullptr;
@@ -597,8 +629,7 @@ main(int argc, char *argv[])
     {
         nnwm_server *server
             = wl_container_of(listener, server, new_pointer_constraint);
-        auto *constraint
-            = static_cast<wlr_pointer_constraint_v1 *>(data);
+        auto *constraint = static_cast<wlr_pointer_constraint_v1 *>(data);
 
         /* Activate immediately if the constrained surface already has focus. */
         wlr_surface *focused = server->seat->pointer_state.focused_surface;
@@ -632,15 +663,18 @@ main(int argc, char *argv[])
     /* Set the WAYLAND_DISPLAY environment variable to our socket and run the
      * startup command if requested. */
     setenv("WAYLAND_DISPLAY", socket, true);
-    setenv("XDG_CURRENT_DESKTOP", "sway", false); /* false = don't override if already set */
+    setenv("XDG_CURRENT_DESKTOP", "sway",
+           false); /* false = don't override if already set */
     /* Export to systemd user environment and D-Bus so services started via
      * socket activation (e.g. xdg-desktop-portal-wlr, pipewire) see the
      * correct display socket and desktop identifier. */
     {
         char cmd[256];
         snprintf(cmd, sizeof(cmd),
-                 "systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP 2>/dev/null;"
-                 "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP 2>/dev/null");
+                 "systemctl --user import-environment WAYLAND_DISPLAY "
+                 "XDG_CURRENT_DESKTOP 2>/dev/null;"
+                 "dbus-update-activation-environment --systemd WAYLAND_DISPLAY "
+                 "XDG_CURRENT_DESKTOP 2>/dev/null");
         system(cmd);
     }
     server.wayland_started = true;
@@ -670,7 +704,8 @@ main(int argc, char *argv[])
     {
         if (fork() == 0)
         {
-            execl("/bin/sh", "/bin/sh", "-c", startup_cmd, static_cast<char*>(nullptr));
+            execl("/bin/sh", "/bin/sh", "-c", startup_cmd,
+                  static_cast<char *>(nullptr));
         }
     }
     /* Set up inotify watch on config file for hot-reload */
@@ -707,9 +742,8 @@ main(int argc, char *argv[])
             socket);
     /* Fire "startup" hook in the first event-loop tick so timers registered
      * inside the callback arm correctly. */
-    wl_event_loop_add_idle(loop, [](void *data) {
-        fire_hook_plain(static_cast<nnwm_server *>(data), "startup");
-    }, &server);
+    wl_event_loop_add_idle(loop, [](void *data)
+    { fire_hook_plain(static_cast<nnwm_server *>(data), "startup"); }, &server);
     wl_display_run(server.wl_display);
 
     /* Fire "shutdown" before clients are destroyed so the hook can still
@@ -723,8 +757,10 @@ main(int argc, char *argv[])
      * server. */
     wl_display_destroy_clients(server.wl_display);
 
-    if (server.idle_source) wl_event_source_remove(server.idle_source);
-    if (server.hot_corner_timer) wl_event_source_remove(server.hot_corner_timer);
+    if (server.idle_source)
+        wl_event_source_remove(server.idle_source);
+    if (server.hot_corner_timer)
+        wl_event_source_remove(server.hot_corner_timer);
     wl_list_remove(&server.new_idle_inhibitor.link);
     wl_list_remove(&server.new_pointer_constraint.link);
     if (server.active_constraint)
