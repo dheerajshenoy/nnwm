@@ -984,92 +984,75 @@ server_cursor_button(wl_listener *listener, void *data)
             {
                 if (server->overview_drag_toplevel)
                 {
-                    /* Drop: find target workspace slot */
-                    const double OV_OUTER = 32.0;
-                    const double OV_INNER = 12.0;
-                    const int OV_COLS     = 3;
-                    const int num_ws      = server->config->workspace_count;
-                    const int OV_ROWS     = (num_ws + OV_COLS - 1) / OV_COLS;
-                    double slot_w
-                        = (ob.width - 2.0 * OV_OUTER - (OV_COLS - 1) * OV_INNER)
-                          / OV_COLS;
-                    double slot_h = (ob.height - 2.0 * OV_OUTER
-                                     - (OV_ROWS - 1) * OV_INNER)
-                                    / OV_ROWS;
+                    ov_geom g = ov_geom_compute(server, hov);
 
                     int target_ws = -1;
-                    for (int ws = 0; ws < num_ws; ws++)
+                    for (int ws = 0; ws < g.num_ws; ws++)
                     {
-                        int col   = ws % OV_COLS;
-                        int row   = ws / OV_COLS;
-                        double sx = OV_OUTER + col * (slot_w + OV_INNER);
-                        double sy = OV_OUTER + row * (slot_h + OV_INNER);
-                        if (cx >= sx && cx < sx + slot_w && cy >= sy
-                            && cy < sy + slot_h)
+                        int col   = ws % g.ov_cols;
+                        int row   = ws / g.ov_cols;
+                        double sx = OVERVIEW_OUTER + col * (g.slot_w + OVERVIEW_INNER);
+                        double sy = g.row_y0 + row * (g.slot_h + OVERVIEW_INNER);
+                        if (cx >= sx && cx < sx + g.slot_w
+                            && cy >= sy && cy < sy + g.slot_h)
                         {
                             target_ws = ws;
                             break;
                         }
                     }
 
-                    nnwm_toplevel *dtl = server->overview_drag_toplevel;
+                    nnwm_toplevel *dtl  = server->overview_drag_toplevel;
                     server->overview_drag_toplevel = nullptr;
 
-                    if (target_ws >= 0 && target_ws != dtl->workspace)
+                    nnwm_output *src_out = dtl->output;
+                    bool ws_changed      = target_ws >= 0
+                                          && target_ws != dtl->workspace;
+                    bool out_changed     = hov != src_out;
+
+                    if (ws_changed || out_changed)
                     {
-                        dtl->workspace   = target_ws;
-                        /* If the window was last-focused on the old ws, clear
-                         * that */
-                        nnwm_output *out = dtl->output;
-                        if (out)
+                        /* Clear last/prev focus on source output */
+                        if (src_out)
                         {
-                            for (int w = 0; w < server->config->workspace_count;
-                                 w++)
+                            for (int w = 0; w < g.num_ws; w++)
                             {
-                                if (out->last_focused[w] == dtl
-                                    && w != target_ws)
-                                    out->last_focused[w] = nullptr;
-                                if (out->prev_focused[w] == dtl
-                                    && w != target_ws)
-                                    out->prev_focused[w] = nullptr;
+                                if (src_out->last_focused[w] == dtl)
+                                    src_out->last_focused[w] = nullptr;
+                                if (src_out->prev_focused[w] == dtl)
+                                    src_out->prev_focused[w] = nullptr;
                             }
                         }
+                        if (ws_changed)
+                            dtl->workspace = target_ws;
+                        if (out_changed)
+                            dtl->output = hov;
                     }
 
-                    /* Re-arrange and re-render overview */
-                    render_overview(server, hov);
+                    /* Re-render all overview outputs so both monitors refresh */
+                    nnwm_output *o;
+                    wl_list_for_each(o, &server->outputs, link)
+                        render_overview(server, o);
                 }
                 else
                 {
-                    /* Click on empty space: switch workspace and exit */
-                    const double OV_OUTER = 32.0;
-                    const double OV_INNER = 12.0;
-                    const int OV_COLS     = 3;
-                    const int num_ws      = server->config->workspace_count;
-                    const int OV_ROWS     = (num_ws + OV_COLS - 1) / OV_COLS;
-                    double slot_w
-                        = (ob.width - 2.0 * OV_OUTER - (OV_COLS - 1) * OV_INNER)
-                          / OV_COLS;
-                    double slot_h = (ob.height - 2.0 * OV_OUTER
-                                     - (OV_ROWS - 1) * OV_INNER)
-                                    / OV_ROWS;
+                    /* Click on empty space or window: switch workspace and exit */
+                    ov_geom g = ov_geom_compute(server, hov);
 
                     int target_ws = -1;
-                    for (int ws = 0; ws < num_ws; ws++)
+                    for (int ws = 0; ws < g.num_ws; ws++)
                     {
-                        int col   = ws % OV_COLS;
-                        int row   = ws / OV_COLS;
-                        double sx = OV_OUTER + col * (slot_w + OV_INNER);
-                        double sy = OV_OUTER + row * (slot_h + OV_INNER);
-                        if (cx >= sx && cx < sx + slot_w && cy >= sy
-                            && cy < sy + slot_h)
+                        int col   = ws % g.ov_cols;
+                        int row   = ws / g.ov_cols;
+                        double sx = OVERVIEW_OUTER + col * (g.slot_w + OVERVIEW_INNER);
+                        double sy = g.row_y0 + row * (g.slot_h + OVERVIEW_INNER);
+                        if (cx >= sx && cx < sx + g.slot_w
+                            && cy >= sy && cy < sy + g.slot_h)
                         {
                             target_ws = ws;
                             break;
                         }
                     }
 
-                    /* Click on a window: focus it in its workspace */
                     int hit_ws = -1;
                     nnwm_toplevel *hit
                         = overview_toplevel_at(server, hov, cx, cy, &hit_ws);

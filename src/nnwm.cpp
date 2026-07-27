@@ -1268,8 +1268,7 @@ static void
 arrange_windows_impl(nnwm_server *server, nnwm_output *out);
 
 static constexpr int OVERVIEW_COLS     = 3;
-static constexpr double OVERVIEW_OUTER = 32.0;
-static constexpr double OVERVIEW_INNER = 12.0;
+
 
 /* Returns the window's layout-space bounding box (including borders/titlebar).
  * For tiled windows this is cur_x/y/w/h; for floating windows that haven't
@@ -1339,16 +1338,7 @@ ov_surface_iter(wlr_surface *surface, int sx, int sy, void *ud)
 static void
 render_overview_buffers(nnwm_server *server, nnwm_output *out);
 
-struct ov_geom
-{
-    wlr_box out_box;
-    int W, H, buf_w, buf_h, num_ws;
-    int ov_cols, ov_rows;
-    double dpi, slot_w, slot_h, s, cx_off, cy_off;
-    double row_y0; /* top of the first row (vertical center offset) */
-};
-
-static ov_geom
+ov_geom
 ov_geom_compute(nnwm_server *server, nnwm_output *out)
 {
     ov_geom g{};

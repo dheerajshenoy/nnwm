@@ -89,6 +89,18 @@ struct nnwm_toplevel *scratch_prev(struct nnwm_server *server,
                                    struct nnwm_toplevel *cur);
 
 /* ---- Overview ---- */
+static constexpr double OVERVIEW_OUTER = 32.0;
+static constexpr double OVERVIEW_INNER = 12.0;
+
+struct ov_geom
+{
+    wlr_box out_box;
+    int W, H, buf_w, buf_h, num_ws;
+    int ov_cols, ov_rows;
+    double dpi, slot_w, slot_h, s, cx_off, cy_off;
+    double row_y0;
+};
+ov_geom ov_geom_compute(struct nnwm_server *server, struct nnwm_output *out);
 void render_overview(struct nnwm_server *server, struct nnwm_output *out);
 void overview_frame_update(struct nnwm_server *server, struct nnwm_output *out);
 void exit_overview(struct nnwm_server *server, struct nnwm_output *out);
