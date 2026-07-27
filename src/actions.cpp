@@ -938,7 +938,11 @@ nnwm::focus::dir(nnwm_server *server, const char *direction)
             if (!best)
                 return;
 
-            server->focused_output = best;
+            nnwm_output *prev_focused = server->focused_output;
+            server->focused_output    = best;
+            /* Update old output's labels so it loses its focus ring */
+            if (prev_focused && prev_focused != best && prev_focused->overview)
+                overview_update_labels(server, prev_focused);
             /* Land on the workspace at the opposite edge of the new output's
              * grid so the navigation feels continuous. */
             ov_geom og2 = ov_geom_compute(server, best);

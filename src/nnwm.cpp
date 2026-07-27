@@ -1741,6 +1741,16 @@ render_overview_buffers(nnwm_server *server, nnwm_output *out)
             pixman_region32_fini(&clip);
         }
 
+        /* Dim non-focused outputs so the active monitor stands out clearly */
+        if (out != server->focused_output)
+        {
+            wlr_render_rect_options dim = {};
+            dim.box                     = {0, 0, buf_w, buf_h};
+            dim.color                   = {0.0f, 0.0f, 0.0f, 0.35f};
+            dim.blend_mode              = WLR_RENDER_BLEND_MODE_PREMULTIPLIED;
+            wlr_render_pass_add_rect(pass, &dim);
+        }
+
         wlr_render_pass_submit(pass);
         wlr_scene_buffer_set_buffer(out->overview_buf, gpu_buf);
         wlr_scene_buffer_set_dest_size(out->overview_buf, W, H);
@@ -1993,6 +2003,34 @@ render_overview_labels(nnwm_server *server, nnwm_output *out, const ov_geom &g,
         cairo_set_source_rgba(cr, 0.90, 0.90, 0.95, any ? 0.80 : 0.55);
         cairo_move_to(cr, lx, ly);
         cairo_show_text(cr, label);
+    }
+
+    /* Focus ring: bright border enclosing the entire grid on the focused output */
+    if (out == server->focused_output)
+    {
+        int ov_rows      = g.ov_rows;
+        double total_w   = ov_cols * slot_w + (ov_cols - 1) * OVERVIEW_INNER;
+        double total_h   = ov_rows * slot_h + (ov_rows - 1) * OVERVIEW_INNER;
+        double margin    = 8.0;
+        double rx        = col_x0 - margin;
+        double ry        = row_y0 - margin;
+        double rw        = total_w + 2.0 * margin;
+        double rh        = total_h + 2.0 * margin;
+        double corner    = 6.0;
+        cairo_set_line_width(cr, 2.0);
+        cairo_set_source_rgba(cr, 0.45, 0.65, 1.0, 0.75);
+        /* Rounded rectangle */
+        cairo_move_to(cr, rx + corner, ry);
+        cairo_line_to(cr, rx + rw - corner, ry);
+        cairo_arc(cr, rx + rw - corner, ry + corner, corner, -M_PI / 2, 0);
+        cairo_line_to(cr, rx + rw, ry + rh - corner);
+        cairo_arc(cr, rx + rw - corner, ry + rh - corner, corner, 0, M_PI / 2);
+        cairo_line_to(cr, rx + corner, ry + rh);
+        cairo_arc(cr, rx + corner, ry + rh - corner, corner, M_PI / 2, M_PI);
+        cairo_line_to(cr, rx, ry + corner);
+        cairo_arc(cr, rx + corner, ry + corner, corner, M_PI, 3 * M_PI / 2);
+        cairo_close_path(cr);
+        cairo_stroke(cr);
     }
 
     cairo_surface_flush(csurf);
