@@ -125,6 +125,7 @@ struct nnwm_bar_module
     float ws_active_fg[4];
     float ws_occupied_fg[4];
     float ws_unoccupied_fg[4];
+    bool ws_smart;   /* only show occupied workspaces + the active one */
 
     /* Lua handlers (LUA_REGISTRYINDEX refs; -1 = unset). */
     int lua_click_ref;    /* on_click = fn(button:string, lx:int, ly:int) */

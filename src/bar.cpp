@@ -276,6 +276,10 @@ static int draw_workspaces_module(cairo_t *cr, PangoFontDescription *fd,
         pango_layout_set_font_description(shared, fd);
     }
     for (int i = 0; i < count; i++) {
+        bool is_occupied = (occ_bits & (uint16_t)(1u << i)) != 0;
+        if (m.ws_smart && i != active_ws && !is_occupied)
+            continue;
+
         const char *label = nullptr;
         if (out && out->workspace_names[i]) label = out->workspace_names[i];
         else if (cfg->workspace_names[i]) label = cfg->workspace_names[i];
@@ -287,7 +291,6 @@ static int draw_workspaces_module(cairo_t *cr, PangoFontDescription *fd,
 
         const float *fg;
         const float *bg = nullptr;
-        bool is_occupied = (occ_bits & (uint16_t)(1u << i)) != 0;
         if (i == active_ws) {
             fg = c_active_fg;
             bg = c_active_bg;
@@ -1207,8 +1210,13 @@ bool bar_handle_button(nnwm_server *server, double lx, double ly,
                 CAIRO_FORMAT_ARGB32, 1, 1);
             cairo_t *tmp_cr = cairo_create(tmp_surf);
 
+            uint16_t occ = workspace_occupancy_bits(server, out);
             int cursor_x = m.rect_x;
             for (int i = 0; i < count; i++) {
+                bool is_occ = (occ & (uint16_t)(1u << i)) != 0;
+                if (m.ws_smart && i != out->active_workspace && !is_occ)
+                    continue;
+
                 const char *label = nullptr;
                 if (out->workspace_names[i]) label = out->workspace_names[i];
                 else if (cfg->workspace_names[i]) label = cfg->workspace_names[i];

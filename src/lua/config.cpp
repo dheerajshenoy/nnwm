@@ -3720,6 +3720,7 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                             get_color_field(L, "fg", m.fg, dinh);
                             float dtrans[4] = {0, 0, 0, 0};
                             get_color_field(L, "bg", m.bg, dtrans);
+                            m.ws_smart = false;
                             for (int c = 0; c < 4; c++)
                             {
                                 m.ws_active_bg[c]     = -1.0f;
@@ -3743,6 +3744,11 @@ read_config_table(lua_State *L, struct nnwm_config *cfg)
                                                 m.ws_unoccupied_fg, sentinel);
                             }
                             lua_pop(L, 1); /* pop 'colors' */
+
+                            lua_getfield(L, -1, "smart");
+                            if (lua_isboolean(L, -1))
+                                m.ws_smart = lua_toboolean(L, -1);
+                            lua_pop(L, 1);
 
                             if (m.type == nnwm_bar_module_type::CUSTOM)
                             {
