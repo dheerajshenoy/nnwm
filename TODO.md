@@ -261,3 +261,7 @@
     - [ ] smart panel padding (like KDE) - float panel when no windows are visible, otherwise stick to the edge of the screen
     - [ ] auto-hide
     - [ ] smart workspace module (like sway) - show only workspaces that have windows on them
+- Overview mode configuration options
+    - [ ] Layout
+    - [ ] Index
+    - [ ] background wallpaper
