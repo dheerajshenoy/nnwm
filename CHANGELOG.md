@@ -103,8 +103,16 @@
       nnwm.screenshot({ type = "window", copy = true })
   end, { description = "Copy window screenshot to clipboard" })
   ```
+  Pass `notify = true` to send a desktop notification via `notify-send` after
+  capture — the message shows the saved path for file captures, or "Copied to
+  clipboard" when used with `copy = true`:
+  ```lua
+  nnwm.key({ "Print" }, function()
+      nnwm.screenshot({ type = "screen", notify = true })
+  end, { description = "Screenshot all outputs" })
+  ```
   `nnwmctl screenshot` also works: `--output DP-1`, `--window`, `--region
-  X,Y WxH`, `--interactive`, `--copy`, and an optional path argument.
+  X,Y WxH`, `--interactive`, `--copy`, `--notify`, and an optional path argument.
 
 - **Hot corners**: moving the cursor into any screen corner can trigger a Lua
   callback after a configurable dwell time. Supports global defaults and
