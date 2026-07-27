@@ -1922,51 +1922,63 @@ handle_keybinding(nnwm_server *server, uint32_t modifiers, xkb_keysym_t sym)
 /* ---- Overview ---- */
 
 static void
-begin_exit_overview(nnwm_server *server, nnwm_output *out)
+begin_exit_overview(nnwm_server *server, nnwm_output * /*out*/)
 {
-#ifdef HAVE_SCENEFX
-    if (server->config->fx.animation.enabled && !out->ov_anim_exiting)
+    nnwm_output *o;
+    wl_list_for_each(o, &server->outputs, link)
     {
-        nnwm_config *cfg = server->config;
-        out->ov_anim     = true;
-        out->ov_anim_t0  = anim_now();
-        out->ov_anim_duration_ms
-            = eff_duration(cfg, cfg->fx.animation.close_duration_ms);
-        out->ov_anim_exiting = true;
-        return;
-    }
+        if (!o->overview)
+            continue;
+#ifdef HAVE_SCENEFX
+        if (server->config->fx.animation.enabled && !o->ov_anim_exiting)
+        {
+            nnwm_config *cfg = server->config;
+            o->ov_anim       = true;
+            o->ov_anim_t0    = anim_now();
+            o->ov_anim_duration_ms
+                = eff_duration(cfg, cfg->fx.animation.close_duration_ms);
+            o->ov_anim_exiting = true;
+            continue;
+        }
 #endif
-    exit_overview(server, out);
+        exit_overview(server, o);
+    }
 }
 
 void
 nnwm::toggle_overview(nnwm_server *server)
 {
-    nnwm_output *out = server->focused_output;
-    if (!out)
+    if (!server->focused_output)
         return;
 
-    if (out->overview)
+    bool currently_in_overview = server->focused_output->overview;
+
+    nnwm_output *o;
+    if (currently_in_overview)
     {
-        begin_exit_overview(server, out);
+        wl_list_for_each(o, &server->outputs, link)
+            begin_exit_overview(server, o);
     }
     else
     {
-        out->overview = true;
-        render_overview(server, out);
-#ifdef HAVE_SCENEFX
-        if (server->config->fx.animation.enabled)
+        wl_list_for_each(o, &server->outputs, link)
         {
-            nnwm_config *cfg = server->config;
-            wlr_scene_buffer_set_opacity(out->overview_buf, 0.0f);
-            wlr_scene_buffer_set_opacity(out->overview_labels, 0.0f);
-            out->ov_anim    = true;
-            out->ov_anim_t0 = anim_now();
-            out->ov_anim_duration_ms
-                = eff_duration(cfg, cfg->fx.animation.open_duration_ms);
-            out->ov_anim_exiting = false;
-        }
+            o->overview = true;
+            render_overview(server, o);
+#ifdef HAVE_SCENEFX
+            if (server->config->fx.animation.enabled)
+            {
+                nnwm_config *cfg = server->config;
+                wlr_scene_buffer_set_opacity(o->overview_buf, 0.0f);
+                wlr_scene_buffer_set_opacity(o->overview_labels, 0.0f);
+                o->ov_anim    = true;
+                o->ov_anim_t0 = anim_now();
+                o->ov_anim_duration_ms
+                    = eff_duration(cfg, cfg->fx.animation.open_duration_ms);
+                o->ov_anim_exiting = false;
+            }
 #endif
+        }
     }
 }
 
