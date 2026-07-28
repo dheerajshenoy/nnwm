@@ -2168,11 +2168,22 @@ exit_overview(nnwm_server *server, nnwm_output *out)
 
     arrange_windows(server, out);
 
-    nnwm_toplevel *tl = ws_first(server, out);
-    if (tl)
-        focus_toplevel(tl);
-    else
-        wlr_seat_keyboard_clear_focus(server->seat);
+    /* Only the focused output should claim keyboard focus on exit.
+     * Non-focused outputs iterating in begin_exit_overview must not
+     * clear focus that was just established for the focused output. */
+    if (out == server->focused_output)
+    {
+        int ws = out->active_workspace;
+        nnwm_toplevel *tl = out->last_focused[ws];
+        if (!tl || tl->output != out || tl->workspace != ws)
+            tl = ws_first(server, out);
+        if (!tl)
+            tl = ws_first_float(server, out);
+        if (tl)
+            focus_toplevel(tl);
+        else
+            wlr_seat_keyboard_clear_focus(server->seat);
+    }
 }
 
 /* ---- Output / workspace helpers ---- */
