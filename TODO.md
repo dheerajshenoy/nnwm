@@ -222,6 +222,7 @@
 
 ## TODO
 
+- [ ] Dim unfocused monitor option
 - Window Rules
     - [ ] blur
     - [ ] animation
@@ -258,10 +259,10 @@
 - [ ] tile drag window, add sway like center and directional blocks on the dropping window
 - [ ] nnwm.notify(msg, {level, timeout}) — for on handlers to surface state; today users must shell out to notify-send.
 - Panel
+    - [x] smart workspace module (like sway) - show only workspaces that have windows on them
     - [ ] smart panel padding (like KDE) - float panel when no windows are visible, otherwise stick to the edge of the screen
     - [ ] auto-hide
-    - [ ] smart workspace module (like sway) - show only workspaces that have windows on them
 - Overview mode configuration options
-    - [ ] Layout
+    - [x] Layout
+    - [x] background wallpaper
     - [ ] Index
-    - [ ] background wallpaper
