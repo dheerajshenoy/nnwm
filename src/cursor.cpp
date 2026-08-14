@@ -1095,7 +1095,12 @@ server_cursor_button(wl_listener *listener, void *data)
                         = overview_toplevel_at(server, hov, cx, cy, &hit_ws);
 
                     server->focused_output = hov;
-                    exit_overview(server, hov);
+                    {
+                        nnwm_output *o;
+                        wl_list_for_each(o, &server->outputs, link)
+                            if (o->overview)
+                                exit_overview(server, o);
+                    }
                     if (hit)
                     {
                         if (hit_ws >= 0 && hit_ws != hov->active_workspace)
