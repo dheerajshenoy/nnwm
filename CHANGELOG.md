@@ -4,6 +4,37 @@
 
 ### Bug Fixes
 
+- **Windows on a kanshi-disabled output became stranded and could silently eat
+  keyboard/cursor input**: `wlr-output-management-v1` clients such as kanshi
+  disable an output logically (the connector stays physically attached) when
+  switching profiles. `output_manager_apply_or_test` only handled the
+  enable/reposition side of an applied config — a disabled output was left in
+  `server->output_layout` at its old position and stayed in `server->outputs`,
+  so the cursor could wander into now-unrendered dead space and
+  `server->focused_output` could keep pointing at a monitor that was no longer
+  scanned out, along with any windows still assigned to it. Fixed by mirroring
+  the physical-disconnect path: on an enabled→disabled transition the output is
+  removed from the layout, its windows are migrated to another live output, and
+  `focused_output` is reassigned if it pointed at the disabled output.
+
+- **Exiting overview did not focus the window on the selected workspace**:
+  `exit_overview` looked up the focus target with `ws_first`, which skips
+  floating and fullscreen windows and ignores the previously-focused window on
+  that workspace. Additionally, `toggle_overview`'s keyboard path calls
+  `exit_overview` once per output — a non-focused output with no tiled windows
+  would call `wlr_seat_keyboard_clear_focus`, wiping out the focus just
+  established for the focused output when it was processed later in the
+  iteration. Fixed by only having the focused output claim/clear keyboard
+  focus on exit, and by trying `last_focused[ws]` before falling back to
+  `ws_first` then `ws_first_float`, matching `workspace::switch_to`'s
+  fallback chain.
+
+- **Clicking a workspace slot in overview only exited overview on the
+  clicked monitor**: the mouse click handler called `exit_overview` for just
+  the hovered output, leaving overview mode active on every other monitor.
+  Fixed to loop all outputs still in overview and exit each of them, matching
+  the keyboard toggle path's behavior.
+
 - **Overview slots stretch vertically in single-row layouts**: slot height was
   computed as the full available height divided by the row count, ignoring the
   workspace aspect ratio. In horizontal and single-row layouts this made slots

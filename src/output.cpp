@@ -354,9 +354,15 @@ output_manager_apply_or_test(nnwm_server *server,
             continue;
         }
 
-        /* Reposition in the output layout */
-        wlr_output_layout_add(server->output_layout, wlr_output, head->state.x,
-                              head->state.y);
+        bool was_enabled = wlr_output->enabled;
+        bool now_enabled = head->state.enabled;
+
+        if (now_enabled)
+        {
+            /* Reposition in the output layout */
+            wlr_output_layout_add(server->output_layout, wlr_output,
+                                  head->state.x, head->state.y);
+        }
 
         ok = wlr_output_commit_state(wlr_output, &state);
         wlr_output_state_finish(&state);
@@ -364,8 +370,56 @@ output_manager_apply_or_test(nnwm_server *server,
         if (!ok)
             break;
 
-        /* Recompute usable area with the new logical resolution */
-        arrange_layers(server, wlr_output);
+        if (now_enabled)
+        {
+            /* Recompute usable area with the new logical resolution */
+            arrange_layers(server, wlr_output);
+        }
+        else if (was_enabled)
+        {
+            /* Client (e.g. kanshi on a profile switch) just disabled an
+             * output that stays physically connected. Pull it out of the
+             * layout and migrate its windows/focus so cursor movement and
+             * keyboard actions don't keep targeting now-dead space. */
+            nnwm_output *out = nullptr;
+            {
+                nnwm_output *o;
+                wl_list_for_each(o, &server->outputs, link)
+                    if (o->wlr_output == wlr_output)
+                    {
+                        out = o;
+                        break;
+                    }
+            }
+            if (out)
+            {
+                wlr_output_layout_remove(server->output_layout, wlr_output);
+
+                nnwm_output *replacement = nullptr;
+                {
+                    nnwm_output *o;
+                    wl_list_for_each(o, &server->outputs, link)
+                        if (o != out && o->wlr_output->enabled)
+                        {
+                            replacement = o;
+                            break;
+                        }
+                }
+
+                if (server->focused_output == out)
+                    server->focused_output = replacement;
+
+                nnwm_toplevel *tl;
+                wl_list_for_each(tl, &server->toplevels, link)
+                {
+                    if (tl->output != out)
+                        continue;
+                    tl->output = replacement;
+                }
+                if (replacement)
+                    arrange_windows(server, replacement);
+            }
+        }
     }
 
     if (test)
