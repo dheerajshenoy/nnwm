@@ -274,5 +274,21 @@ include(GNUInstallDirs)
 install(TARGETS nnwm nnwmctl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES nnwm.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/wayland-sessions)
 if(USE_SCENEFX)
-    install(FILES "${SCENEFX_LIB}" DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    # SCENEFX_LIB is the unversioned dev symlink (libscenefx-0.5.so ->
+    # libscenefx-0.5.so.0 -> libscenefx-0.5.so.0.5.0). install(FILES) does not
+    # dereference symlinks, so installing it directly would copy a dangling
+    # symlink and skip the real, SONAME-named file the binary actually needs
+    # at runtime. Resolve the real file at install time and lay out the full
+    # symlink chain ourselves.
+    install(CODE "
+        get_filename_component(_scenefx_real \"${SCENEFX_LIB}\" REALPATH)
+        get_filename_component(_scenefx_real_name \"\${_scenefx_real}\" NAME)
+        file(INSTALL \"\${_scenefx_real}\" DESTINATION \"${CMAKE_INSTALL_FULL_LIBDIR}\")
+        execute_process(COMMAND \"${CMAKE_COMMAND}\" -E create_symlink
+            \"\${_scenefx_real_name}\" \"libscenefx-0.5.so.0\"
+            WORKING_DIRECTORY \"${CMAKE_INSTALL_FULL_LIBDIR}\")
+        execute_process(COMMAND \"${CMAKE_COMMAND}\" -E create_symlink
+            \"libscenefx-0.5.so.0\" \"libscenefx-0.5.so\"
+            WORKING_DIRECTORY \"${CMAKE_INSTALL_FULL_LIBDIR}\")
+    ")
 endif()

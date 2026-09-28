@@ -4,6 +4,18 @@
 
 ### Bug Fixes
 
+- **`nnwm` failed to start after a system install: `libscenefx-0.5.so.0: cannot
+  open shared object file`**: the install rule pointed `install(FILES ...)` at
+  the unversioned dev symlink (`libscenefx-0.5.so -> libscenefx-0.5.so.0 ->
+  libscenefx-0.5.so.0.5.0`). `install(FILES)` does not dereference symlinks, so
+  it copied the dangling symlink itself into the system libdir while the real
+  versioned file — and the `libscenefx-0.5.so.0` SONAME the binary actually
+  links against — were never installed. The binary in the build tree kept
+  working because its `BUILD_RPATH` pointed at the bundled scenefx build, only
+  masking the bug for anyone running `cmake --install` and then launching
+  `nnwm` from `PATH`. Fixed by resolving the real file through the full symlink
+  chain at install time and laying down the versioned file plus both symlinks.
+
 - **Windows on a kanshi-disabled output became stranded and could silently eat
   keyboard/cursor input**: `wlr-output-management-v1` clients such as kanshi
   disable an output logically (the connector stays physically attached) when
