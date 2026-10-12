@@ -430,7 +430,15 @@ output_manager_apply_or_test(nnwm_server *server,
     {
         wlr_output_configuration_v1_send_succeeded(config);
         output_manager_build_config(server);
-        arrange_all_outputs(server);
+        /* Every head is now committed and positioned, so layout boxes are
+         * final. Re-run layer arrangement (panels/bars) on each output;
+         * arrange_layers also re-tiles windows. */
+        nnwm_output *o;
+        wl_list_for_each(o, &server->outputs, link)
+        {
+            if (o->wlr_output->enabled)
+                arrange_layers(server, o->wlr_output);
+        }
     }
     else
     {

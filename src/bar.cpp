@@ -1136,6 +1136,12 @@ bar_shrink_usable_area(nnwm_server *server, nnwm_output *out, wlr_box *usable)
     if (!has_bar)
         return;
 
+    /* The output's size/position may have changed (kanshi, mode or scale
+     * change), so refit the bar before reserving space for it. */
+    nnwm_bar *bar = cfg->bar.per_output ? out->bar : server->global_bar;
+    bar_layout(bar);
+    bar_redraw(bar);
+
     /* Reserve height + vertical outer margins on the anchored edge so tiled
      * windows don't overlap a floating (padded) bar. */
     int mt       = cfg->bar.padding.top;
